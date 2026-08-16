@@ -38,10 +38,14 @@ jobs:
         env:
           LOCAL_PROPERTIES_BASE64: ${{ secrets.LOCAL_PROPERTIES_BASE64 }}
         run: |
-          if [ -n "$LOCAL_PROPERTIES_BASE64" ]; then
-            printf '%s' "$LOCAL_PROPERTIES_BASE64" | base64 --decode > local.properties
+          # Use the secret if it decodes cleanly; otherwise build with an empty
+          # local.properties (Gradle defaults all missing keys to empty strings).
+          if [ -n "$LOCAL_PROPERTIES_BASE64" ] && \
+             printf '%s' "$LOCAL_PROPERTIES_BASE64" | base64 -d > local.properties 2>/dev/null; then
+            echo "Using LOCAL_PROPERTIES_BASE64 secret"
           else
-            touch local.properties
+            echo "No valid LOCAL_PROPERTIES_BASE64; using empty local.properties"
+            : > local.properties
           fi
 
       - name: Prepare CI signing config
