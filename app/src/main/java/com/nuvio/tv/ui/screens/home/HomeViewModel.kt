@@ -90,7 +90,7 @@ class HomeViewModel @Inject constructor(
         private const val MAX_RECENT_PROGRESS_ITEMS = 300
         private const val MAX_NEXT_UP_LOOKUPS = 24
         private const val MAX_NEXT_UP_CONCURRENCY = 4
-        private const val MAX_CATALOG_LOAD_CONCURRENCY = 3
+        private const val MAX_CATALOG_LOAD_CONCURRENCY = 4  // match eagerCatalogLoadCount so no eager row waits
         internal const val EXTERNAL_META_PREFETCH_FOCUS_DEBOUNCE_MS = 220L
         internal const val EXTERNAL_META_PREFETCH_ADJACENT_DEBOUNCE_MS = 120L
         private const val MAX_ENRICHMENT_CACHE_SIZE = 64

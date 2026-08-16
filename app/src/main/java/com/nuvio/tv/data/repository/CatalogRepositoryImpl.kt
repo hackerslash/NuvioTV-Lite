@@ -10,8 +10,10 @@ import com.nuvio.tv.domain.model.CatalogRow
 import com.nuvio.tv.domain.model.ContentType
 import com.nuvio.tv.domain.repository.CatalogRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
 import java.net.URLEncoder
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -84,7 +86,9 @@ class CatalogRepositoryImpl @Inject constructor(
             }
             NetworkResult.Loading -> { /* Already emitted */ }
         }
-    }
+        // DTO→domain mapping + distinctBy is CPU work; keep it off the main thread
+        // (collectors run on Main.immediate). Retrofit already handles the network thread.
+    }.flowOn(Dispatchers.Default)
 
     private fun buildCatalogUrl(
         baseUrl: String,
