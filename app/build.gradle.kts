@@ -198,6 +198,15 @@ android {
         getByName("lowram") {
             java.srcDirs("src/playstore/java")
         }
+        // Torrent streaming: the 41MB libtorrserver.so lives in a holder dir referenced only
+        // by full + playstore, so the lowram flavor never packages it. (Per-variant packaging
+        // excludes proved unreliable with useLegacyPackaging, so we gate it at the source.)
+        getByName("full") {
+            jniLibs.srcDir("src/torrentlibs")
+        }
+        getByName("playstore") {
+            jniLibs.srcDir("src/torrentlibs")
+        }
     }
 
     if (enableDoviNative) {
@@ -361,15 +370,6 @@ androidComponents {
     onVariants(selector().withBuildType("debug")) { variant ->
         val isPlaystore = variant.productFlavors.any { it.second == "playstore" }
         variant.applicationId.set(if (isPlaystore) "com.nuvio.appdebug" else "com.nuviodebug.com")
-    }
-    // Low-RAM edition drops torrent streaming: strip the 41MB libtorrserver.so co-process
-    // binary from the APK. Torrent code paths are gated off via AppFeaturePolicy.torrentEnabled,
-    // so the missing binary is never loaded (it's launched via ProcessBuilder, not linked).
-    onVariants { variant ->
-        if (variant.productFlavors.any { it.second == "lowram" }) {
-            variant.packaging.jniLibs.excludes.add("**/libtorrserver.so")
-            variant.packaging.jniLibs.excludes.add("lib/**/libtorrserver.so")
-        }
     }
 }
 
