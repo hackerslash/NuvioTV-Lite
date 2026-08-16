@@ -20,8 +20,6 @@ import io.ktor.client.plugins.HttpResponseValidator
 import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.statement.request
 import io.ktor.http.HttpHeaders
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.runBlocking
 import javax.inject.Singleton
 
 @Module
@@ -39,9 +37,9 @@ object SupabaseModule {
     @OptIn(SupabaseInternal::class)
     fun provideSupabaseClient(
         serverConfiguration: ServerConfiguration
-    ): SupabaseClient = runBlocking(Dispatchers.IO) {
+    ): SupabaseClient {
         val userAgent = "NuvioTV/${BuildConfig.VERSION_NAME.ifBlank { "dev" }}"
-        createSupabaseClient(
+        return createSupabaseClient(
             supabaseUrl = serverConfiguration.backendUrl,
             supabaseKey = serverConfiguration.publishableKey
         ) {
@@ -75,7 +73,6 @@ object SupabaseModule {
             install(Postgrest)
         }
     }
-
 
     @Provides
     @Singleton

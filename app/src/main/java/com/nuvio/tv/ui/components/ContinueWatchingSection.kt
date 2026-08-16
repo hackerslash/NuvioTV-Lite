@@ -47,7 +47,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -736,10 +736,8 @@ fun ContinueWatchingCard(
                             .clip(cwClipShape)
 
                             // Gradient overlay for text legibility, only needed when text sits on the artwork.
-                            .drawWithContent {
-                                drawContent()
-                                if (textBelowArtwork) return@drawWithContent
-
+                            // drawWithCache builds the brush once per size instead of every frame.
+                            .drawWithCache {
                                 val startYPos = size.height * 0.45f
                                 val gradient = Brush.verticalGradient(
                                     colorStops = arrayOf(
@@ -750,12 +748,15 @@ fun ContinueWatchingCard(
                                     startY = startYPos,
                                     endY = size.height
                                 )
-
-                                drawRect(
-                                    brush = gradient,
-                                    topLeft = Offset(-2f, startYPos),
-                                    size = Size(size.width + 4f, (size.height - startYPos) + 4f)
-                                )
+                                onDrawWithContent {
+                                    drawContent()
+                                    if (textBelowArtwork) return@onDrawWithContent
+                                    drawRect(
+                                        brush = gradient,
+                                        topLeft = Offset(-2f, startYPos),
+                                        size = Size(size.width + 4f, (size.height - startYPos) + 4f)
+                                    )
+                                }
                             },
                         placeholder = backgroundPainter,
                         error = backgroundPainter,

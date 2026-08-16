@@ -929,15 +929,16 @@ private fun GridCollectionFolderCard(
             }
 
             if (!folder.hideTitle) {
+                val titleScrim = remember {
+                    Brush.verticalGradient(
+                        colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.7f))
+                    )
+                }
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .align(Alignment.BottomCenter)
-                        .background(
-                            Brush.verticalGradient(
-                                colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.7f))
-                            )
-                        )
+                        .background(titleScrim)
                         .padding(NuvioTheme.spacing.sm),
                     contentAlignment = Alignment.Center
                 ) {

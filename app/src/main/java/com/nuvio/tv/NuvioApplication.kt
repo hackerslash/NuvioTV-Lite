@@ -22,7 +22,6 @@ import com.nuvio.tv.core.build.AppFeaturePolicy
 import com.nuvio.tv.core.diagnostics.MemoryDiagnostics
 import com.nuvio.tv.core.diagnostics.SentryInitializer
 import com.nuvio.tv.core.runtime.PluginRuntimeHooks
-import com.nuvio.tv.core.sync.StartupSyncService
 import com.nuvio.tv.core.sync.androidtv.AndroidTvChannelSyncService
 import com.nuvio.tv.core.network.IPv4FirstDns
 import com.nuvio.tv.data.local.SentrySettingsDataStore
@@ -39,7 +38,6 @@ import javax.inject.Inject
 @HiltAndroidApp
 class NuvioApplication : Application(), SingletonImageLoader.Factory {
 
-    @Inject lateinit var startupSyncService: StartupSyncService
     @Inject lateinit var androidTvChannelSyncService: AndroidTvChannelSyncService
     @Inject lateinit var sentrySettingsDataStore: SentrySettingsDataStore
     @Inject lateinit var simklAnimeIdPreferenceHolder: SimklAnimeIdPreferenceHolder
@@ -157,7 +155,10 @@ class NuvioApplication : Application(), SingletonImageLoader.Factory {
             }
             .crossfade(false)
             .precision(coil3.size.Precision.INEXACT)
-            .allowHardware(true)
+            // Low-RAM: disable hardware bitmaps so allowRgb565 takes effect (hardware bitmaps
+            // are always RGBA_8888). RGB_565 halves poster bytes — the cache holds ~2x posters
+            // per byte budget and peak bitmap memory during scroll is halved, at some draw cost.
+            .allowHardware(!AppFeaturePolicy.lowRamMode)
             .allowRgb565(true)
             .bitmapFactoryMaxParallelism(if (AppFeaturePolicy.lowRamMode) 2 else 4)
             .build()

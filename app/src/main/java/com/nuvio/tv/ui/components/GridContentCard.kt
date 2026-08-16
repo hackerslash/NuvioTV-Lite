@@ -205,16 +205,17 @@ fun GridContentCard(
                 }
 
                 if (showLogo && !item.logo.isNullOrBlank()) {
+                    val logoScrim = remember {
+                        Brush.verticalGradient(
+                            listOf(Color.Transparent, Color.Black.copy(alpha = 0.75f))
+                        )
+                    }
                     Box(
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
                             .fillMaxWidth()
                             .height(posterCardStyle.height * 0.45f)
-                            .background(
-                                Brush.verticalGradient(
-                                    listOf(Color.Transparent, Color.Black.copy(alpha = 0.75f))
-                                )
-                            )
+                            .background(logoScrim)
                     )
                     val logoRequest = remember(item.logo) {
                         ImageRequest.Builder(context)
