@@ -8,6 +8,8 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
@@ -25,7 +27,10 @@ private val PLACEHOLDER_SHIMMER_COLOR_STOPS = arrayOf(
 )
 
 @Composable
-fun rememberPlaceholderShimmerOffsetState(label: String): State<Float> {
+fun rememberPlaceholderShimmerOffsetState(label: String, enabled: Boolean = true): State<Float> {
+    if (!enabled) {
+        return remember { mutableStateOf(-1f) }
+    }
     val shimmerTransition = rememberInfiniteTransition(label = label)
     return shimmerTransition.animateFloat(
         initialValue = -1f,

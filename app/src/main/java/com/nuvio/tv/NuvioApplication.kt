@@ -18,6 +18,8 @@ import coil3.request.allowRgb565
 import coil3.bitmapFactoryMaxParallelism
 
 import okio.Path.Companion.toOkioPath
+import com.nuvio.tv.core.build.AppFeaturePolicy
+import com.nuvio.tv.core.diagnostics.MemoryDiagnostics
 import com.nuvio.tv.core.diagnostics.SentryInitializer
 import com.nuvio.tv.core.runtime.PluginRuntimeHooks
 import com.nuvio.tv.core.sync.StartupSyncService
@@ -74,9 +76,19 @@ class NuvioApplication : Application(), SingletonImageLoader.Factory {
 
     override fun onCreate() {
         super.onCreate()
-        SentryInitializer.start(this, sentrySettingsDataStore)
+        // Low-RAM edition skips crash reporting (Sentry SDK footprint + a blocking
+        // DataStore read on the main thread) and the Android TV launcher-channel sync
+        // (the JobService/boot receiver are stripped from the lowram manifest).
+        if (!AppFeaturePolicy.lowRamMode) {
+            SentryInitializer.start(this, sentrySettingsDataStore)
+        }
         PluginRuntimeHooks.onApplicationCreate(this)
-        androidTvChannelSyncService.start()
+        if (!AppFeaturePolicy.lowRamMode) {
+            androidTvChannelSyncService.start()
+        }
+        // Opt-in memory diagnostics: always on for the low-RAM edition and debug builds.
+        MemoryDiagnostics.enabled = AppFeaturePolicy.lowRamMode || BuildConfig.IS_DEBUG_BUILD
+        MemoryDiagnostics.snapshot(this, "app-onCreate")
         // Load locale synchronously so it's available before Activity.attachBaseContext.
         // SharedPreferences reads are fast (cached in memory after first access).
         val tag = getSharedPreferences("app_locale", Context.MODE_PRIVATE)
@@ -84,13 +96,23 @@ class NuvioApplication : Application(), SingletonImageLoader.Factory {
         LocaleCache.localeTag = tag ?: ""
     }
 
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        MemoryDiagnostics.onTrim(level)
+        MemoryDiagnostics.snapshot(this, "trim-$level")
+    }
+
     override fun newImageLoader(context: android.content.Context): ImageLoader {
         return ImageLoader.Builder(this)
             .components {
-                if (Build.VERSION.SDK_INT >= 28) {
-                    add(AnimatedImageDecoder.Factory())
-                } else {
-                    add(GifDecoder.Factory())
+                // Low-RAM edition skips animated-image decoding: an animated GIF/WebP/HEIF
+                // from an arbitrary poster URL retains every frame, dwarfing the poster cache.
+                if (!AppFeaturePolicy.lowRamMode) {
+                    if (Build.VERSION.SDK_INT >= 28) {
+                        add(AnimatedImageDecoder.Factory())
+                    } else {
+                        add(GifDecoder.Factory())
+                    }
                 }
                 add(SvgDecoder.Factory())
                 // CacheControlCacheStrategy respects server Cache-Control headers,
@@ -118,8 +140,9 @@ class NuvioApplication : Application(), SingletonImageLoader.Factory {
                 // Mid-range devices (≤3GB): use 0.15 for decent image caching.
                 // Normal devices (>3GB): use 0.20 for snappy image loading.
                 val cachePercent = when {
+                    AppFeaturePolicy.lowRamMode -> 0.08
                     totalRamMb <= 2048 -> 0.10
-                    totalRamMb <= 3072 -> 0.25
+                    totalRamMb <= 3072 -> 0.15
                     else -> 0.20
                 }
                 MemoryCache.Builder()
@@ -129,14 +152,14 @@ class NuvioApplication : Application(), SingletonImageLoader.Factory {
             .diskCache {
                 DiskCache.Builder()
                     .directory(cacheDir.resolve("image_cache").toOkioPath())
-                    .maxSizeBytes(200L * 1024 * 1024)
+                    .maxSizeBytes((if (AppFeaturePolicy.lowRamMode) 100L else 200L) * 1024 * 1024)
                     .build()
             }
             .crossfade(false)
             .precision(coil3.size.Precision.INEXACT)
             .allowHardware(true)
             .allowRgb565(true)
-            .bitmapFactoryMaxParallelism(4)
+            .bitmapFactoryMaxParallelism(if (AppFeaturePolicy.lowRamMode) 2 else 4)
             .build()
     }
 }

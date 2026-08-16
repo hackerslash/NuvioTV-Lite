@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Low-RAM edition: no Android TV launcher-channel sync. Drop the boot-time
+         process spin-up (BOOT_COMPLETED receiver) and the 15-min JobService.
+         Channel-sync code is also gated off via AppFeaturePolicy.lowRamMode. -->
+    <uses-permission
+        android:name="android.permission.RECEIVE_BOOT_COMPLETED"
+        tools:node="remove" />
+
+    <application>
+        <receiver
+            android:name=".core.sync.androidtv.TvChannelBootReceiver"
+            tools:node="remove" />
+
+        <service
+            android:name=".core.sync.androidtv.TvChannelRefreshJobService"
+            tools:node="remove" />
+    </application>
+</manifest>

@@ -146,6 +146,10 @@ android {
         // In-app updater (GitHub Releases)
         buildConfigField("String", "GITHUB_OWNER", "\"tapframe\"")
         buildConfigField("String", "GITHUB_REPO", "\"NuvioTV\"")
+
+        // Low-RAM edition markers. Defaults for full/playstore; overridden by the lowram flavor.
+        buildConfigField("boolean", "FEATURE_LOW_RAM_EDITION", "false")
+        buildConfigField("boolean", "FEATURE_TORRENT_ENABLED", "true")
     }
 
     flavorDimensions += "distribution"
@@ -168,6 +172,31 @@ android {
             buildConfigField("boolean", "FEATURE_EXTERNAL_TRAILERS_ENABLED", "true")
             buildConfigField("boolean", "FEATURE_EXTERNAL_PLAYBACK_KEEP_ALIVE_ENABLED", "false")
             buildConfigField("boolean", "FEATURE_CUSTOM_SERVER_CONNECTIONS_ENABLED", "false")
+        }
+        // NuvioTV Low-RAM edition: playstore-lean feature set + native payload cuts
+        // (torrent .so, DoVi native conversion, AFR probe) + aggressive playback buffers.
+        // Reuses the playstore stub sources; low-RAM behaviour is driven by BuildConfig
+        // via com.nuvio.tv.core.build.AppFeaturePolicy. See docs/LOW_RAM_PLAN.md.
+        create("lowram") {
+            dimension = "distribution"
+            versionNameSuffix = "-lowram"
+            buildConfigField("boolean", "FEATURE_PLUGINS_ENABLED", "false")
+            buildConfigField("boolean", "FEATURE_IN_APP_UPDATES_ENABLED", "false")
+            buildConfigField("boolean", "FEATURE_IN_APP_TRAILERS_ENABLED", "false")
+            buildConfigField("boolean", "FEATURE_EXTERNAL_TRAILERS_ENABLED", "false")
+            buildConfigField("boolean", "FEATURE_EXTERNAL_PLAYBACK_KEEP_ALIVE_ENABLED", "false")
+            buildConfigField("boolean", "FEATURE_CUSTOM_SERVER_CONNECTIONS_ENABLED", "false")
+            buildConfigField("boolean", "FEATURE_LOW_RAM_EDITION", "true")
+            buildConfigField("boolean", "FEATURE_TORRENT_ENABLED", "false")
+        }
+    }
+
+    sourceSets {
+        // The lowram flavor reuses the playstore stub implementations (no-op PluginManager,
+        // PluginRuntimeHooks, PluginModule, updater stubs). AppFeaturePolicy is shared too, but
+        // its low-RAM fields read from BuildConfig, so lowram gets distinct values.
+        getByName("lowram") {
+            java.srcDirs("src/playstore/java")
         }
     }
 
@@ -332,6 +361,12 @@ androidComponents {
     onVariants(selector().withBuildType("debug")) { variant ->
         val isPlaystore = variant.productFlavors.any { it.second == "playstore" }
         variant.applicationId.set(if (isPlaystore) "com.nuvio.appdebug" else "com.nuviodebug.com")
+    }
+    // Low-RAM edition drops torrent streaming: strip the 41MB libtorrserver.so co-process
+    // binary from the APK. Torrent code paths are gated off via AppFeaturePolicy.torrentEnabled,
+    // so the missing binary is never loaded (it's launched via ProcessBuilder, not linked).
+    onVariants(selector().withFlavor("distribution" to "lowram")) { variant ->
+        variant.packaging.jniLibs.excludes.add("**/libtorrserver.so")
     }
 }
 
