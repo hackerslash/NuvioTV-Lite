@@ -33,7 +33,7 @@ Build it yourself with the `lowram` product flavor:
   the entire scripted-extension engine is compiled out (inherited from the lean
   `playstore` base). Stremio-style HTTP addons still work.
 - **In-app trailers removed** (no second, always-alive ExoPlayer while browsing).
-- **In-app updater removed**; update manually from GitHub Releases.
+- **In-app OTA updates kept** — checks this repo's GitHub Releases and installs the matching `-lowram` APK, so you don't have to sideload every update by hand.
 - **Auto-frame-rate (AFR) matching disabled** — skips the native MediaInfo probe. 24p
   content may show mild judder on displays that don't already match.
 - **Dolby Vision Profile 7 → HDR10.** DV7 content plays as its HDR10 base layer instead

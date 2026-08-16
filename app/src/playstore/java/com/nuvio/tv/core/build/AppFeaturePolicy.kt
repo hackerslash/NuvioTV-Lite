@@ -6,7 +6,8 @@ import com.nuvio.tv.BuildConfig
 // between the two read from BuildConfig so a single source serves both.
 object AppFeaturePolicy {
     val pluginsEnabled: Boolean = false
-    val inAppUpdatesEnabled: Boolean = false
+    // lowram enables the real in-app updater (OTA from GitHub Releases); playstore keeps it off.
+    val inAppUpdatesEnabled: Boolean = BuildConfig.FEATURE_IN_APP_UPDATES_ENABLED
     val inAppTrailerPlaybackEnabled: Boolean = false
     val externalTrailerPlaybackEnabled: Boolean = BuildConfig.FEATURE_EXTERNAL_TRAILERS_ENABLED
     val trailerPlaybackMode: TrailerPlaybackMode = TrailerPlaybackMode.EXTERNAL

@@ -1,6 +1,7 @@
 package com.nuvio.tv.updater
 
 import android.os.Build
+import com.nuvio.tv.BuildConfig
 import com.nuvio.tv.data.remote.dto.GitHubAssetDto
 
 internal object AbiSelector {
@@ -13,8 +14,15 @@ internal object AbiSelector {
     )
 
     fun chooseBestApkAsset(assets: List<GitHubAssetDto>): GitHubAssetDto? {
-        val apkAssets = assets.filter { it.name.endsWith(".apk", ignoreCase = true) }
-        if (apkAssets.isEmpty()) return null
+        val allApk = assets.filter { it.name.endsWith(".apk", ignoreCase = true) }
+        if (allApk.isEmpty()) return null
+        // Never cross editions: a lowram install only accepts "-lowram" APKs; a non-lowram
+        // install rejects them. Falls back to the full set if a release has no matching edition.
+        val apkAssets = if (BuildConfig.FEATURE_LOW_RAM_EDITION) {
+            allApk.filter { it.name.contains("-lowram", ignoreCase = true) }
+        } else {
+            allApk.filter { !it.name.contains("-lowram", ignoreCase = true) }
+        }.ifEmpty { allApk }
         if (apkAssets.size == 1) return apkAssets.first()
 
         val supported = Build.SUPPORTED_ABIS?.toList().orEmpty()

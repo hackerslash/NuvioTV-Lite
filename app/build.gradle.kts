@@ -144,7 +144,7 @@ android {
         buildConfigField("String", "SENTRY_DSN", buildConfigString(sentryDsn))
 
         // In-app updater (GitHub Releases)
-        buildConfigField("String", "GITHUB_OWNER", "\"tapframe\"")
+        buildConfigField("String", "GITHUB_OWNER", "\"hackerslash\"")
         buildConfigField("String", "GITHUB_REPO", "\"NuvioTV\"")
 
         // Low-RAM edition markers. Defaults for full/playstore; overridden by the lowram flavor.
@@ -182,7 +182,7 @@ android {
             versionName = "1.0.0"
             versionNameSuffix = "-lowram"
             buildConfigField("boolean", "FEATURE_PLUGINS_ENABLED", "false")
-            buildConfigField("boolean", "FEATURE_IN_APP_UPDATES_ENABLED", "false")
+            buildConfigField("boolean", "FEATURE_IN_APP_UPDATES_ENABLED", "true")
             buildConfigField("boolean", "FEATURE_IN_APP_TRAILERS_ENABLED", "false")
             buildConfigField("boolean", "FEATURE_EXTERNAL_TRAILERS_ENABLED", "false")
             buildConfigField("boolean", "FEATURE_EXTERNAL_PLAYBACK_KEEP_ALIVE_ENABLED", "false")
@@ -196,17 +196,23 @@ android {
         // The lowram flavor reuses the playstore stub implementations (no-op PluginManager,
         // PluginRuntimeHooks, PluginModule, updater stubs). AppFeaturePolicy is shared too, but
         // its low-RAM fields read from BuildConfig, so lowram gets distinct values.
+        // lowram = playstore plugin stubs + the REAL in-app updater (so it gets OTA from
+        // GitHub Releases), but NOT the playstore updater stub.
         getByName("lowram") {
-            java.srcDirs("src/playstore/java")
+            java.srcDirs("src/playstore/java", "src/updater/java")
         }
         // Torrent streaming: the 41MB libtorrserver.so lives in a holder dir referenced only
         // by full + playstore, so the lowram flavor never packages it. (Per-variant packaging
         // excludes proved unreliable with useLegacyPackaging, so we gate it at the source.)
+        // The real in-app updater is shared by full + lowram; playstore keeps the no-op stub
+        // (Google Play forbids self-updating).
         getByName("full") {
             jniLibs.srcDir("src/torrentlibs")
+            java.srcDir("src/updater/java")
         }
         getByName("playstore") {
             jniLibs.srcDir("src/torrentlibs")
+            java.srcDir("src/updaterstub/java")
         }
     }
 
