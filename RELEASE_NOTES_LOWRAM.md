@@ -1,4 +1,4 @@
-# NuvioTV — Low-RAM Edition (0.8.4-beta-lowram)
+# NuvioTV — Low-RAM Edition (v1.0.0-lowram)
 
 A deliberately stripped-down build of NuvioTV tuned for the **lowest practical RAM
 footprint on 2 GB Android TV hardware**, where the OS and launcher already eat a large
@@ -6,15 +6,18 @@ share of memory. It preserves the core experience — **browse content → pick 
 reliable playback** — and trades away heavier features to stay alive under memory
 pressure.
 
-Build it with the new `lowram` product flavor:
+**Download:** grab the APK matching your box's CPU (`arm64-v8a` for most modern TV
+boxes, `armeabi-v7a` for older/cheaper ones); `universal` works on any but is larger.
+
+Build it yourself with the `lowram` product flavor:
 
 ```
 ./gradlew :app:assembleLowramRelease      # split APKs per ABI (+ universal)
 ./gradlew :app:bundleLowramRelease        # AAB
 ```
 
-Application ID and versionCode are unchanged from the base build; the version name is
-suffixed `-lowram` so the edition is identifiable.
+**Measured vs. the standard build (armeabi-v7a):** APK **~40 MB, down from ~63 MB**
+(`libtorrserver.so` removed); universal **~102 MB, down from ~200 MB**.
 
 ---
 
