@@ -26,11 +26,40 @@ It acts as a client-side playback interface that can integrate with the Stremio 
 
 Built with Kotlin and optimized for a TV-first viewing experience.
 
+> **This is a performance-focused fork** of NuvioTV. In addition to the standard
+> build, it ships a dedicated **Low-RAM Edition** (see below) and a set of
+> memory/performance optimizations that benefit every build.
+
+## ⚡ Low-RAM Edition
+
+A deliberately stripped-down build tuned for the **lowest practical RAM footprint on
+2 GB Android TV boxes**, where the OS and launcher already eat most of the memory. It
+preserves the core loop — **browse → pick a source → reliable playback** — and trades
+away heavier features to stay alive under memory pressure.
+
+**What it removes / tunes** (full detail in [`RELEASE_NOTES_LOWRAM.md`](RELEASE_NOTES_LOWRAM.md)):
+
+- Torrent streaming dropped → **~23 MB smaller APK**, no 41 MB torrent co-process
+- Hard 48 MB playback buffer (vs. 50 s stock buffers) — the biggest heap lever
+- Plugins/JS runtime, in-app trailers, launcher-channel sync + boot receiver, Sentry, and Dolby-Vision native conversion all disabled
+- Tighter image cache (RGB565, 8 % memory / 100 MB disk), animated-image decode off, bounded metadata caches, no idle animations
+
+See [`docs/LOW_RAM_PLAN.md`](docs/LOW_RAM_PLAN.md) for the full analysis, per-change memory estimates and risk assessment.
+
 ## Installation
 
 ### Android TV
 
-Download the latest APK from [GitHub Releases](https://github.com/tapframe/NuvioTV/releases/latest) and install on your Android TV device.
+Download the latest APK from **[GitHub Releases](https://github.com/hackerslash/NuvioTV/releases/latest)** and sideload it on your Android TV device.
+
+Pick the APK matching your box's CPU:
+
+- **`arm64-v8a`** — most modern TV boxes / sticks (recommended)
+- **`armeabi-v7a`** — older or budget 32-bit boxes
+- **`x86_64` / `x86`** — emulators and x86 devices
+- **`universal`** — works everywhere but is the largest download
+
+The `-lowram` APKs are the Low-RAM Edition; the standard APKs are the full build.
 
 ## Development
 
@@ -44,7 +73,7 @@ Download the latest APK from [GitHub Releases](https://github.com/tapframe/Nuvio
 ### Setup
 
 ```bash
-git clone https://github.com/tapframe/NuvioTV.git
+git clone https://github.com/hackerslash/NuvioTV.git
 cd NuvioTV
 ```
 
@@ -54,6 +83,18 @@ cd NuvioTV
 ./gradlew :app:compileFullDebugKotlin
 ./gradlew :app:assembleFullDebug
 ```
+
+### Low-RAM Edition Build
+
+```bash
+# per-ABI + universal release APKs
+./gradlew :app:assembleLowramRelease
+# or an app bundle
+./gradlew :app:bundleLowramRelease
+```
+
+Flavors: `full` (all features), `playstore` (lean, Play-compliant), `lowram`
+(memory-optimized 2 GB edition).
 
 ### Running on Emulator or Device
 
@@ -84,22 +125,22 @@ For comprehensive legal information, including our full disclaimer, third-party 
 
 ## Star History
 
-<a href="https://www.star-history.com/?type=date&legend=top-left&repos=NuvioMedia%2FNuvioTV">
+<a href="https://www.star-history.com/?type=date&legend=top-left&repos=hackerslash%2FNuvioTV">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=NuvioMedia/NuvioTV&type=date&theme=dark&legend=top-left&sealed_token=9Iz85dRlk6w_jvNTbcCVCqzgR7zrdJE1MkzShRgKXmLaMU-dc74KykTAact0cZd9AsGDxHFt1k2au-WsfIpNgyQj3n9xbv29-qLnV3G7d5w2e0ADJFR-7g" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=NuvioMedia/NuvioTV&type=date&legend=top-left&sealed_token=9Iz85dRlk6w_jvNTbcCVCqzgR7zrdJE1MkzShRgKXmLaMU-dc74KykTAact0cZd9AsGDxHFt1k2au-WsfIpNgyQj3n9xbv29-qLnV3G7d5w2e0ADJFR-7g" />
-   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=NuvioMedia/NuvioTV&type=date&legend=top-left&sealed_token=9Iz85dRlk6w_jvNTbcCVCqzgR7zrdJE1MkzShRgKXmLaMU-dc74KykTAact0cZd9AsGDxHFt1k2au-WsfIpNgyQj3n9xbv29-qLnV3G7d5w2e0ADJFR-7g" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=hackerslash/NuvioTV&type=date&theme=dark&legend=top-left&sealed_token=9Iz85dRlk6w_jvNTbcCVCqzgR7zrdJE1MkzShRgKXmLaMU-dc74KykTAact0cZd9AsGDxHFt1k2au-WsfIpNgyQj3n9xbv29-qLnV3G7d5w2e0ADJFR-7g" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=hackerslash/NuvioTV&type=date&legend=top-left&sealed_token=9Iz85dRlk6w_jvNTbcCVCqzgR7zrdJE1MkzShRgKXmLaMU-dc74KykTAact0cZd9AsGDxHFt1k2au-WsfIpNgyQj3n9xbv29-qLnV3G7d5w2e0ADJFR-7g" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=hackerslash/NuvioTV&type=date&legend=top-left&sealed_token=9Iz85dRlk6w_jvNTbcCVCqzgR7zrdJE1MkzShRgKXmLaMU-dc74KykTAact0cZd9AsGDxHFt1k2au-WsfIpNgyQj3n9xbv29-qLnV3G7d5w2e0ADJFR-7g" />
  </picture>
 </a>
 
 <!-- MARKDOWN LINKS & IMAGES -->
-[contributors-shield]: https://img.shields.io/github/contributors/tapframe/NuvioTV.svg?style=for-the-badge
-[contributors-url]: https://github.com/tapframe/NuvioTV/graphs/contributors
-[forks-shield]: https://img.shields.io/github/forks/tapframe/NuvioTV.svg?style=for-the-badge
-[forks-url]: https://github.com/tapframe/NuvioTV/network/members
-[stars-shield]: https://img.shields.io/github/stars/tapframe/NuvioTV.svg?style=for-the-badge
-[stars-url]: https://github.com/tapframe/NuvioTV/stargazers
-[issues-shield]: https://img.shields.io/github/issues/tapframe/NuvioTV.svg?style=for-the-badge
-[issues-url]: https://github.com/tapframe/NuvioTV/issues
-[license-shield]: https://img.shields.io/github/license/tapframe/NuvioTV.svg?style=for-the-badge
+[contributors-shield]: https://img.shields.io/github/contributors/hackerslash/NuvioTV.svg?style=for-the-badge
+[contributors-url]: https://github.com/hackerslash/NuvioTV/graphs/contributors
+[forks-shield]: https://img.shields.io/github/forks/hackerslash/NuvioTV.svg?style=for-the-badge
+[forks-url]: https://github.com/hackerslash/NuvioTV/network/members
+[stars-shield]: https://img.shields.io/github/stars/hackerslash/NuvioTV.svg?style=for-the-badge
+[stars-url]: https://github.com/hackerslash/NuvioTV/stargazers
+[issues-shield]: https://img.shields.io/github/issues/hackerslash/NuvioTV.svg?style=for-the-badge
+[issues-url]: https://github.com/hackerslash/NuvioTV/issues
+[license-shield]: https://img.shields.io/github/license/hackerslash/NuvioTV.svg?style=for-the-badge
 [license-url]: http://www.gnu.org/licenses/gpl-3.0.en.html
