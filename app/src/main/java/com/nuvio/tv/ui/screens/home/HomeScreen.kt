@@ -64,7 +64,7 @@ private data class HomePosterOptionsTarget(
     val addonBaseUrl: String
 )
 
-private const val HOME_STABLE_GATE_TIMEOUT_MS = 5_000L
+private const val HOME_STABLE_GATE_TIMEOUT_MS = 2_500L
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable

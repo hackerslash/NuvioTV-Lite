@@ -97,7 +97,7 @@ class SearchViewModel @Inject constructor(
          * Live search fires while typing, but each run fans out to every enabled addon catalog, so
          * it waits longer than the suggestion debounce to avoid a request storm per keystroke.
          */
-        const val LIVE_SEARCH_DEBOUNCE_MS = 350L
+        const val LIVE_SEARCH_DEBOUNCE_MS = 250L
 
         const val MAX_SUGGESTIONS = 8
         const val MAX_RECENT_SEARCHES = 8
