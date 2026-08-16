@@ -34,32 +34,32 @@ jobs:
           java-version: "17"
           cache: gradle
 
-      - name: Prepare local properties
+      - name: Prepare local properties (real keys)
         env:
           LOCAL_PROPERTIES_BASE64: ${{ secrets.LOCAL_PROPERTIES_BASE64 }}
         run: |
-          # Use the secret if it decodes cleanly; otherwise build with an empty
-          # local.properties (Gradle defaults all missing keys to empty strings).
-          if [ -n "$LOCAL_PROPERTIES_BASE64" ] && \
-             printf '%s' "$LOCAL_PROPERTIES_BASE64" | base64 -d > local.properties 2>/dev/null; then
-            echo "Using LOCAL_PROPERTIES_BASE64 secret"
+          if [ -n "$LOCAL_PROPERTIES_BASE64" ]; then
+            printf '%s' "$LOCAL_PROPERTIES_BASE64" | tr -d ' \t\r\n' | base64 -d > local.properties
           else
-            echo "No valid LOCAL_PROPERTIES_BASE64; using empty local.properties"
             : > local.properties
           fi
+          # Signing comes from env/secrets below, so drop any stale keystore path.
+          sed -i -E '/^[[:space:]]*(sdk\.dir|NUVIO_RELEASE_STORE_FILE)[[:space:]]*=/d' local.properties || true
 
-      - name: Prepare CI signing config
+      - name: Prepare release keystore (real nuviotv key)
+        env:
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.NUVIO_RELEASE_KEYSTORE_BASE64 }}
+          RELEASE_KEY_ALIAS: ${{ secrets.NUVIO_RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.NUVIO_RELEASE_KEY_PASSWORD }}
+          RELEASE_STORE_PASSWORD: ${{ secrets.NUVIO_RELEASE_STORE_PASSWORD }}
         run: |
-          keytool -genkeypair -v \
-            -keystore "$RUNNER_TEMP/ci-debug.jks" \
-            -storepass android -alias androiddebugkey -keypass android \
-            -dname "CN=Android Debug,O=Android,C=US" \
-            -keyalg RSA -keysize 2048 -validity 10000
+          ks="$RUNNER_TEMP/nuviotv-release.jks"
+          printf '%s' "$RELEASE_KEYSTORE_BASE64" | tr -d ' \t\r\n' | base64 -d > "$ks"
           {
-            echo "NUVIO_RELEASE_STORE_FILE=$RUNNER_TEMP/ci-debug.jks"
-            echo "NUVIO_RELEASE_KEY_ALIAS=androiddebugkey"
-            echo "NUVIO_RELEASE_KEY_PASSWORD=android"
-            echo "NUVIO_RELEASE_STORE_PASSWORD=android"
+            echo "NUVIO_RELEASE_STORE_FILE=$ks"
+            echo "NUVIO_RELEASE_KEY_ALIAS=$RELEASE_KEY_ALIAS"
+            echo "NUVIO_RELEASE_KEY_PASSWORD=$RELEASE_KEY_PASSWORD"
+            echo "NUVIO_RELEASE_STORE_PASSWORD=$RELEASE_STORE_PASSWORD"
           } >> "$GITHUB_ENV"
 
       - name: Build lowramRelease APKs
