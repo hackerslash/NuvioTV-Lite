@@ -179,7 +179,10 @@ android {
         // via com.nuvio.tv.core.build.AppFeaturePolicy. See docs/LOW_RAM_PLAN.md.
         create("lowram") {
             dimension = "distribution"
-            versionName = "1.0.0"
+            // Bumped above defaultConfig (1045) so OTA can install over v1.0.0-lowram —
+            // Android's installer requires a higher versionCode, not just versionName.
+            versionCode = 1046
+            versionName = "1.1.0"
             versionNameSuffix = "-lowram"
             buildConfigField("boolean", "FEATURE_PLUGINS_ENABLED", "false")
             buildConfigField("boolean", "FEATURE_IN_APP_UPDATES_ENABLED", "true")
