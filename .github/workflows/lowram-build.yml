@@ -1,0 +1,86 @@
+name: Build Low-RAM Edition
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish_release:
+        description: Publish the built APKs as a GitHub prerelease
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: lowram-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build lowramRelease APKs
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - name: Prepare local properties
+        env:
+          LOCAL_PROPERTIES_BASE64: ${{ secrets.LOCAL_PROPERTIES_BASE64 }}
+        run: |
+          if [ -n "$LOCAL_PROPERTIES_BASE64" ]; then
+            printf '%s' "$LOCAL_PROPERTIES_BASE64" | base64 --decode > local.properties
+          else
+            touch local.properties
+          fi
+
+      - name: Prepare CI signing config
+        run: |
+          keytool -genkeypair -v \
+            -keystore "$RUNNER_TEMP/ci-debug.jks" \
+            -storepass android -alias androiddebugkey -keypass android \
+            -dname "CN=Android Debug,O=Android,C=US" \
+            -keyalg RSA -keysize 2048 -validity 10000
+          {
+            echo "NUVIO_RELEASE_STORE_FILE=$RUNNER_TEMP/ci-debug.jks"
+            echo "NUVIO_RELEASE_KEY_ALIAS=androiddebugkey"
+            echo "NUVIO_RELEASE_KEY_PASSWORD=android"
+            echo "NUVIO_RELEASE_STORE_PASSWORD=android"
+          } >> "$GITHUB_ENV"
+
+      - name: Build lowramRelease APKs
+        run: ./gradlew :app:assembleLowramRelease --stacktrace
+
+      - name: Upload APKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuviotv-lowram-release-${{ github.run_number }}
+          path: app/build/outputs/apk/lowram/release/*.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Publish prerelease
+        if: ${{ inputs.publish_release }}
+        run: |
+          mapfile -t apks < <(find app/build/outputs/apk/lowram/release -maxdepth 1 -type f -name '*.apk' | sort)
+          if (( ${#apks[@]} == 0 )); then
+            echo "No APKs produced." >&2
+            exit 1
+          fi
+          tag="lowram-build-${{ github.run_number }}"
+          gh release create "$tag" \
+            --target "${GITHUB_SHA}" \
+            --title "NuvioTV Low-RAM Edition (build ${{ github.run_number }})" \
+            --notes-file RELEASE_NOTES_LOWRAM.md \
+            --prerelease \
+            "${apks[@]}"
