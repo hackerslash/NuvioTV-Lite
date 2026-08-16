@@ -365,8 +365,11 @@ androidComponents {
     // Low-RAM edition drops torrent streaming: strip the 41MB libtorrserver.so co-process
     // binary from the APK. Torrent code paths are gated off via AppFeaturePolicy.torrentEnabled,
     // so the missing binary is never loaded (it's launched via ProcessBuilder, not linked).
-    onVariants(selector().withFlavor("distribution" to "lowram")) { variant ->
-        variant.packaging.jniLibs.excludes.add("**/libtorrserver.so")
+    onVariants { variant ->
+        if (variant.productFlavors.any { it.second == "lowram" }) {
+            variant.packaging.jniLibs.excludes.add("**/libtorrserver.so")
+            variant.packaging.jniLibs.excludes.add("lib/**/libtorrserver.so")
+        }
     }
 }
 
