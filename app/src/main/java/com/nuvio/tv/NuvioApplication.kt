@@ -155,9 +155,8 @@ class NuvioApplication : Application(), SingletonImageLoader.Factory {
             }
             .crossfade(false)
             .precision(coil3.size.Precision.INEXACT)
-            // Low-RAM: disable hardware bitmaps so allowRgb565 takes effect (hardware bitmaps
-            // are always RGBA_8888). RGB_565 halves poster bytes — the cache holds ~2x posters
-            // per byte budget and peak bitmap memory during scroll is halved, at some draw cost.
+            // Hardware bitmaps are always RGBA_8888, so allowRgb565 only takes effect with them
+            // off; low-RAM disables them to halve poster bytes (at some draw cost).
             .allowHardware(!AppFeaturePolicy.lowRamMode)
             .allowRgb565(true)
             .bitmapFactoryMaxParallelism(if (AppFeaturePolicy.lowRamMode) 2 else 4)

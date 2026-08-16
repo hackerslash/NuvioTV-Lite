@@ -736,7 +736,6 @@ fun ContinueWatchingCard(
                             .clip(cwClipShape)
 
                             // Gradient overlay for text legibility, only needed when text sits on the artwork.
-                            // drawWithCache builds the brush once per size instead of every frame.
                             .drawWithCache {
                                 val startYPos = size.height * 0.45f
                                 val gradient = Brush.verticalGradient(
