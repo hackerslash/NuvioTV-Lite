@@ -1030,8 +1030,7 @@ fun ModernHomeContent(
             val stableTrailerContentAlphaLambda = remember { { trailerContentAlphaState.value } }
             val stableExpandedTrailerPreviewUrl = remember(heroTrailerUrlsState) { { heroTrailerUrlsState.value.first } }
             val stableExpandedTrailerPreviewAudioUrl = remember(heroTrailerUrlsState) { { heroTrailerUrlsState.value.second } }
-            val stableEnrichedPreviews = remember { androidx.compose.runtime.mutableStateOf(enrichedPreviews.asStable()) }
-                .apply { value = enrichedPreviews.asStable() }
+            val stableEnrichedPreviews = remember(enrichedPreviews) { mutableStateOf(enrichedPreviews.asStable()) }
             val stableTrailerPreviewUrls = remember(trailerPreviewUrls) { trailerPreviewUrls.asStable() }
             val stableTrailerPreviewAudioUrls = remember(trailerPreviewAudioUrls) { trailerPreviewAudioUrls.asStable() }
 

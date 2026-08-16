@@ -10,7 +10,7 @@ import com.nuvio.tv.data.remote.api.ArmApi
 import com.nuvio.tv.data.remote.api.ArmEntry
 import com.nuvio.tv.data.remote.api.IntroDbApi
 import com.nuvio.tv.data.remote.api.IntroDbSegment
-import java.util.concurrent.ConcurrentHashMap
+import com.nuvio.tv.core.util.lruCacheMap
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.async
@@ -32,9 +32,9 @@ class SkipIntroRepository @Inject constructor(
     private val armApi: ArmApi,
     private val animeSkipSettingsDataStore: AnimeSkipSettingsDataStore
 ) {
-    private val cache = ConcurrentHashMap<String, List<SkipInterval>>()
-    private val imdbEntriesCache = ConcurrentHashMap<String, List<ArmEntry>>()
-    private val animeSkipShowIdCache = ConcurrentHashMap<String, String>()
+    private val cache = lruCacheMap<String, List<SkipInterval>>(48)
+    private val imdbEntriesCache = lruCacheMap<String, List<ArmEntry>>(48)
+    private val animeSkipShowIdCache = lruCacheMap<String, String>(48)
     private val introDbConfigured = BuildConfig.INTRODB_API_URL.isNotEmpty()
 
     suspend fun getSkipIntervals(imdbId: String?, season: Int, episode: Int): List<SkipInterval> = coroutineScope {

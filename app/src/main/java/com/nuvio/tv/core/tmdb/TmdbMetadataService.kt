@@ -13,6 +13,7 @@ import com.nuvio.tv.data.remote.api.TmdbPersonCreditCast
 import com.nuvio.tv.data.remote.api.TmdbPersonCreditCrew
 import com.nuvio.tv.data.remote.api.TmdbRecommendationResult
 import com.nuvio.tv.data.remote.api.TmdbVideoResult
+import com.nuvio.tv.core.util.lruCacheMap
 import com.nuvio.tv.domain.model.ContentType
 import com.nuvio.tv.domain.model.MetaCastMember
 import com.nuvio.tv.domain.model.MetaCompany
@@ -51,15 +52,15 @@ class TmdbMetadataService(
     constructor(tmdbApi: TmdbApi) : this(tmdbApi, Dispatchers.IO)
 
     // In-memory caches
-    private val enrichmentCache = ConcurrentHashMap<String, TmdbEnrichment>()
-    private val episodeCache = ConcurrentHashMap<String, Map<Pair<Int, Int>, TmdbEpisodeEnrichment>>()
+    private val enrichmentCache = lruCacheMap<String, TmdbEnrichment>(48)
+    private val episodeCache = lruCacheMap<String, Map<Pair<Int, Int>, TmdbEpisodeEnrichment>>(48)
     private val enrichmentInFlight = ConcurrentHashMap<String, CompletableDeferred<TmdbEnrichment?>>()
     private val episodeInFlight = ConcurrentHashMap<String, CompletableDeferred<Map<Pair<Int, Int>, TmdbEpisodeEnrichment>>>()
-    private val personCache = ConcurrentHashMap<String, PersonDetail>()
-    private val moreLikeThisCache = ConcurrentHashMap<String, List<MetaPreview>>()
-    private val entityHeaderCache = ConcurrentHashMap<String, TmdbEntityHeader>()
-    private val entityRailCache = ConcurrentHashMap<String, List<MetaPreview>>()
-    private val entityBrowseCache = ConcurrentHashMap<String, TmdbEntityBrowseData>()
+    private val personCache = lruCacheMap<String, PersonDetail>(48)
+    private val moreLikeThisCache = lruCacheMap<String, List<MetaPreview>>(48)
+    private val entityHeaderCache = lruCacheMap<String, TmdbEntityHeader>(48)
+    private val entityRailCache = lruCacheMap<String, List<MetaPreview>>(48)
+    private val entityBrowseCache = lruCacheMap<String, TmdbEntityBrowseData>(48)
 
     suspend fun fetchEnrichment(
         tmdbId: String,
@@ -677,7 +678,7 @@ class TmdbMetadataService(
         }
     }
 
-    private val collectionCache = ConcurrentHashMap<String, List<MetaPreview>>()
+    private val collectionCache = lruCacheMap<String, List<MetaPreview>>(48)
 
     suspend fun fetchMovieCollection(
         collectionId: Int,

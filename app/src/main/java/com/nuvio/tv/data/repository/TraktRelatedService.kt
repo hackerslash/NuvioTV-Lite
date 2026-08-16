@@ -13,7 +13,7 @@ import com.nuvio.tv.domain.model.ContentType
 import com.nuvio.tv.domain.model.Meta
 import com.nuvio.tv.domain.model.MetaPreview
 import com.nuvio.tv.domain.model.PosterShape
-import java.util.concurrent.ConcurrentHashMap
+import com.nuvio.tv.core.util.lruCacheMap
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -41,7 +41,7 @@ class TraktRelatedService @Inject constructor(
         val updatedAtMs: Long
     )
 
-    private val cache = ConcurrentHashMap<String, TimedCache>()
+    private val cache = lruCacheMap<String, TimedCache>(48)
 
     suspend fun getRelated(
         meta: Meta,

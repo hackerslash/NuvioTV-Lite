@@ -64,7 +64,6 @@ import androidx.tv.material3.Text
 import coil3.compose.AsyncImage
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import android.util.Log
 import com.nuvio.tv.R
 import com.nuvio.tv.domain.model.ContentType
 import com.nuvio.tv.domain.model.Meta
@@ -713,7 +712,6 @@ private fun MetaInfoRow(
             else -> meta.status?.trim()?.takeIf { it.isNotBlank() }?.uppercase()
         }
     }
-    Log.d("HeroBadge", "name=${meta.name} ageRating=${meta.ageRating} status=${meta.status} ageRatingBadge=$ageRatingBadge statusBadge=$statusBadge")
     val secondaryItems = remember(runtimeText, meta.country, meta.language) {
         buildList<String> {
             runtimeText?.takeIf { it.isNotBlank() }?.let { add(it) }

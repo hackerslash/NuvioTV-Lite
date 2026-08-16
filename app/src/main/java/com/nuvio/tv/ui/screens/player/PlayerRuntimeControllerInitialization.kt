@@ -338,6 +338,15 @@ internal fun PlayerRuntimeController.initializePlayer(
                 }
             }
 
+            // Low-RAM edition: never run the off-heap libdovi DV7→DV8.1 conversion (its
+            // native buffers stack on top of the Java buffer and trigger the low-memory
+            // killer on 2GB devices). Fall back to the HDR10 base layer instead.
+            if (!com.nuvio.tv.core.build.AppFeaturePolicy.dolbyVisionNativeConversionEnabled &&
+                effectiveDv7Mode == Dv7HandlingMode.DV81_LIBDOVI
+            ) {
+                effectiveDv7Mode = Dv7HandlingMode.HDR10_BASE_LAYER
+            }
+
             // Experimental: explicit libdovi conversion-mode override. Only applies
             // when DV7 handling is Convert to DV8.1 (the modes are libdovi conversion
             // modes, so they're only meaningful while conversion is active). Picks
@@ -523,6 +532,22 @@ internal fun PlayerRuntimeController.initializePlayer(
                     budgetBytes = budgetBytes,
                     allocator = allocator
                 ).also { currentBitrateAwareLoadControl = it }
+            } else if (com.nuvio.tv.core.build.AppFeaturePolicy.lowRamMode) {
+                // Low-RAM edition: aggressive, heap-capped defaults on the stock path.
+                // A hard 48MB byte cap (prioritizeTimeOverSize=false) with 20s max / 5s
+                // back buffer bounds out-of-box playback heap on 2GB devices.
+                effectiveBackBufferDurationMs = 5_000
+                currentBitrateAwareLoadControl = null
+                Log.i(
+                    PlayerRuntimeController.TAG,
+                    "BUFFER_GATE: engine=exo-lowram; DefaultLoadControl (48MB/20s/5s back) host=${url.safeHost()}"
+                )
+                DefaultLoadControl.Builder()
+                    .setTargetBufferBytes(48 * 1024 * 1024)
+                    .setBufferDurationsMs(10_000, 20_000, 2_500, 5_000)
+                    .setPrioritizeTimeOverSizeThresholds(false)
+                    .setBackBuffer(5_000, /* retainBackBufferFromKeyframe = */ true)
+                    .build()
             } else {
                 // Stock LoadControl: DefaultLoadControl configured with 1.5s back buffer so 1s rewind doesn't clear buffer.
                 effectiveBackBufferDurationMs = 1_500
@@ -537,6 +562,7 @@ internal fun PlayerRuntimeController.initializePlayer(
                     .build()
             }
             _loadControl = loadControl
+            com.nuvio.tv.core.diagnostics.MemoryDiagnostics.snapshot(context, "player-init")
 
             // VOD cache sits under the buffer master in the UI, so gate it the same way at
             // runtime. The low-RAM + confirmed DV7 case is handled dynamically at first frame

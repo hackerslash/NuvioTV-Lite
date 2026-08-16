@@ -156,6 +156,12 @@ internal fun ModernHomeRowsList(
     val rowFocusRequesters = remember { mutableMapOf<String, FocusRequester>() }
     val stableItemFocusRequestersByRow = remember { mutableMapOf<String, StableRef<MutableMap<Int, FocusRequester>>>() }
 
+    LaunchedEffect(carouselRows) {
+        val activeRowKeys = carouselRows.list.mapTo(HashSet()) { it.key }
+        rowFocusRequesters.keys.retainAll(activeRowKeys)
+        stableItemFocusRequestersByRow.keys.retainAll(activeRowKeys)
+    }
+
     val density = LocalDensity.current
     val context = LocalContext.current
     val layoutDirection = LocalLayoutDirection.current
@@ -247,7 +253,11 @@ internal fun ModernHomeRowsList(
 
     val defaultBringIntoViewSpec = LocalBringIntoViewSpec.current
 
-    val sharedPlaceholderShimmerOffsetState = rememberPlaceholderShimmerOffsetState(label = "sharedRowShimmer")
+    val anyRowLoading = remember(carouselRows) { carouselRows.list.any { it.isLoading } }
+    val sharedPlaceholderShimmerOffsetState = rememberPlaceholderShimmerOffsetState(
+        label = "sharedRowShimmer",
+        enabled = anyRowLoading
+    )
 
     CompositionLocalProvider(
         LocalBringIntoViewSpec provides verticalRowBringIntoViewSpec,

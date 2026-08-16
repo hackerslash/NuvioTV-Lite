@@ -2,6 +2,7 @@ package com.nuvio.tv.core.tmdb
 
 import android.util.Log
 import com.nuvio.tv.BuildConfig
+import com.nuvio.tv.core.util.lruCacheMap
 import com.nuvio.tv.data.remote.api.TmdbApi
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
@@ -25,10 +26,10 @@ class TmdbService @Inject constructor(
     private val tmdbApi: TmdbApi
 ) {
     // Cache: IMDB ID -> TMDB ID
-    private val imdbToTmdbCache = ConcurrentHashMap<String, Int>()
-    
-    // Cache: TMDB ID -> IMDB ID  
-    private val tmdbToImdbCache = ConcurrentHashMap<Int, String>()
+    private val imdbToTmdbCache = lruCacheMap<String, Int>(128)
+
+    // Cache: TMDB ID -> IMDB ID
+    private val tmdbToImdbCache = lruCacheMap<Int, String>(128)
 
     private val imdbToTmdbInFlight = ConcurrentHashMap<String, CompletableDeferred<Int?>>()
     private val tmdbToImdbInFlight = ConcurrentHashMap<String, CompletableDeferred<String?>>()

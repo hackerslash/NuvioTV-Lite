@@ -19,7 +19,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
-import java.util.concurrent.ConcurrentHashMap
+import com.nuvio.tv.core.util.lruCacheMap
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -47,7 +47,7 @@ class MDBListRepository @Inject constructor(
 
     private val tag = "MDBListRepository"
     private val cacheTtlMs = 30L * 60L * 1000L
-    private val cache = ConcurrentHashMap<String, CacheEntry>()
+    private val cache = lruCacheMap<String, CacheEntry>(48)
     private val inFlight = mutableMapOf<String, kotlinx.coroutines.Deferred<MDBListRatingsResult?>>()
     private val inFlightMutex = Mutex()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
