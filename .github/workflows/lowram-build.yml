@@ -4,7 +4,17 @@ on:
   workflow_dispatch:
     inputs:
       publish_release:
-        description: Publish the built APKs as a GitHub prerelease
+        description: Publish the built APKs as a GitHub release
+        required: false
+        type: boolean
+        default: true
+      release_tag:
+        description: Release tag (blank = auto lowram-build-<run#>)
+        required: false
+        type: string
+        default: ""
+      prerelease:
+        description: Mark the release as a prerelease
         required: false
         type: boolean
         default: true
@@ -81,10 +91,11 @@ jobs:
             echo "No APKs produced." >&2
             exit 1
           fi
-          tag="lowram-build-${{ github.run_number }}"
-          gh release create "$tag" \
-            --target "${GITHUB_SHA}" \
-            --title "NuvioTV Low-RAM Edition (build ${{ github.run_number }})" \
-            --notes-file RELEASE_NOTES_LOWRAM.md \
-            --prerelease \
-            "${apks[@]}"
+          tag="${{ inputs.release_tag }}"
+          [ -n "$tag" ] || tag="lowram-build-${{ github.run_number }}"
+          title="NuvioTV Low-RAM Edition ($tag)"
+          args=( "$tag" --target "${GITHUB_SHA}" --title "$title" --notes-file RELEASE_NOTES_LOWRAM.md )
+          if [ "${{ inputs.prerelease }}" = "true" ]; then
+            args+=( --prerelease )
+          fi
+          gh release create "${args[@]}" "${apks[@]}"

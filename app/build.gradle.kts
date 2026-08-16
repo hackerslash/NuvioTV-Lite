@@ -179,6 +179,7 @@ android {
         // via com.nuvio.tv.core.build.AppFeaturePolicy. See docs/LOW_RAM_PLAN.md.
         create("lowram") {
             dimension = "distribution"
+            versionName = "1.0.0"
             versionNameSuffix = "-lowram"
             buildConfigField("boolean", "FEATURE_PLUGINS_ENABLED", "false")
             buildConfigField("boolean", "FEATURE_IN_APP_UPDATES_ENABLED", "false")
