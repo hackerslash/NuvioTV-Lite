@@ -17,5 +17,5 @@ object AppFeaturePolicy {
     val liteMode: Boolean = BuildConfig.FEATURE_LITE_EDITION
     val torrentEnabled: Boolean = BuildConfig.FEATURE_TORRENT_ENABLED
     val autoFrameRateProbeEnabled: Boolean = !BuildConfig.FEATURE_LITE_EDITION
-    val dolbyVisionNativeConversionEnabled: Boolean = !BuildConfig.FEATURE_LITE_EDITION
+    val dolbyVisionNativeConversionEnabled: Boolean = true
 }

@@ -35,6 +35,6 @@ Performance release — no new features, no behaviour changes to browsing or pla
 
 Initial public release of the Lite Edition — a build of NuvioTV tuned for the
 lowest practical RAM footprint on 2 GB Android TV hardware. Torrent streaming, the
-JS addon runtime, in-app trailers, AFR probing, Dolby-Vision native conversion, and
+JS addon runtime, in-app trailers, AFR probing, and
 launcher-channel sync are removed; playback buffers and image caches are tightened.
 In-app OTA updates are kept. See `RELEASE_NOTES_LITE.md` for the full breakdown.

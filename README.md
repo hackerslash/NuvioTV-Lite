@@ -43,7 +43,7 @@ away heavier features to stay alive under memory pressure.
 
 - Torrent streaming dropped → **~23 MB smaller APK**, no 41 MB torrent co-process
 - Hard 48 MB playback buffer (vs. 50 s stock buffers) — the biggest heap lever
-- Plugins/JS runtime, in-app trailers, launcher-channel sync + boot receiver, Sentry, and Dolby-Vision native conversion all disabled
+- Plugins/JS runtime, in-app + external trailers, launcher-channel sync + boot receiver, Sentry, custom server connections, and the auto-frame-rate probe all disabled
 - Tighter image cache (RGB565, 8 % memory / 100 MB disk), animated-image decode off, bounded metadata caches, no idle animations
 
 See [`docs/LITE_PLAN.md`](docs/LITE_PLAN.md) for the full analysis, per-change memory estimates and risk assessment.

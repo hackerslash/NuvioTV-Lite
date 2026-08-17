@@ -338,9 +338,9 @@ internal fun PlayerRuntimeController.initializePlayer(
                 }
             }
 
-            // Lite edition: never run the off-heap libdovi DV7→DV8.1 conversion (its
-            // native buffers stack on top of the Java buffer and trigger the low-memory
-            // killer on 2GB devices). Fall back to the HDR10 base layer instead.
+            // Policy kill-switch for the off-heap libdovi DV7→DV8.1 conversion (its native
+            // buffers stack on top of the Java buffer and can trigger the low-memory killer
+            // on 2GB devices). Falls back to the HDR10 base layer. Enabled on all flavors.
             if (!com.nuvio.tv.core.build.AppFeaturePolicy.dolbyVisionNativeConversionEnabled &&
                 effectiveDv7Mode == Dv7HandlingMode.DV81_LIBDOVI
             ) {

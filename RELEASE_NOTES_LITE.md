@@ -36,9 +36,10 @@ Build it yourself with the `lite` product flavor:
 - **In-app OTA updates kept** — checks this repo's GitHub Releases and installs the matching `-lite` APK, so you don't have to sideload every update by hand.
 - **Auto-frame-rate (AFR) matching disabled** — skips the native MediaInfo probe. 24p
   content may show mild judder on displays that don't already match.
-- **Dolby Vision Profile 7 → HDR10.** DV7 content plays as its HDR10 base layer instead
-  of running the off-heap libdovi conversion (the conversion buffers stack on top of the
-  video buffer and were a leading cause of the low-memory-killer on 2 GB boxes).
+- **Dolby Vision handling is unchanged from the full build.** DV7 conversion follows your
+  player setting, exactly as on `full`. Note the off-heap libdovi path is only compiled in
+  when `DOVI_NATIVE_ENABLED` is set at build time; the published APKs are built without it,
+  so DV7 falls back to its HDR10 base layer on every flavor.
 - **Android TV launcher-channel sync removed**, including the `BOOT_COMPLETED` receiver —
   the app no longer spins up a process at device boot or runs a 15-minute background job.
 - **Crash reporting (Sentry) disabled** — removes the SDK footprint and a blocking
