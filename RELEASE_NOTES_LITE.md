@@ -6,8 +6,15 @@ share of memory. It preserves the core experience — **browse content → pick 
 reliable playback** — and trades away heavier features to stay alive under memory
 pressure.
 
-**Download:** grab the APK matching your box's CPU (`arm64-v8a` for most modern TV
-boxes, `armeabi-v7a` for older/cheaper ones); `universal` works on any but is larger.
+**Installs alongside the standard build.** This edition ships as `com.nuvio.tv.lite`
+under the name **Nuvio Lite**, so you can keep it next to a regular NuvioTV install and
+compare them. Note it therefore won't upgrade an older side-loaded Lite build — that one
+was `com.nuvio.tv` and stays as a separate app until you remove it.
+
+**Download:** grab the APK matching your box's CPU. Most 2 GB TV boxes and sticks are
+32-bit, so **start with `armeabi-v7a`**; pick `arm64-v8a` only if you know your box is
+64-bit. `universal` works on any device but is the largest download. You only choose
+once — in-app updates detect your ABI and fetch the right APK automatically.
 
 Build it yourself with the `lite` product flavor:
 
@@ -33,7 +40,9 @@ Build it yourself with the `lite` product flavor:
   the entire scripted-extension engine is compiled out (inherited from the lean
   `playstore` base). Stremio-style HTTP addons still work.
 - **In-app trailers removed** (no second, always-alive ExoPlayer while browsing).
-- **In-app OTA updates kept** — checks this repo's GitHub Releases and installs the matching `-lite` APK, so you don't have to sideload every update by hand.
+- **In-app OTA updates kept** — checks this repo's GitHub Releases for the newest full
+  release, compares its `v<version>-lite` tag against your installed version, and
+  downloads the APK matching your CPU. Future updates arrive in-app; no sideloading.
 - **Auto-frame-rate (AFR) matching disabled** — skips the native MediaInfo probe. 24p
   content may show mild judder on displays that don't already match.
 - **Dolby Vision handling is unchanged from the full build.** DV7 conversion follows your
@@ -47,9 +56,15 @@ Build it yourself with the `lite` product flavor:
 
 ### Degraded / tightened (still works, uses less)
 
-- **Playback buffer capped hard at ~48 MB** (20 s max / 5 s back buffer) out of the box.
-  Expect slightly more rebuffering on slow connections in exchange for a much smaller
-  playback heap.
+- **Playback buffer is 100 MB with no back buffer** out of the box (70 s of forward
+  buffer). If you turn on performance mode or custom buffers, the target is capped by
+  device RAM tier — 250 MB on a 2 GB box — so a tuned setup can't out-allocate the
+  device. Expect slightly more rebuffering on slow connections in exchange for a much
+  smaller playback heap.
+- **Addon stream lookups are bounded** to 3 at a time on low-RAM devices (8 elsewhere)
+  rather than querying every installed source at once. Sources appear progressively
+  instead of all at the end, and a long addon list no longer risks the process being
+  killed mid-search.
 - **Image memory cache reduced** to 8% of app RAM (from 10%), disk cache 100 MB (from
   200 MB), decode parallelism halved, and **animated-image decoding disabled** (animated
   posters render their first frame) — animated art was the one uncapped bitmap allocation.
@@ -67,7 +82,11 @@ downmix), libass styled subtitles, and the full browse/detail/source-selection U
   collection, IMDb episode ratings, parental guide, skip-intro, MDBList, Trakt-related) —
   they grew for the whole session before.
 - Home screen no longer runs a placeholder-shimmer animation forever — it stops once rows
-  finish loading, so the frame pipeline can idle.
+  finish loading, so the frame pipeline can idle. In this edition placeholders and
+  skeletons stay static, so nothing animates while catalogs are loading.
+- Device memory tier is now read from physical RAM rather than heap size, so a 2 GB box
+  is no longer mistaken for a high-RAM device (`largeHeap` makes both report the same
+  ~512 MB heap). Image caches and playback budgets share that one tier.
 - Fixed a slow session-long leak of per-row `FocusRequester` objects on the home screen.
 - Removed a per-recomposition debug log and a per-recomposition allocation on the detail
   and home screens.

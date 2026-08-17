@@ -179,10 +179,15 @@ android {
         // via com.nuvio.tv.core.build.AppFeaturePolicy. See docs/LITE_PLAN.md.
         create("lite") {
             dimension = "distribution"
-            // Bumped above defaultConfig (1045) so OTA can install over v1.0.0-lite —
-            // Android's installer requires a higher versionCode, not just versionName.
-            versionCode = 1046
-            versionName = "1.1.0"
+            // Distinct package so Lite installs alongside the standard NuvioTV build
+            // instead of replacing it. FileProvider authorities derive from
+            // ${applicationId}, so they follow automatically.
+            applicationId = "com.nuvio.tv.lite"
+            // First published release. Kept well above every previously side-loaded CI
+            // build (max 1046) because Android's installer requires a higher versionCode
+            // to update, not just a higher versionName. Bump by 1 per release.
+            versionCode = 10000
+            versionName = "1.0.0"
             versionNameSuffix = "-lite"
             buildConfigField("boolean", "FEATURE_PLUGINS_ENABLED", "false")
             buildConfigField("boolean", "FEATURE_IN_APP_UPDATES_ENABLED", "true")

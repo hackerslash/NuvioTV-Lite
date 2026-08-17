@@ -4,9 +4,53 @@ All notable changes to the Lite Edition are documented here. Versions use the
 `X.Y.Z-lite` scheme; every release ships torrent-free per-ABI APKs and receives
 in-app OTA updates.
 
-## v1.1.0-lite
+Release tags are `v<versionName>` (e.g. `v1.0.0-lite`) and are derived from the
+build itself. The in-app updater compares the release tag against the installed
+`versionName`, so tags must stay version-shaped and releases must be published as
+full releases — the updater ignores prereleases and drafts.
 
-Performance release — no new features, no behaviour changes to browsing or playback.
+## v1.0.0-lite — 2026-08-17
+
+First published release. A build of NuvioTV tuned for the lowest practical RAM
+footprint on 2 GB Android TV hardware, where the OS and launcher already claim a
+large share of memory. It preserves the core experience — browse content, pick a
+source, reliable playback — and drops heavier features to stay alive under memory
+pressure.
+
+Torrent streaming (the 41 MB `libtorrserver.so`), the JS addon runtime, in-app
+trailers, auto-frame-rate probing, and launcher-channel sync are all removed.
+Crash reporting is off. In-app OTA updates are kept, so this build updates itself
+from GitHub Releases.
+
+### Installs alongside the standard build
+- Package is now `com.nuvio.tv.lite` (was `com.nuvio.tv`) and the app is named
+  **Nuvio Lite**, so it installs next to a standard NuvioTV install instead of
+  replacing it. Both can be kept and compared on the same device. All provider
+  authorities derive from the package, so nothing collides.
+- Because the package changed, this does not upgrade an earlier side-loaded Lite
+  build — it installs as a separate app. Remove the old one manually if you don't
+  want both. Updates from this release onward install over themselves normally.
+- Known consequence: with both apps installed, both register the `nuvio://` link
+  scheme, so Android may ask which app to use when returning from a provider login.
+
+### Lower memory ceilings
+- Device memory tier is now decided by physical RAM (`ActivityManager.isLowRamDevice`
+  plus a 2.5 GB cut) instead of heap size. `largeHeap` reports the same ~512 MB heap
+  on a 2 GB box as on an 8 GB one, so heap size could not tell them apart and a 2 GB
+  device was being treated as high-RAM.
+- Low-RAM devices get a hard 250 MB ceiling on combined playback buffer and parallel
+  chunk allocations once the tuned buffer path is in use (performance mode or custom
+  buffers). Previously the heap ratio alone allowed roughly 435 MB on a 2 GB device,
+  which the kernel low-memory killer reclaims before any `OutOfMemoryError` is thrown.
+  The stock buffer path was already conservative at 100 MB with no back buffer.
+- Image cache tiering and the playback budget now read the same device tier, so they
+  can no longer disagree about what class of device they are running on.
+
+### Fewer simultaneous source requests
+- Addon stream lookups are now bounded (3 concurrent on low-RAM devices, 8 elsewhere).
+  Previously every configured stream addon was queried at once with no limit, holding
+  every response body and parsed stream list in memory simultaneously — the cause of
+  crashes on 2 GB devices for users with many sources installed.
 
 ### Faster startup (main thread unblocked)
 - Removed the `runBlocking` that built the Supabase/Ktor client on the main thread
@@ -22,19 +66,20 @@ Performance release — no new features, no behaviour changes to browsing or pla
 - Live-search debounce reduced from 350 ms to 250 ms so results settle sooner.
 - Home startup safety timeout cut from 5 s to 2.5 s so a slow/clean-cache launch
   shows available content sooner instead of holding a full-screen spinner.
+- Loading placeholders and skeletons hold a static gradient instead of animating.
+  They previously ran a frame callback for the whole duration of a catalog load,
+  competing with that load for a low-end CPU.
 
 ### Less memory
-- Lite edition now disables hardware bitmaps so RGB_565 actually takes effect,
-  roughly halving poster-cache bytes (hardware bitmaps are always RGBA_8888).
+- Hardware bitmaps are disabled so RGB_565 actually takes effect, roughly halving
+  poster-cache bytes (hardware bitmaps are always RGBA_8888).
 - Continue-Watching cards build their overlay gradient once per size instead of every
   frame during scroll (`drawWithCache`).
 - Poster/folder cards remember their scrim gradient brushes instead of reallocating
   them on every focus change.
 
-## v1.0.0-lite
-
-Initial public release of the Lite Edition — a build of NuvioTV tuned for the
-lowest practical RAM footprint on 2 GB Android TV hardware. Torrent streaming, the
-JS addon runtime, in-app trailers, AFR probing, and
-launcher-channel sync are removed; playback buffers and image caches are tightened.
-In-app OTA updates are kept. See `RELEASE_NOTES_LITE.md` for the full breakdown.
+### Fixed
+- Subtitle auto-sync downloads no longer fail to build against OkHttp 4, where
+  `Response.body` is nullable. A null body is now treated as empty content.
+- Release-info year parsing no longer recompiles its regex for every catalog item on
+  each home load; six call sites share two cached patterns.

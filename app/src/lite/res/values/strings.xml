@@ -1,0 +1,5 @@
+<resources>
+    <!-- Distinct launcher label so Lite is tellable apart from a standard Nuvio
+         install sitting next to it on the same device. -->
+    <string name="app_name">Nuvio Lite</string>
+</resources>

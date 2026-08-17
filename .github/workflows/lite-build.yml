@@ -9,15 +9,15 @@ on:
         type: boolean
         default: true
       release_tag:
-        description: Release tag (blank = auto lite-build-<run#>)
+        description: Release tag (blank = v<versionName> from the build, e.g. v1.0.0-lite)
         required: false
         type: string
         default: ""
       prerelease:
-        description: Mark the release as a prerelease
+        description: Mark as prerelease (NOTE: in-app OTA ignores prereleases)
         required: false
         type: boolean
-        default: true
+        default: false
 
 permissions:
   contents: write
@@ -83,16 +83,28 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      - name: Publish prerelease
+      - name: Publish release
         if: ${{ inputs.publish_release }}
         run: |
-          mapfile -t apks < <(find app/build/outputs/apk/lite/release -maxdepth 1 -type f -name '*.apk' | sort)
+          out=app/build/outputs/apk/lite/release
+          mapfile -t apks < <(find "$out" -maxdepth 1 -type f -name '*.apk' | sort)
           if (( ${#apks[@]} == 0 )); then
             echo "No APKs produced." >&2
             exit 1
           fi
           tag="${{ inputs.release_tag }}"
-          [ -n "$tag" ] || tag="lite-build-${{ github.run_number }}"
+          if [ -z "$tag" ]; then
+            # Derive the tag from the build's own metadata so it can never drift from
+            # versionName: the in-app updater compares the release tag against the
+            # installed versionName, so a non-version tag (the old lite-build-<n>) made
+            # every release look permanently newer.
+            version="$(jq -r '.elements[0].versionName // empty' "$out/output-metadata.json")"
+            if [ -z "$version" ]; then
+              echo "Could not read versionName from $out/output-metadata.json" >&2
+              exit 1
+            fi
+            tag="v$version"
+          fi
           title="NuvioTV Lite Edition ($tag)"
           args=( "$tag" --target "${GITHUB_SHA}" --title "$title" --notes-file RELEASE_NOTES_LITE.md )
           if [ "${{ inputs.prerelease }}" = "true" ]; then

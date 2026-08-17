@@ -56,10 +56,13 @@ Download the latest APK from **[GitHub Releases](https://github.com/hackerslash/
 
 Pick the APK matching your box's CPU:
 
-- **`arm64-v8a`** — most modern TV boxes / sticks (recommended)
-- **`armeabi-v7a`** — older or budget 32-bit boxes
+- **`armeabi-v7a`** — start here: most 2 GB TV boxes and sticks are 32-bit
+- **`arm64-v8a`** — 64-bit boxes (check your device before picking this)
 - **`x86_64` / `x86`** — emulators and x86 devices
 - **`universal`** — works everywhere but is the largest download
+
+Only the first install needs a choice; in-app updates detect your device's ABI and
+fetch the matching APK automatically.
 
 The `-lite` APKs are the Lite Edition; the standard APKs are the full build.
 
