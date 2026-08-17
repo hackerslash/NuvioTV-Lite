@@ -186,8 +186,8 @@ android {
             // First published release. Kept well above every previously side-loaded CI
             // build (max 1046) because Android's installer requires a higher versionCode
             // to update, not just a higher versionName. Bump by 1 per release.
-            versionCode = 10000
-            versionName = "1.0.0"
+            versionCode = 10001
+            versionName = "1.0.1"
             versionNameSuffix = "-lite"
             buildConfigField("boolean", "FEATURE_PLUGINS_ENABLED", "false")
             buildConfigField("boolean", "FEATURE_IN_APP_UPDATES_ENABLED", "true")
@@ -410,9 +410,9 @@ baselineProfile {
     saveInSrc = true
     mergeIntoMain = true
     baselineProfileOutputDir = "generated/baselineProfiles"
-    filter {
-        include("com.nuvio.tv.**")
-    }
+    // No filter: the hot startup classes are Compose, Coroutines, OkHttp and Hilt, so
+    // restricting the profile to com.nuvio.tv.** would strip most of what AOT should
+    // cover. The committed profile predates this block and is unfiltered; keep it that way.
 }
 
 sentry {

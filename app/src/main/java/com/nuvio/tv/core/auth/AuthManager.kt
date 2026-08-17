@@ -130,12 +130,20 @@ class AuthManager @Inject constructor(
                             if (user.email.isNullOrBlank()) {
                                 clearInvalidRemoteSession()
                                 finishStartupAuthDiagnostics("signed_out", "authenticated_session_missing_email")
-                            } else if (!validateAuthenticatedSession(force = false)) {
-                                finishStartupAuthDiagnostics("signed_out", "authenticated_session_invalid")
                             } else {
+                                // Publish the restored session before validating it. validate() is a
+                                // network round trip and every screen is gated on AuthState.Loading,
+                                // so awaiting it first held cold start on a blank frame for the whole
+                                // request. A dead session still self-corrects: the failure path runs
+                                // clearInvalidRemoteSession -> handleUnexpectedSignedOut, which sets
+                                // AuthState.SignedOut.
                                 _authState.value = AuthState.FullAccount(userId = user.id, email = user.email!!)
-                                authSessionNoticeDataStore.markNuvioAuthenticated()
-                                finishStartupAuthDiagnostics("success", "authenticated_session_validated")
+                                if (validateAuthenticatedSession(force = false)) {
+                                    authSessionNoticeDataStore.markNuvioAuthenticated()
+                                    finishStartupAuthDiagnostics("success", "authenticated_session_validated")
+                                } else {
+                                    finishStartupAuthDiagnostics("signed_out", "authenticated_session_invalid")
+                                }
                             }
                         } else {
                             clearInvalidRemoteSession()
