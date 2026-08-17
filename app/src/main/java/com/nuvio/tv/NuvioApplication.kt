@@ -1,6 +1,5 @@
 package com.nuvio.tv
 
-import android.app.ActivityManager
 import android.app.Application
 import android.content.Context
 import android.os.Build
@@ -19,6 +18,7 @@ import coil3.bitmapFactoryMaxParallelism
 
 import okio.Path.Companion.toOkioPath
 import com.nuvio.tv.core.build.AppFeaturePolicy
+import com.nuvio.tv.core.device.DeviceMemoryTier
 import com.nuvio.tv.core.diagnostics.MemoryDiagnostics
 import com.nuvio.tv.core.diagnostics.SentryInitializer
 import com.nuvio.tv.core.runtime.PluginRuntimeHooks
@@ -73,6 +73,10 @@ class NuvioApplication : Application(), SingletonImageLoader.Factory {
     }
 
     override fun onCreate() {
+        // Before super.onCreate(), which triggers Hilt field injection: MemoryBudget caches
+        // its tier on first touch, so the real device tier has to be resolved before any
+        // injected singleton can read it. The base context is already attached here.
+        DeviceMemoryTier.init(this)
         super.onCreate()
         // Lite edition skips crash reporting (Sentry SDK footprint + a blocking
         // DataStore read on the main thread) and the Android TV launcher-channel sync
@@ -129,10 +133,7 @@ class NuvioApplication : Application(), SingletonImageLoader.Factory {
                 )
             }
             .memoryCache {
-                val activityManager = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
-                val memoryInfo = ActivityManager.MemoryInfo()
-                activityManager.getMemoryInfo(memoryInfo)
-                val totalRamMb = memoryInfo.totalMem / (1024 * 1024)
+                val totalRamMb = DeviceMemoryTier.totalRamMb
                 // Low-RAM devices (≤2GB): use 0.10 — larger cache reduces GC pressure
                 // from rapid bitmap eviction during scrolling.
                 // Mid-range devices (≤3GB): use 0.15 for decent image caching.

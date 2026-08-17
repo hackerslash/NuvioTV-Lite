@@ -1,6 +1,7 @@
 package com.nuvio.tv.ui.screens.settings
 
 import androidx.media3.common.util.UnstableApi
+import com.nuvio.tv.core.device.DeviceMemoryTier
 import com.nuvio.tv.data.local.BufferSettings
 import com.nuvio.tv.data.local.PlayerSettings
 
@@ -16,10 +17,13 @@ object MemoryBudget {
     // headroom for codec/surface/UI; high-RAM devices can dedicate more to buffering.
     private const val LOW_HEAP_RATIO = 0.65
     private const val HIGH_HEAP_RATIO = 0.85
-    private const val HIGH_HEAP_THRESHOLD_MB = 512L
     // The buffer allocator is on the Java heap; on low-RAM reserve a slice for the UI/decoder/caches
     // and give the rest to the buffer (a flat % of max heap overcommits and starves them).
     private const val LOW_HEAP_RESERVE_MB = 210L
+    // Hard ceiling on buffer memory for low-RAM devices. The heap ratio alone is not enough:
+    // largeHeap reports the same ~512MB heap on a 2GB box as on an 8GB one, so the ratio would
+    // hand a 2GB device ~435MB of buffers and get the process LMK-killed well before any OOM.
+    private const val LOW_RAM_BUFFER_CEILING_MB = 250
 
     /** ParallelRangeDataSource schedules maxAhead = parallelConnections + 1 chunks concurrently */
     private const val BUFFER_OVERHEAD = 1
@@ -41,17 +45,24 @@ object MemoryBudget {
 
     private val maxHeapMb: Long = Runtime.getRuntime().maxMemory() / (1024L * 1024L)
 
-    /** True when the app heap is below the high-RAM threshold (Fire TV / TV-stick class). */
-    val isLowRamTier: Boolean = maxHeapMb < HIGH_HEAP_THRESHOLD_MB
+    /** True on low-RAM devices (Fire TV / TV-stick class). Keyed on physical RAM, not heap size. */
+    val isLowRamTier: Boolean = DeviceMemoryTier.isLowRam
 
     // Pre-cap ratio budget; conversionBudgetMb derives from this so DV7 headroom isn't cut by the cap.
     private val rawBudgetMb: Int =
         (maxHeapMb * (if (isLowRamTier) LOW_HEAP_RATIO else HIGH_HEAP_RATIO)).toInt()
 
-    val budgetMb: Int =
-        if (isLowRamTier)
-            rawBudgetMb.coerceAtMost((maxHeapMb - LOW_HEAP_RESERVE_MB).toInt()).coerceAtLeast(MIN_BUFFER_MB)
-        else rawBudgetMb
+    val budgetMb: Int = computeBudgetMb(rawBudgetMb, maxHeapMb, isLowRamTier)
+
+    internal fun computeBudgetMb(rawBudgetMb: Int, maxHeapMb: Long, isLowRamTier: Boolean): Int =
+        if (isLowRamTier) {
+            rawBudgetMb
+                .coerceAtMost((maxHeapMb - LOW_HEAP_RESERVE_MB).toInt())
+                .coerceAtMost(LOW_RAM_BUFFER_CEILING_MB)
+                .coerceAtLeast(MIN_BUFFER_MB)
+        } else {
+            rawBudgetMb
+        }
 
     // DV7 conversion headroom: a third of the raw budget on low-RAM, half on high-RAM; never above budget.
     val conversionBudgetMb: Int =

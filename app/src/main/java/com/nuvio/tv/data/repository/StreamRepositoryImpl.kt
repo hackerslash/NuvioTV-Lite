@@ -3,6 +3,7 @@ package com.nuvio.tv.data.repository
 import android.content.Context
 import android.util.Log
 import com.nuvio.tv.R
+import com.nuvio.tv.core.device.DeviceMemoryTier
 import com.nuvio.tv.core.network.NetworkResult
 import com.nuvio.tv.core.network.safeApiCall
 import com.nuvio.tv.core.debrid.DebridStreamPresentation
@@ -32,6 +33,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import java.net.URLEncoder
 import javax.inject.Inject
 
@@ -89,47 +92,51 @@ class StreamRepositoryImpl @Inject constructor(
                 val totalJobs = streamAddons.size + 1
                 val completedJobs = java.util.concurrent.atomic.AtomicInteger(0)
 
-                // Launch addon jobs
+                // Launch addon jobs, bounded so a large addon list can't hold every
+                // response body and parsed stream list in memory at the same time.
+                val addonFetchSemaphore = Semaphore(DeviceMemoryTier.streamFetchConcurrency)
                 streamAddons.forEach { addon ->
                     launch {
                         try {
-                            val streamsResult = getStreamsFromAddon(addon.baseUrl, type, videoId)
-                            when (streamsResult) {
-                                is NetworkResult.Success -> {
-                                    if (streamsResult.data.isNotEmpty()) {
-                                        val namedStreams = streamsResult.data.map {
-                                            it.copy(addonName = addon.displayName, addonLogo = addon.logo)
-                                        }
-                                        resultChannel.send(
-                                            AddonStreams(
-                                                addonName = addon.displayName,
-                                                addonLogo = addon.logo,
-                                                streams = namedStreams
-                                            )
-                                        )
-                                    } else {
-                                        // Stream endpoint returned empty - try inline
-                                        // streams from meta response as fallback.
-                                        val inlineStreams = fetchInlineStreamsFromMeta(
-                                            addon, type, videoId
-                                        )
-                                        if (inlineStreams.isNotEmpty()) {
+                            addonFetchSemaphore.withPermit {
+                                val streamsResult = getStreamsFromAddon(addon.baseUrl, type, videoId)
+                                when (streamsResult) {
+                                    is NetworkResult.Success -> {
+                                        if (streamsResult.data.isNotEmpty()) {
+                                            val namedStreams = streamsResult.data.map {
+                                                it.copy(addonName = addon.displayName, addonLogo = addon.logo)
+                                            }
                                             resultChannel.send(
                                                 AddonStreams(
                                                     addonName = addon.displayName,
                                                     addonLogo = addon.logo,
-                                                    streams = inlineStreams
+                                                    streams = namedStreams
                                                 )
                                             )
                                         } else {
-                                            attemptedFailures += buildMissingStreamFailure(addon)
+                                            // Stream endpoint returned empty - try inline
+                                            // streams from meta response as fallback.
+                                            val inlineStreams = fetchInlineStreamsFromMeta(
+                                                addon, type, videoId
+                                            )
+                                            if (inlineStreams.isNotEmpty()) {
+                                                resultChannel.send(
+                                                    AddonStreams(
+                                                        addonName = addon.displayName,
+                                                        addonLogo = addon.logo,
+                                                        streams = inlineStreams
+                                                    )
+                                                )
+                                            } else {
+                                                attemptedFailures += buildMissingStreamFailure(addon)
+                                            }
                                         }
                                     }
+                                    is NetworkResult.Error -> {
+                                        attemptedFailures += buildAddonFailure(addon, streamsResult)
+                                    }
+                                    NetworkResult.Loading -> Unit
                                 }
-                                is NetworkResult.Error -> {
-                                    attemptedFailures += buildAddonFailure(addon, streamsResult)
-                                }
-                                NetworkResult.Loading -> Unit
                             }
                         } catch (e: Exception) {
                             if (e is CancellationException) throw e
