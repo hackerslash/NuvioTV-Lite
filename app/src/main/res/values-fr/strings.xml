@@ -2469,7 +2469,6 @@
 
     <!-- Audio&#160;: downmix FFmpeg -->
     <string name="audio_enable_downmix_title">Activer le downmix</string>
-    <string name="audio_enable_downmix_subtitle">Utilise le chemin de downmix FFmpeg. Quand il est désactivé, l’audio suit le chemin Android/appareil précédent.</string>
     <string name="audio_number_of_channels">Nombre de canaux</string>
     <string name="audio_number_of_channels_desc">Définit la disposition des haut-parleurs utilisée pour le downmix FFmpeg.</string>
     <string name="audio_center_mix_label">Downmix&#160;: niveau du canal central</string>

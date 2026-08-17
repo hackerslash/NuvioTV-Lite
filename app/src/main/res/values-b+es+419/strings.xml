@@ -699,7 +699,6 @@
     <string name="audio_decoder_prefer_app">Preferir decodificadores de la app (FFmpeg)</string>
     <string name="audio_decoder_priority">Prioridad de Decodificación</string>
     <string name="audio_enable_downmix_title">Activar downmix</string>
-    <string name="audio_enable_downmix_subtitle">Utiliza la ruta de downmix de FFmpeg. Cuando está desactivado, el audio utiliza la ruta anterior de Android/dispositivo.</string>
     <string name="audio_tunneled">Reproducción en túnel</string>
     <string name="audio_tunneled_sub">Sincronización de audio y video a nivel de hardware. Puede mejorar la reproducción en algunos dispositivos Android TV.</string>
     <string name="audio_force_optical_passthrough">Forzar transcodificación AC-3 (Óptico/SPDIF)</string>

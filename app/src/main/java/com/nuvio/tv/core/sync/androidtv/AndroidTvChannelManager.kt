@@ -20,6 +20,9 @@ import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
+import java.util.concurrent.ConcurrentHashMap
+import kotlin.math.abs
+
 private const val TAG = "TvChannelSync"
 
 @Singleton
@@ -27,6 +30,20 @@ class AndroidTvChannelManager @Inject constructor(
     @ApplicationContext private val context: Context,
     private val prefs: TvChannelPreferences,
 ) {
+    private val syncedProgramFingerprints = ConcurrentHashMap<String, ChannelProgramFingerprint>()
+
+    private data class ChannelProgramFingerprint(
+        val title: String?,
+        val position: Int?,
+        val duration: Int?,
+        val imageUri: String?,
+        val logoUri: String?,
+        val sortOrder: Int,
+        val season: Int?,
+        val episode: Int?,
+        val lastEngagementTime: Long
+    )
+
     fun isSupported(): Boolean =
         context.packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK)
 
@@ -84,6 +101,7 @@ class AndroidTvChannelManager @Inject constructor(
                 .setType(TvContractCompat.Channels.TYPE_PREVIEW)
                 .setDisplayName(context.getString(R.string.tv_channel_continue_watching))
                 .setAppLinkIntentUri(appLinkUri)
+                .setInternalProviderId(context.packageName)
                 .build()
 
             val inserted = context.contentResolver.insert(
@@ -119,22 +137,56 @@ class AndroidTvChannelManager @Inject constructor(
                         )
                         Log.d(TAG, "Removed program key=$key rowId=$rowId")
                     }
+                    syncedProgramFingerprints.remove(key)
                 }
             }
 
             items.forEachIndexed { index, progress ->
                 val key = progressKey(progress)
-                val values = buildProgramValues(progress, channelId, index, key)
                 val rowIds = existing[key]
+
+                val (imageUri, _) = when {
+                    !progress.backdrop.isNullOrBlank() -> progress.backdrop to TvContractCompat.PreviewPrograms.ASPECT_RATIO_16_9
+                    !progress.poster.isNullOrBlank() -> progress.poster to TvContractCompat.PreviewPrograms.ASPECT_RATIO_2_3
+                    else -> null to null
+                }
+                val positionMs = if (progress.position > 0) {
+                    progress.position.toInt()
+                } else {
+                    (progress.progressPercent?.let { it / 100f * progress.duration }?.toLong() ?: 0L).toInt()
+                }
+
+                val newFingerprint = ChannelProgramFingerprint(
+                    title = progress.name,
+                    position = positionMs,
+                    duration = progress.duration.toInt(),
+                    imageUri = imageUri,
+                    logoUri = progress.logo,
+                    sortOrder = index,
+                    season = progress.season,
+                    episode = progress.episode,
+                    lastEngagementTime = progress.lastWatched
+                )
+                val oldFingerprint = syncedProgramFingerprints[key]
+
+                if (!rowIds.isNullOrEmpty() && oldFingerprint != null &&
+                    oldFingerprint.title == newFingerprint.title &&
+                    oldFingerprint.imageUri == newFingerprint.imageUri &&
+                    oldFingerprint.logoUri == newFingerprint.logoUri &&
+                    oldFingerprint.sortOrder == newFingerprint.sortOrder &&
+                    oldFingerprint.season == newFingerprint.season &&
+                    oldFingerprint.episode == newFingerprint.episode &&
+                    oldFingerprint.duration == newFingerprint.duration &&
+                    abs((oldFingerprint.position ?: 0) - (newFingerprint.position ?: 0)) < 2_000
+                ) {
+                    // Item already in sync, skip database update to prevent waking up launcher
+                    return@forEachIndexed
+                }
+
+                val values = buildProgramValues(progress, channelId, index, key)
                 if (!rowIds.isNullOrEmpty()) {
                     val primaryRowId = rowIds.first()
                     // UPDATE the existing program row in place — keeping its row ID stable.
-                    // This mirrors the canonical androidx PreviewChannelHelper.updatePreviewProgram
-                    // approach (which Stremio uses and which launchers like Projectivy repaint
-                    // on). The previous delete+re-insert of every program on every reconcile
-                    // churned the provider and left launchers showing a stale cached view until
-                    // the channel's visibility was toggled. buildProgramValues() explicitly nulls
-                    // absent columns, so updates don't leave stale artwork/position behind.
                     context.contentResolver.update(
                         TvContractCompat.buildPreviewProgramUri(primaryRowId), values, null, null
                     )
@@ -152,6 +204,7 @@ class AndroidTvChannelManager @Inject constructor(
                         TvContractCompat.PreviewPrograms.CONTENT_URI, values
                     )
                 }
+                syncedProgramFingerprints[key] = newFingerprint
                 Log.d(TAG, "${if (!rowIds.isNullOrEmpty()) "Updated" else "Inserted"} program key=$key pos=${values.getAsInteger("last_playback_position_millis")} dur=${values.getAsInteger("duration_millis")} pct=${progress.progressPercent}")
             }
         }.onFailure { Log.w(TAG, "reconcile failed", it) }
@@ -170,6 +223,7 @@ class AndroidTvChannelManager @Inject constructor(
                 )
                 deletedCount++
             }
+            syncedProgramFingerprints.clear()
             Log.d(TAG, "Cleared $deletedCount programs for channel $channelId")
         }.onFailure { Log.w(TAG, "clearAll failed", it) }
     }

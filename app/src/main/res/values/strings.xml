@@ -712,7 +712,7 @@
     <string name="audio_decoder_prefer_app">Prefer app decoders (FFmpeg)</string>
     <string name="audio_decoder_priority">Decoder Priority</string>
     <string name="audio_enable_downmix_title">Enable downmix</string>
-    <string name="audio_enable_downmix_subtitle">Uses the FFmpeg downmix path. When disabled, audio follows the previous Android/device path.</string>
+    <string name="audio_enable_downmix_subtitle">Uses the FFmpeg downmix path. Requires Prefer app decoders (FFmpeg). When disabled, audio follows the previous Android/device path.</string>
     <string name="audio_tunneled">Tunneled Playback</string>
     <string name="audio_tunneled_sub">Hardware-level audio/video sync. May improve playback on some Android TV devices</string>
     <string name="audio_force_optical_passthrough">Force AC-3 Transcoding (Optical/SPDIF)</string>
@@ -776,6 +776,8 @@
     <string name="sub_use_forced_subtitles_desc">Prefer forced subtitles when audio matches subtitle language; if unavailable, select nothing</string>
     <string name="sub_show_only_preferred_languages">Show Only Preferred Languages</string>
     <string name="sub_show_only_preferred_languages_desc">Hide all other subtitles languages from selection list</string>
+    <string name="sub_strip_sdh">Strip SDH subtitles</string>
+    <string name="sub_strip_sdh_desc">Hide sound descriptions and speaker labels from text subtitles</string>
     <string name="sub_organization">Subtitle Organization</string>
     <string name="sub_size">Size</string>
     <string name="sub_vertical_offset">Vertical Offset</string>

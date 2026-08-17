@@ -137,6 +137,7 @@ data class SubtitleStyleSettings(
     val secondaryPreferredLanguage: String? = null,
     val useForcedSubtitles: Boolean = false,
     val showOnlyPreferredLanguages: Boolean = false,
+    val stripSdh: Boolean = false,
     val size: Int = 120, // Percentage (50-200)
     val verticalOffset: Int = 5, // Percentage from bottom (-20 to 50)
     val bold: Boolean = false,
@@ -296,6 +297,24 @@ data class PlayerSettings(
     // Nuvio ExoPlayer Performance Mode
     val nuvioPerformanceModeEnabled: Boolean = DEFAULT_NUVIO_PERFORMANCE_MODE_ENABLED
 ) {
+    /** Prefer FFmpeg/extension audio decoder (EXTENSION_RENDERER_MODE_PREFER). */
+    val isPreferAppDecoder: Boolean
+        get() = decoderPriority == 2
+
+    /** FFmpeg downmix only runs when the app decoder is preferred. */
+    val effectiveDownmixEnabled: Boolean
+        get() = downmixEnabled && isPreferAppDecoder
+
+    /**
+     * Tunneled playback cannot share the FFmpeg audio path. Prefer-app decoder
+     * (required for downmix) plus tunneling races at startup and playback never begins.
+     */
+    val isTunnelingCompatible: Boolean
+        get() = !isPreferAppDecoder
+
+    val effectiveTunnelingEnabled: Boolean
+        get() = tunnelingEnabled && isTunnelingCompatible
+
     companion object {
         const val DEFAULT_STILL_WATCHING_EPISODE_THRESHOLD = 3
         const val MIN_STILL_WATCHING_EPISODE_THRESHOLD = 2
@@ -541,6 +560,7 @@ class PlayerSettingsDataStore @Inject constructor(
     private val subtitleSecondaryLanguageKey = stringPreferencesKey("subtitle_secondary_language")
     private val subtitleUseForcedSubtitlesKey = booleanPreferencesKey("subtitle_use_forced_subtitles")
     private val subtitleShowOnlyPreferredLanguagesKey = booleanPreferencesKey("subtitle_show_only_preferred_languages")
+    private val subtitleStripSdhKey = booleanPreferencesKey("subtitle_strip_sdh")
     private val subtitleSizeKey = intPreferencesKey("subtitle_size")
     private val subtitleVerticalOffsetKey = intPreferencesKey("subtitle_vertical_offset")
     private val subtitleBoldKey = booleanPreferencesKey("subtitle_bold")
@@ -933,6 +953,7 @@ class PlayerSettingsDataStore @Inject constructor(
                         prefs[subtitlePreferredLanguageKey]?.let(::normalizeSelectableLanguageCode) == SUBTITLE_LANGUAGE_FORCED ||
                         prefs[subtitleSecondaryLanguageKey]?.let(::normalizeSelectableLanguageCode) == SUBTITLE_LANGUAGE_FORCED,
                     showOnlyPreferredLanguages = prefs[subtitleShowOnlyPreferredLanguagesKey] ?: false,
+                    stripSdh = prefs[subtitleStripSdhKey] ?: false,
                     size = prefs[subtitleSizeKey] ?: 100,
                     verticalOffset = prefs[subtitleVerticalOffsetKey] ?: 5,
                     bold = prefs[subtitleBoldKey] ?: false,
@@ -1412,6 +1433,12 @@ class PlayerSettingsDataStore @Inject constructor(
     suspend fun setSubtitleShowOnlyPreferredLanguages(enabled: Boolean) {
         store().edit { prefs ->
             prefs[subtitleShowOnlyPreferredLanguagesKey] = enabled
+        }
+    }
+
+    suspend fun setSubtitleStripSdh(enabled: Boolean) {
+        store().edit { prefs ->
+            prefs[subtitleStripSdhKey] = enabled
         }
     }
 

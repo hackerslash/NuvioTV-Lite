@@ -1743,7 +1743,6 @@
     <string name="audio_number_of_channels">Количество каналов</string>
     <string name="audio_number_of_channels_desc">Задаёт раскладку динамиков для подмешивания FFmpeg.</string>
     <string name="audio_enable_downmix_title">Включить подмешивание</string>
-    <string name="audio_enable_downmix_subtitle">Использует путь подмешивания FFmpeg. При отключении аудио следует предыдущему пути Android/устройства.</string>
     <string name="dv7_handling_title">Обработка Dolby Vision Profile 7</string>
     <string name="dv7_handling_dialog_subtitle">Выберите, как обрабатываются потоки DV Profile 7 при воспроизведении.</string>
     <string name="dv7_mode_auto">Авто (рекомендуется)</string>

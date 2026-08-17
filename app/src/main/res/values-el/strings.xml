@@ -627,7 +627,6 @@
   <string name="audio_decoder_prefer_app">Προτίμηση αποκωδικοποιητών εφαρμογής (FFmpeg)</string>
   <string name="audio_decoder_priority">Προτεραιότητα αποκωδικοποιητή</string>
   <string name="audio_enable_downmix_title">Ενεργοποίηση downmix</string>
-  <string name="audio_enable_downmix_subtitle">Χρησιμοποιεί τη διαδρομή downmix FFmpeg. Όταν είναι απενεργοποιημένο, ο ήχος ακολουθεί την προηγούμενη διαδρομή Android/συσκευής.</string>
   <string name="audio_tunneled">Αναπαραγωγή tunneled</string>
   <string name="audio_tunneled_sub">Συγχρονισμός ήχου/βίντεο σε επίπεδο υλικού. Μπορεί να βελτιώσει την αναπαραγωγή σε ορισμένες συσκευές Android TV</string>
   <string name="audio_mpv_hwdec_title">Αποκωδικοποίηση υλικού (μόνο MPV)</string>

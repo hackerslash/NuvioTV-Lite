@@ -699,7 +699,6 @@
     <string name="audio_decoder_prefer_app">Alkalmazás dekódereinek előnyben részesítése (FFmpeg)</string>
     <string name="audio_decoder_priority">Dekóder prioritása</string>
     <string name="audio_enable_downmix_title">Lekeverés engedélyezése</string>
-    <string name="audio_enable_downmix_subtitle">Az FFmpeg lekeverési utat használja. Ha le van tiltva, a hang a korábbi Android/eszköz utat követi.</string>
     <string name="audio_tunneled">Alagutazott (tunneled) lejátszás</string>
     <string name="audio_tunneled_sub">Hang/videó szinkronizálása hardveres szinten. Javíthatja a lejátszást egyes Android TV eszközökön.</string>
     <string name="audio_force_optical_passthrough">AC-3 átkódolás kényszerítése (optikai/SPDIF)</string>

@@ -268,7 +268,6 @@
     <string name="audio_decoder_prefer_app_desc">Używaj dekoderów FFmpeg gdy dostępne. Lepsza obsługa formatów, ale wyższe użycie CPU.</string>
     <string name="audio_decoder_controls">Kontroluje czy używane są dekodery sprzętowe czy programowe (FFmpeg) dla audio i wideo</string>
     <string name="audio_enable_downmix_title">Włącz downmix</string>
-    <string name="audio_enable_downmix_subtitle">Używa ścieżki downmix FFmpeg. Po wyłączeniu audio podąża za poprzednią ścieżką Android/urządzenia.</string>
     <string name="audio_maintain_original_audio_on_downmix_title">Zachowaj oryginalne audio przy downmix</string>
     <string name="audio_maintain_original_audio_on_downmix_subtitle">Po wyłączeniu normalizacja downmix może zmniejszyć ogólną głośność.</string>
     <string name="audio_number_of_channels">Liczba kanałów</string>

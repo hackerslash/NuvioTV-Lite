@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.nuvio.tv.core.network.IPv4FirstDns
+import com.nuvio.tv.core.player.SubtitleCharsetDetector
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.util.concurrent.TimeUnit
@@ -249,7 +250,11 @@ private fun PlayerRuntimeController.executeSubtitleDownload(url: String): String
         if (!response.isSuccessful) {
             error(context.getString(com.nuvio.tv.R.string.subtitle_download_failed_http, response.code))
         }
-        val body = response.body?.string().orEmpty()
+        val bodyBytes = response.body.bytes()
+        if (bodyBytes.isEmpty()) {
+            error(context.getString(com.nuvio.tv.R.string.subtitle_download_empty_content))
+        }
+        val body = SubtitleCharsetDetector.decode(bodyBytes)
         if (body.isBlank()) {
             error(context.getString(com.nuvio.tv.R.string.subtitle_download_empty_content))
         }

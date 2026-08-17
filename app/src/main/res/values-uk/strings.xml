@@ -637,7 +637,6 @@
     <string name="audio_decoder_prefer_app">Надавати перевагу програмним декодерам (FFmpeg)</string>
     <string name="audio_decoder_priority">Пріоритет декодерів</string>
     <string name="audio_enable_downmix_title">Увімкнути мікшування</string>
-    <string name="audio_enable_downmix_subtitle">Використовує шлях мікшування FFmpeg. При вимкненні аудіо слідує попередньому шляху Android/пристрою.</string>
     <string name="audio_tunneled">Тунельне відтворення</string>
     <string name="audio_tunneled_sub">Апаратна синхронізація аудіо/відео. Може покращити відтворення на деяких пристроях Android TV</string>
     <!-- DV7 Handling Mode -->

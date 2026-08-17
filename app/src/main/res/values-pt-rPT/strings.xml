@@ -618,7 +618,6 @@
     <string name="audio_decoder_prefer_app">Preferir descodificadores da app (FFmpeg)</string>
     <string name="audio_decoder_priority">Prioridade do descodificador</string>
     <string name="audio_enable_downmix_title">Ativar downmix</string>
-    <string name="audio_enable_downmix_subtitle">Utiliza o caminho de downmix do FFmpeg. Quando desativado, o áudio segue o caminho anterior do Android/dispositivo.</string>
     <string name="audio_tunneled">Reprodução em túnel (Tunneled)</string>
     <string name="audio_tunneled_sub">Sincronização de áudio/vídeo ao nível do hardware. Pode melhorar a reprodução em alguns dispositivos Android TV</string>
     <!-- DV7 Handling Mode -->

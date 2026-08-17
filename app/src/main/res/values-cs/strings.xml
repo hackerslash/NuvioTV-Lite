@@ -681,7 +681,6 @@
     <string name="audio_decoder_prefer_app">Preferovat dekodéry aplikace (FFmpeg)</string>
     <string name="audio_decoder_priority">Priorita dekodéru</string>
     <string name="audio_enable_downmix_title">Povolit downmix</string>
-    <string name="audio_enable_downmix_subtitle">Používá cestu downmixu FFmpeg. Pokud je vypnuto, zvuk se řídí předchozí cestou Android/zařízení.</string>
     <string name="audio_tunneled">Tunelované přehrávání</string>
     <string name="audio_tunneled_sub">Hardwarová synchronizace audio/video. Může zlepšit přehrávání na některých Android TV zařízeních</string>
     <string name="audio_force_optical_passthrough">Vynutit transkódování AC-3 (Optical/SPDIF)</string>

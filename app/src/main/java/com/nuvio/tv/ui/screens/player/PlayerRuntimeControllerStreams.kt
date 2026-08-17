@@ -511,6 +511,7 @@ private fun PlayerRuntimeController.applySelectedStreamState(
         filename = currentFilename,
         responseHeaders = currentStreamResponseHeaders
     )
+    parsingErrorProbeAttempted = false
     applyStreamMetadata(stream)
 }
 

@@ -236,6 +236,7 @@ class HomeViewModel @Inject constructor(
     internal val cwNextUpNegativeCacheTimestamps = ConcurrentHashMap<String, Long>()
     internal val discoveredOlderNextUpItems = Collections.synchronizedList(mutableListOf<ContinueWatchingItem.NextUp>())
     internal val cwLastProcessedNextUpContentIds: MutableSet<String> = ConcurrentHashMap.newKeySet()
+    internal val cwProcessedOlderSeedContentIds: MutableSet<String> = ConcurrentHashMap.newKeySet()
     internal val cwEnrichedNextUpOverlay = ConcurrentHashMap<String, NextUpInfo>()
     /** In-memory cache of enriched InProgress items per contentId+episode key. */
     internal val cwEnrichedInProgressOverlay = ConcurrentHashMap<String, ContinueWatchingItem.InProgress>()
@@ -325,19 +326,6 @@ class HomeViewModel @Inject constructor(
             observeCollections()
             observeInstalledAddons()
 
-            viewModelScope.launch {
-                combine(
-                    _uiState.map { it.continueWatchingItems + it.upcomingItems }.distinctUntilChanged(),
-                    TvRecommendationManager.isPlaybackActive
-                ) { items, isPlaying ->
-                    Pair(items, isPlaying)
-                }.collect { (items, isPlaying) ->
-                    if (!isPlaying) {
-                        runCatching { tvRecommendationManager.updateWatchNextFromCwItems(items) }
-                    }
-                }
-            }
-
             // Clear CW state when profile changes so items don't leak between profiles.
             var previousProfileId = profileManager.activeProfileId.value
             profileManager.activeProfileId.collect { newId ->
@@ -357,6 +345,7 @@ class HomeViewModel @Inject constructor(
                     cwNextUpNegativeCacheTimestamps.clear()
                     discoveredOlderNextUpItems.clear()
                     cwLastProcessedNextUpContentIds.clear()
+                    cwProcessedOlderSeedContentIds.clear()
                     cwEnrichedNextUpOverlay.clear()
                     cwEnrichedInProgressOverlay.clear()
                     cwLastBadgeEpisodeKeys = emptySet()
@@ -410,6 +399,7 @@ class HomeViewModel @Inject constructor(
         cwNextUpNegativeCacheTimestamps.clear()
         discoveredOlderNextUpItems.clear()
         cwLastProcessedNextUpContentIds.clear()
+        cwProcessedOlderSeedContentIds.clear()
         cwEnrichedNextUpOverlay.clear()
         cwEnrichedInProgressOverlay.clear()
         cwLastBadgeEpisodeKeys = emptySet()

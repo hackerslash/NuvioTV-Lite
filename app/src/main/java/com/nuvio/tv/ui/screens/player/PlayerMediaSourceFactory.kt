@@ -25,6 +25,9 @@ import com.nuvio.tv.data.local.VodCacheSizeMode
 import okhttp3.ConnectionPool
 import okhttp3.Dispatcher
 import okhttp3.OkHttpClient
+import okhttp3.Request
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.net.SocketTimeoutException
 import java.net.URLDecoder
 import java.security.SecureRandom
@@ -455,6 +458,60 @@ internal class PlayerMediaSourceFactory(private val context: Context) {
                 filename = filename,
                 responseHeaders = responseHeaders
             )
+        }
+
+        suspend fun probeNetworkMimeType(
+            url: String,
+            headers: Map<String, String> = emptyMap()
+        ): String? = withContext(Dispatchers.IO) {
+            if (!url.startsWith("http://", ignoreCase = true) && !url.startsWith("https://", ignoreCase = true)) {
+                return@withContext null
+            }
+            val sanitizedHeaders = sanitizeHeaders(headers)
+            val methods = listOf("HEAD", "GET")
+            for (method in methods) {
+                runCatching {
+                    val requestBuilder = Request.Builder().url(url)
+                    if (method == "GET") {
+                        requestBuilder.header("Range", "bytes=0-2048")
+                    }
+                    sanitizedHeaders.forEach { (key, value) ->
+                        if (!key.equals("Range", ignoreCase = true)) {
+                            requestBuilder.header(key, value)
+                        }
+                    }
+                    if (sanitizedHeaders.none { it.key.equals("User-Agent", ignoreCase = true) }) {
+                        requestBuilder.header("User-Agent", DEFAULT_USER_AGENT)
+                    }
+
+                    PlayerPlaybackNetworking.playbackHttpClient.newCall(requestBuilder.build()).execute().use { response ->
+                        if (!response.isSuccessful && response.code !in 200..308) {
+                            return@use null
+                        }
+
+                        val finalUrl = response.request.url.toString()
+                        inferAdaptiveMimeTypeFromPath(finalUrl)?.let { return@withContext it }
+
+                        val contentType = response.header("Content-Type")
+                        normalizeMimeType(contentType)?.let { return@withContext it }
+
+                        val responseHeadersMap = response.headers.names().associateWith { response.header(it).orEmpty() }
+                        inferMimeTypeFromResponseHeaders(responseHeadersMap)?.let { return@withContext it }
+
+                        if (method == "GET") {
+                            val snippet = response.body?.byteStream()?.use { stream ->
+                                val bytes = ByteArray(512)
+                                val read = stream.read(bytes)
+                                if (read > 0) String(bytes, 0, read, Charsets.UTF_8) else null
+                            }
+                            sniffManifestMimeType(snippet)?.let { return@withContext it }
+                        }
+
+                        inferMimeTypeFromPath(finalUrl)?.let { return@withContext it }
+                    }
+                }.getOrNull()?.let { return@withContext it }
+            }
+            null
         }
 
         private fun inferMimeTypeFromResponseHeaders(headers: Map<String, String>?): String? {

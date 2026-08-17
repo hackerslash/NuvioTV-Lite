@@ -632,7 +632,6 @@
     <string name="audio_decoder_prefer_app">Предпочитай декодери на приложението (FFmpeg)</string>
     <string name="audio_decoder_priority">Приоритет на декодера</string>
     <string name="audio_enable_downmix_title">Включи downmix</string>
-    <string name="audio_enable_downmix_subtitle">Използва FFmpeg downmix пътя. Когато е изключено, аудиото следва предишния Android/устройство път.</string>
     <string name="audio_tunneled">Tunneled възпроизвеждане</string>
     <string name="audio_tunneled_sub">Синхронизация на аудио/видео на хардуерно ниво. Може да подобри възпроизвеждането на някои Android TV устройства</string>
     <!-- DV7 Handling Mode -->

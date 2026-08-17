@@ -677,7 +677,6 @@
     <string name="audio_decoder_prefer_app">偏好應用程式解碼器 (FFmpeg)</string>
     <string name="audio_decoder_priority">解碼器優先順序</string>
     <string name="audio_enable_downmix_title">啟用混音下轉</string>
-    <string name="audio_enable_downmix_subtitle">使用 FFmpeg 混音下轉路徑。停用時，音訊將遵循先前的 Android/裝置路徑。</string>
     <string name="audio_tunneled">通道化播放</string>
     <string name="audio_tunneled_sub">硬體層級的音訊/影片同步。可能在部分 Android TV 裝置上改善播放。</string>
     <string name="audio_force_optical_passthrough">強制 AC-3 轉碼 (光纖/SPDIF)</string>

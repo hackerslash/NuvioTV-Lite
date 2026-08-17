@@ -184,7 +184,9 @@ internal fun PlayerRuntimeController.renderSidecarCuesAtCurrentPosition() {
             audioDelayUs.get() -
             subtitleDelayUs.get()
         ).coerceAtLeast(0L)
-    val active = collectActiveSidecarCues(cues, positionUs)
+    val active = collectActiveSidecarCues(cues, positionUs).let { current ->
+        if (currentPlayerSettingsForReport.subtitleStyle.stripSdh) SubtitleSdhFilter.filterCues(current) else current
+    }
     val signature = activeCueSignature(active)
     if (signature == lastSidecarCueSignature) return
     lastSidecarCueSignature = signature

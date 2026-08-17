@@ -630,7 +630,6 @@
     <string name="audio_decoder_prefer_app">Preferovať dekodéry aplikácie (FFmpeg)</string>
     <string name="audio_decoder_priority">Priorita dekodéra</string>
     <string name="audio_enable_downmix_title">Povoliť downmix</string>
-    <string name="audio_enable_downmix_subtitle">Používa FFmpeg downmix cestu. Keď je vypnuté, audio používa predchádzajúcu Android/zariadenie cestu.</string>
     <string name="audio_tunneled">Tunelované prehrávanie</string>
     <string name="audio_tunneled_sub">Hardvérová synchronizácia audia a videa. Môže zlepšiť prehrávanie na niektorých Android TV zariadeniach.</string>
     <string name="audio_dv_sub">Mapovať Dolby Vision Profile 7 na štandardné HEVC pre zariadenia bez hardvérovej podpory DV</string>

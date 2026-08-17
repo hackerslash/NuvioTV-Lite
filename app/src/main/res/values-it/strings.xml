@@ -2235,7 +2235,6 @@
   <string name="audio_number_of_channels">Numero di canali</string>
   <string name="audio_number_of_channels_desc">Imposta il layout degli altoparlanti utilizzato per il downmix di FFmpeg.</string>
   <string name="audio_enable_downmix_title">Abilita downmix</string>
-  <string name="audio_enable_downmix_subtitle">Utilizza il percorso di downmix FFmpeg. Se disabilitato, l\'audio segue il percorso predefinito di Android o del dispositivo.</string>
   <string name="autoplay_reuse_binge_group">Riutilizza gruppo Binge Watch</string>
   <string name="autoplay_reuse_binge_group_sub">Ricorda e riutilizza l\'ultimo gruppo di visione continua tra le varie sessioni (Continua a guardare, Dettagli, ecc.).</string>
   <string name="debrid_title">Servizi collegati</string>

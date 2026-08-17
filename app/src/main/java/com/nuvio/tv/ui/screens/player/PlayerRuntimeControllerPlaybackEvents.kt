@@ -702,8 +702,10 @@ internal fun PlayerRuntimeController.saveWatchProgressInternal(position: Long, d
                     broadcastTrackingHistory = false
                 )
             }
+            runCatching { tvRecommendationManager.onProgressRemoved(normalizedProgress.contentId) }
         } else {
             watchProgressRepository.saveProgress(normalizedProgress, syncRemote = syncRemote)
+            runCatching { tvRecommendationManager.updateSingleWatchNextProgram(normalizedProgress) }
         }
     }
 }

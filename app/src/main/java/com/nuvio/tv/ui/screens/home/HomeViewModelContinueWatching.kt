@@ -776,7 +776,7 @@ internal fun HomeViewModel.loadContinueWatchingPipeline() {
                     val processedContentIds = synchronized(cwLastProcessedNextUpContentIds) {
                         cwLastProcessedNextUpContentIds.toSet()
                     }
-                    val olderSeedContentIds = allSeedContentIds - processedContentIds
+                    val olderSeedContentIds = allSeedContentIds - processedContentIds - cwProcessedOlderSeedContentIds
                     val uncachedOlderSeedIds = olderSeedContentIds.filter { contentId ->
                         // Skip series validated recently — no new episodes expected within TTL.
                         if (fullyWatchedSeriesIds.isSeriesValidationFresh(contentId)) return@filter false
@@ -825,6 +825,7 @@ internal fun HomeViewModel.loadContinueWatchingPipeline() {
                                 val discoveredNextUpItems = mutableListOf<ContinueWatchingItem.NextUp>()
                                 var resolvedSinceLastEmit = 0
                                 for (seed in uncachedSeeds) {
+                                    cwProcessedOlderSeedContentIds += seed.contentId
                                     // Re-check freshness — badge pipeline may have validated
                                     // this series while we were processing earlier seeds.
                                     if (fullyWatchedSeriesIds.isSeriesValidationFresh(seed.contentId)) {
@@ -888,6 +889,10 @@ internal fun HomeViewModel.loadContinueWatchingPipeline() {
                                             }
                                         }
                                     } else {
+                                        val seedKey = "${seed.contentId}|${seed.season ?: 1}|${seed.episode ?: 1}"
+                                        synchronized(cwNextUpResolutionCache) {
+                                            cwNextUpResolutionCache[seedKey] = null
+                                        }
                                         // No next-up — mark as validated with smart deadline
                                         // ONLY if meta was actually resolved (confirming no next episode).
                                         // If meta was unavailable (network error), skip marking to avoid
@@ -1545,8 +1550,36 @@ private suspend fun HomeViewModel.enrichVisibleContinueWatchingItems(
             async(Dispatchers.IO) {
                 enrichmentSemaphore.withPermit {
                     index to when (item) {
-                        is ContinueWatchingItem.InProgress -> enrichInProgressItem(item, metaCache, debug)
-                        is ContinueWatchingItem.NextUp -> enrichNextUpItem(item, metaCache, debug)
+                        is ContinueWatchingItem.InProgress -> {
+                            val overlay = cwEnrichedInProgressOverlay[item.progress.contentId]
+                            if (overlay != null &&
+                                overlay.progress.videoId == item.progress.videoId &&
+                                overlay.progress.season == item.progress.season &&
+                                overlay.progress.episode == item.progress.episode
+                            ) {
+                                overlay.copy(
+                                    progress = overlay.progress.copy(
+                                        position = item.progress.position,
+                                        duration = item.progress.duration,
+                                        lastWatched = item.progress.lastWatched,
+                                        progressPercent = item.progress.progressPercent
+                                    )
+                                )
+                            } else {
+                                enrichInProgressItem(item, metaCache, debug)
+                            }
+                        }
+                        is ContinueWatchingItem.NextUp -> {
+                            val overlay = cwEnrichedNextUpOverlay[item.info.contentId]
+                            if (overlay != null &&
+                                overlay.season == item.info.season &&
+                                overlay.episode == item.info.episode
+                            ) {
+                                item.copy(info = overlay)
+                            } else {
+                                enrichNextUpItem(item, metaCache, debug)
+                            }
+                        }
                     }
                 }
             }

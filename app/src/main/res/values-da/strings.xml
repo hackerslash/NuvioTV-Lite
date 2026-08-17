@@ -636,7 +636,6 @@
     <string name="audio_decoder_prefer_app">Foretræk app-decodere (FFmpeg)</string>
     <string name="audio_decoder_priority">Decoder-prioritet</string>
     <string name="audio_enable_downmix_title">Aktivér downmix</string>
-    <string name="audio_enable_downmix_subtitle">Bruger FFmpeg-downmix-stien. Når deaktiveret følger lyden den tidligere Android/enheds-sti.</string>
     <string name="audio_tunneled">Tunneleret afspilning</string>
     <string name="audio_tunneled_sub">Lyd/video-synkronisering på hardwareniveau. Kan forbedre afspilning på nogle Android TV-enheder</string>
     <string name="audio_force_optical_passthrough">Gennemtving AC-3 Transkodning (Optical/SPDIF)</string>

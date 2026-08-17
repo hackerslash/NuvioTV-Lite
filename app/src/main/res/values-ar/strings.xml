@@ -639,7 +639,6 @@
     <string name="audio_decoder_prefer_app">الأولوية لفك التشفير عبر التطبيق (FFmpeg)</string>
     <string name="audio_decoder_priority">أولوية فك التشفير</string>
     <string name="audio_enable_downmix_title">تفعيل دمج القنوات (Downmix).</string>
-    <string name="audio_enable_downmix_subtitle">يستخدم مسار دمج القنوات الخاص بـ FFmpeg. عند تعطيله، يتبع الصوت مسار الجهاز الافتراضي.</string>
     <string name="audio_tunneled">التشغيل النفقي</string>
     <string name="audio_tunneled_sub">Hardware-level audio/video sync. May improve playback on some Android TV devices</string>
     <!-- DV7 Handling Mode -->

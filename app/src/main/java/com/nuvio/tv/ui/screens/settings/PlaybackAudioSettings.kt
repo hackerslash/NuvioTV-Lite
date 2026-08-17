@@ -214,14 +214,16 @@ internal fun LazyListScope.trailerAndAudioSettingsItems(
                 icon = Icons.Default.Tune,
                 title = stringResource(R.string.audio_enable_downmix_title),
                 subtitle = stringResource(R.string.audio_enable_downmix_subtitle),
-                isChecked = playerSettings.downmixEnabled,
+                // Show off outside Prefer app decoders so a persisted value doesn't
+                // read as active (same pattern as optical passthrough / DV8.1-only toggles).
+                isChecked = playerSettings.effectiveDownmixEnabled,
                 onCheckedChange = onSetDownmixEnabled,
                 onFocused = onItemFocused,
-                enabled = enabled
+                enabled = enabled && playerSettings.isPreferAppDecoder
             )
         }
 
-        if (playerSettings.downmixEnabled) {
+        if (playerSettings.effectiveDownmixEnabled) {
             item(key = "audio_number_of_channels") {
                 NavigationSettingsItem(
                     icon = Icons.Default.VolumeUp,
@@ -251,10 +253,14 @@ internal fun LazyListScope.trailerAndAudioSettingsItems(
                 icon = Icons.Default.VolumeUp,
                 title = stringResource(R.string.audio_tunneled),
                 subtitle = stringResource(R.string.audio_tunneled_sub),
-                isChecked = playerSettings.tunnelingEnabled,
+                // Show off when prefer-app decoder is active so a persisted value
+                // doesn't read as active (same pattern as optical passthrough /
+                // DV8.1-only toggles). Downmix also requires prefer-app, so this
+                // covers that path too.
+                isChecked = playerSettings.effectiveTunnelingEnabled,
                 onCheckedChange = onSetTunnelingEnabled,
                 onFocused = onItemFocused,
-                enabled = enabled
+                enabled = enabled && playerSettings.isTunnelingCompatible
             )
         }
 

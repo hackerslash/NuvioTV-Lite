@@ -721,7 +721,7 @@
     <string name="audio_decoder_prefer_app">Uygulama kod çözücülerini (FFmpeg) tercih et</string>
     <string name="audio_decoder_priority">Decoder Önceliği</string>
     <string name="audio_enable_downmix_title">Downmix\'i etkinleştir</string>
-    <string name="audio_enable_downmix_subtitle">FFmpeg downmix yolunu kullanır. Devre dışı bırakıldığında ses önceki Android/cihaz yolunu takip eder.</string>
+    <string name="audio_enable_downmix_subtitle">FFmpeg downmix yolunu kullanır. Uygulama kod çözücülerini (FFmpeg) tercih et seçeneğini gerektirir. Devre dışı bırakıldığında ses önceki Android/cihaz yolunu takip eder.</string>
     <string name="audio_tunneled">Tünelli Oynatma</string>
     <string name="audio_tunneled_sub">Donanım seviyesinde ses/video senkronizasyonu. Bazı Android TV cihazlarında performansı artırabilir</string>
     <string name="audio_force_optical_passthrough">AC-3 Dönüştürmeyi Zorla (Optik/SPDIF)</string>

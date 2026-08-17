@@ -640,7 +640,6 @@
     <string name="audio_decoder_prefer_app">Utamakan dekoder aplikasi (FFmpeg)</string>
     <string name="audio_decoder_priority">Prioritas Dekoder</string>
     <string name="audio_enable_downmix_title">Aktifkan downmix</string>
-    <string name="audio_enable_downmix_subtitle">Menggunakan jalur downmix FFmpeg. Jika dinonaktifkan, audio akan mengikuti jalur Android/perangkat sebelumnya.</string>
     <string name="audio_tunneled">Tunneled Playback</string>
     <string name="audio_tunneled_sub">Sinkronisasi audio/video tingkat hardware. Mungkin meningkatkan pemutaran di beberapa perangkat Android TV</string>
     <string name="audio_mpv_hwdec_title">Dekoding Hardware (Hanya MPV)</string>

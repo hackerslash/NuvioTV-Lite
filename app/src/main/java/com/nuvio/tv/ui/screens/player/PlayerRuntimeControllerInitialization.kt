@@ -245,7 +245,7 @@ internal fun PlayerRuntimeController.initializePlayer(
                     resizeMode = playerSettings.resizeMode,
                     aspectMode = deviceAspectMode,
                     playbackIssueReportsEnabled = playerSettings.playbackIssueReportsEnabled,
-                    tunnelingEnabled = playerSettings.tunnelingEnabled &&
+                    tunnelingEnabled = playerSettings.effectiveTunnelingEnabled &&
                             effectiveInternalPlayerEngine != InternalPlayerEngine.MVP_PLAYER
                 )
             }
@@ -702,7 +702,7 @@ internal fun PlayerRuntimeController.initializePlayer(
                 }
             }.apply {
                 setParameters(buildUponParameters().setAllowInvalidateSelectionsOnRendererCapabilitiesChange(true))
-                if (playerSettings.tunnelingEnabled && !safeAudioModeEnabled) {
+                if (playerSettings.effectiveTunnelingEnabled && !safeAudioModeEnabled) {
                     setParameters(buildUponParameters().setTunnelingEnabled(true))
                 } else if (safeAudioModeEnabled) {
                     setParameters(buildUponParameters().setTunnelingEnabled(false).setConstrainAudioChannelCountToDeviceCapabilities(true))
@@ -814,7 +814,7 @@ internal fun PlayerRuntimeController.initializePlayer(
             }
             // A2DP is stereo; force a clean 2.0 downmix so surround content is audible and balanced.
             val bluetoothStereoDownmix = isBluetoothAudioOutput
-            val effectiveDownmixEnabled = playerSettings.downmixEnabled || bluetoothStereoDownmix
+            val effectiveDownmixEnabled = playerSettings.effectiveDownmixEnabled || bluetoothStereoDownmix
             val effectiveAudioOutputChannels = if (bluetoothStereoDownmix) {
                 com.nuvio.tv.data.local.AudioOutputChannels.CHANNELS_2_0
             } else {
@@ -836,6 +836,9 @@ internal fun PlayerRuntimeController.initializePlayer(
                 shouldNormalizeCuePositionProvider = {
                     val selectedAddonSubtitle = _uiState.value.selectedAddonSubtitle
                     selectedAddonSubtitle != null && PlayerSubtitleUtils.mimeTypeFromUrl(selectedAddonSubtitle.url) == MimeTypes.TEXT_VTT
+                },
+                shouldStripSdhProvider = {
+                    currentPlayerSettingsForReport.subtitleStyle.stripSdh
                 },
                 isBuiltInSubtitleProvider = {
                     _uiState.value.selectedAddonSubtitle == null
@@ -1004,7 +1007,7 @@ internal fun PlayerRuntimeController.initializePlayer(
                         "playbackSpeed=${_uiState.value.playbackSpeed} " +
                         "resumePositionMs=$initialResumePosition mime=${currentStreamMimeType ?: "unknown"} " +
                         "bufferEngine=${playerSettings.bufferEngineEnabled} parallel=${mediaSourceFactory.useParallelConnections} " +
-                        "vodCache=${mediaSourceFactory.vodCacheEnabled} tunneling=${playerSettings.tunnelingEnabled}"
+                        "vodCache=${mediaSourceFactory.vodCacheEnabled} tunneling=${playerSettings.effectiveTunnelingEnabled}"
                 )
                 val initialMediaSource = mediaSourceFactory.createMediaSource(
                     context = context,
@@ -1030,7 +1033,7 @@ internal fun PlayerRuntimeController.initializePlayer(
                     phase = "starting_stream",
                     message = context.getString(R.string.player_loading_starting)
                 )
-                val isTunneledPlayback = playerSettings.tunnelingEnabled
+                val isTunneledPlayback = playerSettings.effectiveTunnelingEnabled
                 // Hold playWhenReady=false through prepare() so audio does not race ahead
                 // while the video decoder is still opening. The first STATE_READY primes the
                 // pipeline (ColdStartPrime); synchronized play() begins in onRenderedFirstFrame().
@@ -1525,7 +1528,15 @@ internal fun PlayerRuntimeController.initializePlayer(
                             return
                         }
 
-                        handleParsingErrorFallback(error)
+                        if (tryParsingErrorProbeFallback(
+                            error = error,
+                            detailedError = detailedError,
+                            allowEngineFailover = allowEngineFailover,
+                            savedPosition = currentPosition,
+                            paused = userPausedManually
+                        )) {
+                            return
+                        }
 
                         // ── Main Engine Failover ──
                         if (maybeAutoSwitchInternalPlayerOnStartupError(detailedError = detailedError, allowEngineFailover = allowEngineFailover)) {
@@ -2029,6 +2040,7 @@ private class SubtitleOffsetRenderersFactory(
     private val subtitleDelayUsProvider: () -> Long,
     private val audioDelayUsProvider: () -> Long,
     private val shouldNormalizeCuePositionProvider: () -> Boolean,
+    private val shouldStripSdhProvider: () -> Boolean,
     private val isBuiltInSubtitleProvider: () -> Boolean,
     private val isSidecarAddonSubtitleActiveProvider: () -> Boolean = { false },
     private val videoBoundsFractionProvider: () -> RectF?,
@@ -2157,7 +2169,7 @@ private class SubtitleOffsetRenderersFactory(
         out: ArrayList<Renderer>
     ) {
         val normalizingOutput = CueNormalizingTextOutput(
-            delegate = output,
+            delegate = SdhFilteringTextOutput(output, shouldStripSdhProvider),
             shouldNormalizeCuePositionProvider = shouldNormalizeCuePositionProvider,
             isBuiltInSubtitleProvider = isBuiltInSubtitleProvider,
             isSidecarAddonSubtitleActiveProvider = isSidecarAddonSubtitleActiveProvider,
@@ -2205,10 +2217,6 @@ private fun FfmpegAudioRenderer.applyDownmixSettings(
         setDownmixNormalizationEnabled(false)
     }
 }
-
-// The Unicode replacement character ("�") that shows up when a subtitle byte sequence fails to
-// decode with the detected/assumed charset.
-private const val REPLACEMENT_CHARACTER = '\uFFFD'
 
 private class CueNormalizingTextOutput(
     private val delegate: TextOutput,
@@ -2281,8 +2289,7 @@ private class CueNormalizingTextOutput(
     }
 
     private fun processCue(cue: Cue): Cue {
-        var processed = stripReplacementCharacter(cue)
-        processed = PlayerSubtitleRtlFix.fixCueText(processed, isBuiltInSubtitleProvider())
+        var processed = PlayerSubtitleRtlFix.fixCueText(cue, isBuiltInSubtitleProvider())
         if (shouldNormalizeCuePositionProvider()) {
             processed = normalizeCuePosition(processed)
         }
@@ -2324,22 +2331,6 @@ private class CueNormalizingTextOutput(
             .setLine(Cue.DIMEN_UNSET, Cue.TYPE_UNSET)
             .setLineAnchor(Cue.TYPE_UNSET)
             .build()
-    }
-
-    // Malformed/mis-encoded subtitle files sometimes decode a character as U+FFFD (the "�"
-    // replacement character). Strip it from cues shown to the viewer during playback. This does
-    // NOT affect PlayerSubtitleCueParser / the Sync Line preview list in SubtitleTimingDialog,
-    // which read the raw subtitle text independently for the manual-sync picker.
-    private fun stripReplacementCharacter(cue: Cue): Cue {
-        val text = cue.text ?: return cue
-        if (!text.contains(REPLACEMENT_CHARACTER)) return cue
-        val builder = android.text.SpannableStringBuilder(text)
-        for (i in builder.length - 1 downTo 0) {
-            if (builder[i] == REPLACEMENT_CHARACTER) {
-                builder.delete(i, i + 1)
-            }
-        }
-        return cue.buildUpon().setText(builder).build()
     }
 }
 

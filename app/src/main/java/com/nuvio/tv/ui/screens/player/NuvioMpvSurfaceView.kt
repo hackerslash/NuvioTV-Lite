@@ -333,6 +333,8 @@ class NuvioMpvSurfaceView @JvmOverloads constructor(
             mpv.setPropertyString("sub-color", toMpvColor(style.textColor))
             mpv.setPropertyString("sub-back-color", toMpvColor(style.backgroundColor))
             mpv.setPropertyString("sub-outline-color", toMpvColor(style.outlineColor))
+            mpv.setPropertyBoolean("sub-filter-sdh", style.stripSdh)
+            mpv.setPropertyBoolean("sub-filter-sdh-harder", false)
         }.onFailure {
             Log.w(TAG, "Failed to apply subtitle style on mpv: ${it.message}")
         }
