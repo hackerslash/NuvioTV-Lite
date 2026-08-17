@@ -111,6 +111,24 @@ Flavors: `full` (all features), `playstore` (lean, Play-compliant), `lite`
 adb shell am start -n com.nuviodebug.com/com.nuvio.tv.MainActivity
 ```
 
+### Measuring Cold Start
+
+A sideloaded APK stays at ART's `verify` filter — no ahead-of-time compilation — until
+background dexopt runs on idle and charge. Until then it cold-starts far slower than the
+same code installed from Play, which compiles at install time. `adb-optimize.sh` performs
+that compilation on demand so the two are comparable:
+
+```bash
+./scripts/adb-optimize.sh                 # defaults to com.nuvio.tv.lite
+./scripts/adb-optimize.sh com.nuvio.app   # or any installed package
+```
+
+It uses an attached device, or finds one on the local subnet (Android TV boxes typically
+expose `adbd` on port 5555 whenever USB debugging is enabled), and prompts when several
+are connected. It reports the cold-start median either side of the compile, and skips the
+compile entirely when dexopt reports the app is already past `reason=install` — at that
+point it has been compiled against real usage data and recompiling only adds noise.
+
 ## Legal & DMCA
 
 NuvioTV functions solely as a client-side interface for browsing metadata and playing media provided by user-installed extensions and/or user-provided sources. It is intended for content the user owns or is otherwise authorized to access.
