@@ -9,12 +9,12 @@ on:
         type: boolean
         default: true
       release_tag:
-        description: Release tag (blank = v<versionName> from the build, e.g. v1.0.0-lite)
+        description: "Release tag (blank = v<versionName> from the build, e.g. v1.0.0-lite)"
         required: false
         type: string
         default: ""
       prerelease:
-        description: Mark as prerelease (NOTE: in-app OTA ignores prereleases)
+        description: "Mark as prerelease. Note that in-app OTA ignores prereleases."
         required: false
         type: boolean
         default: false
