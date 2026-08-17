@@ -1,4 +1,16 @@
-# NuvioTV — Lite Edition (v1.0.0-lite)
+# NuvioTV — Lite Edition (v1.0.1-lite)
+
+## What's new in 1.0.1
+
+- **Faster cold start.** On launch the app validated your saved session against the
+  server before drawing anything, and every screen waited on that check — so startup
+  stalled on a network round trip, badly on a slow or unreachable connection. It now
+  draws immediately from the saved session and validates in the background, signing you
+  out only if the session has actually expired.
+
+Upgrading from 1.0.0 is in-app; no sideloading needed.
+
+---
 
 A deliberately stripped-down build of NuvioTV tuned for the **lowest practical RAM
 footprint on 2 GB Android TV hardware**, where the OS and launcher already eat a large
