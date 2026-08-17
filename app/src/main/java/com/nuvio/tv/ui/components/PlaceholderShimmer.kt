@@ -15,6 +15,7 @@ import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import com.nuvio.tv.core.build.AppFeaturePolicy
 
 private const val PLACEHOLDER_SHIMMER_DISTANCE_PX = 1000f
 private const val PLACEHOLDER_SHIMMER_WIDTH_FRACTION = 0.6f
@@ -28,7 +29,9 @@ private val PLACEHOLDER_SHIMMER_COLOR_STOPS = arrayOf(
 
 @Composable
 fun rememberPlaceholderShimmerOffsetState(label: String, enabled: Boolean = true): State<Float> {
-    if (!enabled) {
+    // Lite edition holds the shimmer static: it animates every frame precisely while
+    // catalogs are loading, competing with them for a low-end CPU.
+    if (!enabled || AppFeaturePolicy.liteMode) {
         return remember { mutableStateOf(-1f) }
     }
     val shimmerTransition = rememberInfiniteTransition(label = label)

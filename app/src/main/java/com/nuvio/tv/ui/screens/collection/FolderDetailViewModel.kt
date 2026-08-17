@@ -8,6 +8,7 @@ import com.nuvio.tv.R
 import com.nuvio.tv.core.build.AppFeaturePolicy
 import com.nuvio.tv.core.network.NetworkResult
 import com.nuvio.tv.core.tmdb.TmdbCollectionSourceResolver
+import com.nuvio.tv.core.util.YEAR_REGEX
 import com.nuvio.tv.core.util.hasNoReleaseInfo
 import com.nuvio.tv.core.util.isUnreleased
 import com.nuvio.tv.core.trakt.TraktPublicListSourceResolver
@@ -1354,7 +1355,7 @@ class FolderDetailViewModel @Inject constructor(
 
     private fun extractYear(releaseInfo: String?): String? {
         if (releaseInfo.isNullOrBlank()) return null
-        return Regex("\\b(19|20)\\d{2}\\b").find(releaseInfo)?.value
+        return YEAR_REGEX.find(releaseInfo)?.value
     }
 
     private fun updateItemInTabs(itemId: String, transform: (MetaPreview) -> MetaPreview) {

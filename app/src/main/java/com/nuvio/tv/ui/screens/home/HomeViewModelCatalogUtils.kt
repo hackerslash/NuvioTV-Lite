@@ -1,5 +1,6 @@
 package com.nuvio.tv.ui.screens.home
 
+import com.nuvio.tv.core.util.YEAR_REGEX
 import com.nuvio.tv.domain.model.Addon
 import com.nuvio.tv.domain.model.CatalogDescriptor
 import com.nuvio.tv.domain.model.CatalogRow
@@ -353,7 +354,7 @@ internal fun MetaPreview.hasHeroArtwork(): Boolean {
 
 internal fun HomeViewModel.extractYear(releaseInfo: String?): String? {
     if (releaseInfo.isNullOrBlank()) return null
-    return Regex("\\b(19|20)\\d{2}\\b").find(releaseInfo)?.value
+    return YEAR_REGEX.find(releaseInfo)?.value
 }
 
 private fun buildAddonKeyOwnerMap(addons: List<Addon>): Map<String, String> {

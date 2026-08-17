@@ -5,7 +5,14 @@ import com.nuvio.tv.domain.model.MetaPreview
 import java.time.Clock
 import java.time.LocalDate
 
-private val YEAR_REGEX = Regex("""\b(19|20)\d{2}\b""")
+/** Matches a 19xx/20xx year. Shared so callers don't recompile it per item. */
+internal val YEAR_REGEX = Regex("""\b(19|20)\d{2}\b""")
+
+/**
+ * Any four-digit run. Looser than [YEAR_REGEX] and deliberately kept separate —
+ * the library-entry callers have always accepted non-year digits here.
+ */
+internal val ANY_FOUR_DIGIT_REGEX = Regex("""(\d{4})""")
 
 fun MetaPreview.isUnreleased(
     today: LocalDate,

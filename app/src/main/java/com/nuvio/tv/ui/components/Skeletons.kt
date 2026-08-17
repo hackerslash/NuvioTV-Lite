@@ -29,6 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
+import com.nuvio.tv.core.build.AppFeaturePolicy
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -451,6 +452,10 @@ fun rememberShimmerBrush(backdropAware: Boolean = false): Brush {
             NuvioTheme.colors.SurfaceVariant.copy(alpha = 0.60f),
             NuvioTheme.colors.SurfaceVariant.copy(alpha = 0.30f)
         )
+    }
+    // Lite edition: static gradient, no per-frame animation while content loads.
+    if (AppFeaturePolicy.liteMode) {
+        return Brush.linearGradient(colors = shimmerColors)
     }
     val transition = rememberInfiniteTransition(label = "shimmer")
     val translate by transition.animateFloat(

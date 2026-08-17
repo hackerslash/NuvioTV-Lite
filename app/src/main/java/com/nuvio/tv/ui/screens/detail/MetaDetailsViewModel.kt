@@ -38,6 +38,8 @@ import com.nuvio.tv.domain.repository.WatchProgressRepository
 import com.nuvio.tv.data.local.WatchedItemsPreferences
 import com.nuvio.tv.data.local.TrailerSettingsDataStore
 import com.nuvio.tv.data.trailer.TrailerService
+import com.nuvio.tv.core.util.ANY_FOUR_DIGIT_REGEX
+import com.nuvio.tv.core.util.YEAR_REGEX
 import com.nuvio.tv.core.util.isUnreleased
 import com.nuvio.tv.core.util.selectEpisodeReleaseValue
 import java.time.LocalDate
@@ -2592,7 +2594,7 @@ class MetaDetailsViewModel @Inject constructor(
     }
 
     private fun Meta.toLibraryEntryInput(): LibraryEntryInput {
-        val year = Regex("(\\d{4})").find(releaseInfo ?: "")
+        val year = ANY_FOUR_DIGIT_REGEX.find(releaseInfo ?: "")
             ?.groupValues
             ?.getOrNull(1)
             ?.toIntOrNull()
@@ -2635,7 +2637,7 @@ class MetaDetailsViewModel @Inject constructor(
 
             val year = meta.releaseInfo?.let { info ->
                 if (info.isBlank()) null
-                else Regex("""\b(19|20)\d{2}\b""").find(info)?.value
+                else YEAR_REGEX.find(info)?.value
             }
 
             val tmdbId = try {
@@ -2823,7 +2825,7 @@ class MetaDetailsViewModel @Inject constructor(
         viewModelScope.launch {
             val meta = _uiState.value.meta
             val year = meta?.releaseInfo?.let { info ->
-                if (info.isBlank()) null else Regex("""\b(19|20)\d{2}\b""").find(info)?.value
+                if (info.isBlank()) null else YEAR_REGEX.find(info)?.value
             }
             val source = trailerService.getTrailerPlaybackSourceFromYouTubeUrl(
                 youtubeUrl = "https://www.youtube.com/watch?v=$ytId",

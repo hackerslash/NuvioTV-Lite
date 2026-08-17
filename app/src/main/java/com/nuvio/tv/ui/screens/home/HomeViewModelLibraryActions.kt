@@ -3,6 +3,7 @@ package com.nuvio.tv.ui.screens.home
 import android.util.Log
 import androidx.lifecycle.viewModelScope
 import com.nuvio.tv.core.tracking.TrackingMembershipRemovalConfirmation
+import com.nuvio.tv.core.util.ANY_FOUR_DIGIT_REGEX
 import com.nuvio.tv.core.tracking.mergeTrackingMembershipWithTabs
 import com.nuvio.tv.core.tracking.toggleTrackingMembershipSelection
 import com.nuvio.tv.data.repository.parseContentIds
@@ -463,7 +464,7 @@ private suspend fun HomeViewModel.fetchSeriesEpisodes(item: MetaPreview): List<c
 }
 
 private fun MetaPreview.toLibraryEntryInput(addonBaseUrl: String?): LibraryEntryInput {
-    val year = Regex("(\\d{4})").find(releaseInfo ?: "")
+    val year = ANY_FOUR_DIGIT_REGEX.find(releaseInfo ?: "")
         ?.groupValues
         ?.getOrNull(1)
         ?.toIntOrNull()
