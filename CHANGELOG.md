@@ -1,10 +1,10 @@
-# Changelog — NuvioTV Low-RAM Edition
+# Changelog — NuvioTV Lite Edition
 
-All notable changes to the Low-RAM Edition are documented here. Versions use the
-`X.Y.Z-lowram` scheme; every release ships torrent-free per-ABI APKs and receives
+All notable changes to the Lite Edition are documented here. Versions use the
+`X.Y.Z-lite` scheme; every release ships torrent-free per-ABI APKs and receives
 in-app OTA updates.
 
-## v1.1.0-lowram
+## v1.1.0-lite
 
 Performance release — no new features, no behaviour changes to browsing or playback.
 
@@ -24,17 +24,17 @@ Performance release — no new features, no behaviour changes to browsing or pla
   shows available content sooner instead of holding a full-screen spinner.
 
 ### Less memory
-- Low-RAM edition now disables hardware bitmaps so RGB_565 actually takes effect,
+- Lite edition now disables hardware bitmaps so RGB_565 actually takes effect,
   roughly halving poster-cache bytes (hardware bitmaps are always RGBA_8888).
 - Continue-Watching cards build their overlay gradient once per size instead of every
   frame during scroll (`drawWithCache`).
 - Poster/folder cards remember their scrim gradient brushes instead of reallocating
   them on every focus change.
 
-## v1.0.0-lowram
+## v1.0.0-lite
 
-Initial public release of the Low-RAM Edition — a build of NuvioTV tuned for the
+Initial public release of the Lite Edition — a build of NuvioTV tuned for the
 lowest practical RAM footprint on 2 GB Android TV hardware. Torrent streaming, the
 JS addon runtime, in-app trailers, AFR probing, Dolby-Vision native conversion, and
 launcher-channel sync are removed; playback buffers and image caches are tightened.
-In-app OTA updates are kept. See `RELEASE_NOTES_LOWRAM.md` for the full breakdown.
+In-app OTA updates are kept. See `RELEASE_NOTES_LITE.md` for the full breakdown.

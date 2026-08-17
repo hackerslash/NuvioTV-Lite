@@ -27,24 +27,24 @@ It acts as a client-side playback interface that can integrate with the Stremio 
 Built with Kotlin and optimized for a TV-first viewing experience.
 
 > **This is a performance-focused fork** of NuvioTV. In addition to the standard
-> build, it ships a dedicated **Low-RAM Edition** (see below) and a set of
+> build, it ships a dedicated **Lite Edition** (see below) and a set of
 > memory/performance optimizations that benefit every build.
 
-## ⚡ Low-RAM Edition
+## ⚡ Lite Edition
 
 A deliberately stripped-down build tuned for the **lowest practical RAM footprint on
 2 GB Android TV boxes**, where the OS and launcher already eat most of the memory. It
 preserves the core loop — **browse → pick a source → reliable playback** — and trades
 away heavier features to stay alive under memory pressure.
 
-**What it removes / tunes** (full detail in [`RELEASE_NOTES_LOWRAM.md`](RELEASE_NOTES_LOWRAM.md)):
+**What it removes / tunes** (full detail in [`RELEASE_NOTES_LITE.md`](RELEASE_NOTES_LITE.md)):
 
 - Torrent streaming dropped → **~23 MB smaller APK**, no 41 MB torrent co-process
 - Hard 48 MB playback buffer (vs. 50 s stock buffers) — the biggest heap lever
 - Plugins/JS runtime, in-app trailers, launcher-channel sync + boot receiver, Sentry, and Dolby-Vision native conversion all disabled
 - Tighter image cache (RGB565, 8 % memory / 100 MB disk), animated-image decode off, bounded metadata caches, no idle animations
 
-See [`docs/LOW_RAM_PLAN.md`](docs/LOW_RAM_PLAN.md) for the full analysis, per-change memory estimates and risk assessment.
+See [`docs/LITE_PLAN.md`](docs/LITE_PLAN.md) for the full analysis, per-change memory estimates and risk assessment.
 
 ## Installation
 
@@ -59,7 +59,7 @@ Pick the APK matching your box's CPU:
 - **`x86_64` / `x86`** — emulators and x86 devices
 - **`universal`** — works everywhere but is the largest download
 
-The `-lowram` APKs are the Low-RAM Edition; the standard APKs are the full build.
+The `-lite` APKs are the Lite Edition; the standard APKs are the full build.
 
 ## Development
 
@@ -84,16 +84,16 @@ cd NuvioTV
 ./gradlew :app:assembleFullDebug
 ```
 
-### Low-RAM Edition Build
+### Lite Edition Build
 
 ```bash
 # per-ABI + universal release APKs
-./gradlew :app:assembleLowramRelease
+./gradlew :app:assembleLiteRelease
 # or an app bundle
-./gradlew :app:bundleLowramRelease
+./gradlew :app:bundleLiteRelease
 ```
 
-Flavors: `full` (all features), `playstore` (lean, Play-compliant), `lowram`
+Flavors: `full` (all features), `playstore` (lean, Play-compliant), `lite`
 (memory-optimized 2 GB edition).
 
 ### Running on Emulator or Device

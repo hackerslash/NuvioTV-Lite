@@ -47,7 +47,7 @@ class TrailerPlayerPool @Inject constructor(
     private var cachedForceNative: Boolean = false
 
     init {
-        // Trailers are disabled in the low-RAM edition, so acquire() is never called and the
+        // Trailers are disabled in the Lite edition, so acquire() is never called and the
         // pool stays empty — skip the startup thread + blocking DataStore read entirely.
         if (com.nuvio.tv.core.build.AppFeaturePolicy.inAppTrailerPlaybackEnabled) {
             Thread {

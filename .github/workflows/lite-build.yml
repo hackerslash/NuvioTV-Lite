@@ -1,4 +1,4 @@
-name: Build Low-RAM Edition
+name: Build Lite Edition
 
 on:
   workflow_dispatch:
@@ -9,7 +9,7 @@ on:
         type: boolean
         default: true
       release_tag:
-        description: Release tag (blank = auto lowram-build-<run#>)
+        description: Release tag (blank = auto lite-build-<run#>)
         required: false
         type: string
         default: ""
@@ -23,12 +23,12 @@ permissions:
   contents: write
 
 concurrency:
-  group: lowram-build-${{ github.ref }}
+  group: lite-build-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   build:
-    name: Build lowramRelease APKs
+    name: Build liteRelease APKs
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ github.token }}
@@ -72,29 +72,29 @@ jobs:
             echo "NUVIO_RELEASE_STORE_PASSWORD=$RELEASE_STORE_PASSWORD"
           } >> "$GITHUB_ENV"
 
-      - name: Build lowramRelease APKs
-        run: ./gradlew :app:assembleLowramRelease --stacktrace
+      - name: Build liteRelease APKs
+        run: ./gradlew :app:assembleLiteRelease --stacktrace
 
       - name: Upload APKs
         uses: actions/upload-artifact@v4
         with:
-          name: nuviotv-lowram-release-${{ github.run_number }}
-          path: app/build/outputs/apk/lowram/release/*.apk
+          name: nuviotv-lite-release-${{ github.run_number }}
+          path: app/build/outputs/apk/lite/release/*.apk
           if-no-files-found: error
           retention-days: 14
 
       - name: Publish prerelease
         if: ${{ inputs.publish_release }}
         run: |
-          mapfile -t apks < <(find app/build/outputs/apk/lowram/release -maxdepth 1 -type f -name '*.apk' | sort)
+          mapfile -t apks < <(find app/build/outputs/apk/lite/release -maxdepth 1 -type f -name '*.apk' | sort)
           if (( ${#apks[@]} == 0 )); then
             echo "No APKs produced." >&2
             exit 1
           fi
           tag="${{ inputs.release_tag }}"
-          [ -n "$tag" ] || tag="lowram-build-${{ github.run_number }}"
-          title="NuvioTV Low-RAM Edition ($tag)"
-          args=( "$tag" --target "${GITHUB_SHA}" --title "$title" --notes-file RELEASE_NOTES_LOWRAM.md )
+          [ -n "$tag" ] || tag="lite-build-${{ github.run_number }}"
+          title="NuvioTV Lite Edition ($tag)"
+          args=( "$tag" --target "${GITHUB_SHA}" --title "$title" --notes-file RELEASE_NOTES_LITE.md )
           if [ "${{ inputs.prerelease }}" = "true" ]; then
             args+=( --prerelease )
           fi

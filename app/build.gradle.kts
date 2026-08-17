@@ -145,10 +145,10 @@ android {
 
         // In-app updater (GitHub Releases)
         buildConfigField("String", "GITHUB_OWNER", "\"hackerslash\"")
-        buildConfigField("String", "GITHUB_REPO", "\"NuvioTV\"")
+        buildConfigField("String", "GITHUB_REPO", "\"NuvioTV-Lite\"")
 
-        // Low-RAM edition markers. Defaults for full/playstore; overridden by the lowram flavor.
-        buildConfigField("boolean", "FEATURE_LOW_RAM_EDITION", "false")
+        // Lite edition markers. Defaults for full/playstore; overridden by the lite flavor.
+        buildConfigField("boolean", "FEATURE_LITE_EDITION", "false")
         buildConfigField("boolean", "FEATURE_TORRENT_ENABLED", "true")
     }
 
@@ -173,41 +173,41 @@ android {
             buildConfigField("boolean", "FEATURE_EXTERNAL_PLAYBACK_KEEP_ALIVE_ENABLED", "false")
             buildConfigField("boolean", "FEATURE_CUSTOM_SERVER_CONNECTIONS_ENABLED", "false")
         }
-        // NuvioTV Low-RAM edition: playstore-lean feature set + native payload cuts
+        // NuvioTV Lite edition: playstore-lean feature set + native payload cuts
         // (torrent .so, DoVi native conversion, AFR probe) + aggressive playback buffers.
         // Reuses the playstore stub sources; low-RAM behaviour is driven by BuildConfig
-        // via com.nuvio.tv.core.build.AppFeaturePolicy. See docs/LOW_RAM_PLAN.md.
-        create("lowram") {
+        // via com.nuvio.tv.core.build.AppFeaturePolicy. See docs/LITE_PLAN.md.
+        create("lite") {
             dimension = "distribution"
-            // Bumped above defaultConfig (1045) so OTA can install over v1.0.0-lowram —
+            // Bumped above defaultConfig (1045) so OTA can install over v1.0.0-lite —
             // Android's installer requires a higher versionCode, not just versionName.
             versionCode = 1046
             versionName = "1.1.0"
-            versionNameSuffix = "-lowram"
+            versionNameSuffix = "-lite"
             buildConfigField("boolean", "FEATURE_PLUGINS_ENABLED", "false")
             buildConfigField("boolean", "FEATURE_IN_APP_UPDATES_ENABLED", "true")
             buildConfigField("boolean", "FEATURE_IN_APP_TRAILERS_ENABLED", "false")
             buildConfigField("boolean", "FEATURE_EXTERNAL_TRAILERS_ENABLED", "false")
             buildConfigField("boolean", "FEATURE_EXTERNAL_PLAYBACK_KEEP_ALIVE_ENABLED", "false")
             buildConfigField("boolean", "FEATURE_CUSTOM_SERVER_CONNECTIONS_ENABLED", "false")
-            buildConfigField("boolean", "FEATURE_LOW_RAM_EDITION", "true")
+            buildConfigField("boolean", "FEATURE_LITE_EDITION", "true")
             buildConfigField("boolean", "FEATURE_TORRENT_ENABLED", "false")
         }
     }
 
     sourceSets {
-        // The lowram flavor reuses the playstore stub implementations (no-op PluginManager,
+        // The lite flavor reuses the playstore stub implementations (no-op PluginManager,
         // PluginRuntimeHooks, PluginModule, updater stubs). AppFeaturePolicy is shared too, but
-        // its low-RAM fields read from BuildConfig, so lowram gets distinct values.
-        // lowram = playstore plugin stubs + the REAL in-app updater (so it gets OTA from
+        // its low-RAM fields read from BuildConfig, so lite gets distinct values.
+        // lite = playstore plugin stubs + the REAL in-app updater (so it gets OTA from
         // GitHub Releases), but NOT the playstore updater stub.
-        getByName("lowram") {
+        getByName("lite") {
             java.srcDirs("src/playstore/java", "src/updater/java")
         }
         // Torrent streaming: the 41MB libtorrserver.so lives in a holder dir referenced only
-        // by full + playstore, so the lowram flavor never packages it. (Per-variant packaging
+        // by full + playstore, so the lite flavor never packages it. (Per-variant packaging
         // excludes proved unreliable with useLegacyPackaging, so we gate it at the source.)
-        // The real in-app updater is shared by full + lowram; playstore keeps the no-op stub
+        // The real in-app updater is shared by full + lite; playstore keeps the no-op stub
         // (Google Play forbids self-updating).
         getByName("full") {
             jniLibs.srcDir("src/torrentlibs")

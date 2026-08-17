@@ -338,7 +338,7 @@ internal fun PlayerRuntimeController.initializePlayer(
                 }
             }
 
-            // Low-RAM edition: never run the off-heap libdovi DV7→DV8.1 conversion (its
+            // Lite edition: never run the off-heap libdovi DV7→DV8.1 conversion (its
             // native buffers stack on top of the Java buffer and trigger the low-memory
             // killer on 2GB devices). Fall back to the HDR10 base layer instead.
             if (!com.nuvio.tv.core.build.AppFeaturePolicy.dolbyVisionNativeConversionEnabled &&
@@ -532,15 +532,15 @@ internal fun PlayerRuntimeController.initializePlayer(
                     budgetBytes = budgetBytes,
                     allocator = allocator
                 ).also { currentBitrateAwareLoadControl = it }
-            } else if (com.nuvio.tv.core.build.AppFeaturePolicy.lowRamMode) {
-                // Low-RAM edition: aggressive, heap-capped defaults on the stock path.
+            } else if (com.nuvio.tv.core.build.AppFeaturePolicy.liteMode) {
+                // Lite edition: aggressive, heap-capped defaults on the stock path.
                 // A hard 48MB byte cap (prioritizeTimeOverSize=false) with 20s max / 5s
                 // back buffer bounds out-of-box playback heap on 2GB devices.
                 effectiveBackBufferDurationMs = 5_000
                 currentBitrateAwareLoadControl = null
                 Log.i(
                     PlayerRuntimeController.TAG,
-                    "BUFFER_GATE: engine=exo-lowram; DefaultLoadControl (48MB/20s/5s back) host=${url.safeHost()}"
+                    "BUFFER_GATE: engine=exo-lite; DefaultLoadControl (48MB/20s/5s back) host=${url.safeHost()}"
                 )
                 DefaultLoadControl.Builder()
                     .setTargetBufferBytes(48 * 1024 * 1024)

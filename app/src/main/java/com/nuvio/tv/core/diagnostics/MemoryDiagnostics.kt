@@ -8,7 +8,7 @@ import android.os.SystemClock
 import android.util.Log
 
 /**
- * Lightweight, opt-in memory diagnostics for the low-RAM edition.
+ * Lightweight, opt-in memory diagnostics for the Lite edition.
  *
  * Logs a PSS breakdown (total / dalvik / native / graphics), Java heap usage and
  * system available memory, plus onTrimMemory pressure levels — enough to measure

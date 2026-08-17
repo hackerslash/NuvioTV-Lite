@@ -1,4 +1,4 @@
-# NuvioTV — Low-RAM Edition (v1.0.0-lowram)
+# NuvioTV — Lite Edition (v1.0.0-lite)
 
 A deliberately stripped-down build of NuvioTV tuned for the **lowest practical RAM
 footprint on 2 GB Android TV hardware**, where the OS and launcher already eat a large
@@ -9,11 +9,11 @@ pressure.
 **Download:** grab the APK matching your box's CPU (`arm64-v8a` for most modern TV
 boxes, `armeabi-v7a` for older/cheaper ones); `universal` works on any but is larger.
 
-Build it yourself with the `lowram` product flavor:
+Build it yourself with the `lite` product flavor:
 
 ```
-./gradlew :app:assembleLowramRelease      # split APKs per ABI (+ universal)
-./gradlew :app:bundleLowramRelease        # AAB
+./gradlew :app:assembleLiteRelease      # split APKs per ABI (+ universal)
+./gradlew :app:bundleLiteRelease        # AAB
 ```
 
 **Measured vs. the standard build (armeabi-v7a):** APK **~40 MB, down from ~63 MB**
@@ -33,7 +33,7 @@ Build it yourself with the `lowram` product flavor:
   the entire scripted-extension engine is compiled out (inherited from the lean
   `playstore` base). Stremio-style HTTP addons still work.
 - **In-app trailers removed** (no second, always-alive ExoPlayer while browsing).
-- **In-app OTA updates kept** — checks this repo's GitHub Releases and installs the matching `-lowram` APK, so you don't have to sideload every update by hand.
+- **In-app OTA updates kept** — checks this repo's GitHub Releases and installs the matching `-lite` APK, so you don't have to sideload every update by hand.
 - **Auto-frame-rate (AFR) matching disabled** — skips the native MediaInfo probe. 24p
   content may show mild judder on displays that don't already match.
 - **Dolby Vision Profile 7 → HDR10.** DV7 content plays as its HDR10 base layer instead
@@ -80,5 +80,5 @@ on a real 2 GB device with just `adb logcat -s NuvioMem`.
 
 ---
 
-*See `docs/LOW_RAM_PLAN.md` for the full analysis, per-change memory-impact estimates,
+*See `docs/LITE_PLAN.md` for the full analysis, per-change memory-impact estimates,
 and risk assessment.*

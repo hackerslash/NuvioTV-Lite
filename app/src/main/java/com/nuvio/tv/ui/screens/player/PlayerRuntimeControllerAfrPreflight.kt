@@ -35,7 +35,7 @@ internal suspend fun PlayerRuntimeController.runAfrPreflightIfEnabled(
 ) {
     mpvDelayStartAfterAfrSwitch = false
 
-    // Low-RAM edition: skip the auto-frame-rate probe entirely (it spins up the
+    // Lite edition: skip the auto-frame-rate probe entirely (it spins up the
     // nextlib MediaInfo native FFmpeg probe). Treated like AFR OFF.
     if (!com.nuvio.tv.core.build.AppFeaturePolicy.autoFrameRateProbeEnabled) {
         _uiState.update {

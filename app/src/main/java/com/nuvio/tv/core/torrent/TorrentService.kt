@@ -52,7 +52,7 @@ class TorrentService @Inject constructor(
         filename: String? = null,
         trackers: List<String> = emptyList()
     ): String = withContext(Dispatchers.IO) {
-        // Low-RAM edition ships without libtorrserver.so; fail fast rather than
+        // Lite edition ships without libtorrserver.so; fail fast rather than
         // trying to launch a binary that isn't in the APK.
         if (!com.nuvio.tv.core.build.AppFeaturePolicy.torrentEnabled) {
             throw TorrentException("Torrent streaming is not available in this edition")

@@ -8,8 +8,8 @@ object AppFeaturePolicy {
     val trailerPlaybackMode: TrailerPlaybackMode = TrailerPlaybackMode.IN_APP
     val imdbRatingLogoEnabled: Boolean = true
 
-    // Low-RAM edition markers — the full flavor is never low-RAM.
-    val lowRamMode: Boolean = false
+    // Lite edition markers — the full flavor is never low-RAM.
+    val liteMode: Boolean = false
     val torrentEnabled: Boolean = true
     val autoFrameRateProbeEnabled: Boolean = true
     val dolbyVisionNativeConversionEnabled: Boolean = true

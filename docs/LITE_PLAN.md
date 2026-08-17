@@ -1,4 +1,4 @@
-# NuvioTV Low-RAM Edition — Analysis & Implementation Plan
+# NuvioTV Lite Edition — Analysis & Implementation Plan
 
 Target: Android TV boxes with **2 GB total RAM**, where the OS + launcher already
 consume a large share of the budget. Goal: lowest practical real-world memory
@@ -27,12 +27,12 @@ reliable playback**. Everything else is negotiable.
   (`app/src/main/jniLibs`). Decoder `.so`s ride inside AARs.
 - Native DoVi build is **off by default** (`DOVI_NATIVE_ENABLED` unset).
 
-**Strategic conclusion:** the Low-RAM edition is `playstore`-lean + native-payload
+**Strategic conclusion:** the Lite edition is `playstore`-lean + native-payload
 cuts + a set of `src/main` runtime tweaks that help *every* flavor.
 
 ### Chosen path (confirmed with maintainer)
 
-- **Packaging:** new dedicated **`lowram`** product flavor, reusing the `playstore`
+- **Packaging:** new dedicated **`lite`** product flavor, reusing the `playstore`
   stub source set (plugins/updates/trailers/keep-alive off) + extra native cuts +
   aggressive defaults. `full` and `playstore` untouched.
 - **Feature cuts:** torrent streaming (drop `libtorrserver.so`), MediaInfo/auto-frame-rate
@@ -41,7 +41,7 @@ cuts + a set of `src/main` runtime tweaks that help *every* flavor.
 
 > Note on MediaInfo: the **14 MB APK** cut requires a flavor source-split that hard
 > references must be moved out of `src/main`, which needs a compiler to verify. As a
-> safe first step the AFR probe is **disabled at runtime** on `lowram` (the RAM/CPU
+> safe first step the AFR probe is **disabled at runtime** on `lite` (the RAM/CPU
 > win), and the dependency-level APK cut is left as a verified-in-CI follow-up.
 > Torrent's `.so` cut is safe now because `libtorrserver.so` is loaded via
 > `ProcessBuilder` (no compile-time symbol), so excluding it does not break the build.
@@ -132,5 +132,5 @@ reproducible command) and hands off the actual build to an environment that has 
 keystore + secrets:
 
 ```
-./gradlew :app:assembleLowramRelease     # or assemblePlaystoreRelease if reusing that flavor
+./gradlew :app:assembleLiteRelease     # or assemblePlaystoreRelease if reusing that flavor
 ```

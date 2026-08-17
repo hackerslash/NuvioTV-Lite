@@ -58,9 +58,9 @@ class AndroidTvChannelSyncService @Inject constructor(
     /** Called from the host Activity's onStart/onStop. On background we reconcile once so the
      *  channel reflects the latest watch progress exactly as the launcher regains foreground. */
     fun onForegroundChanged(foreground: Boolean) {
-        // Low-RAM edition disables the launcher-channel feature entirely (no periodic job,
+        // Lite edition disables the launcher-channel feature entirely (no periodic job,
         // no boot receiver), so skip the background-transition reconcile too.
-        if (com.nuvio.tv.core.build.AppFeaturePolicy.lowRamMode) return
+        if (com.nuvio.tv.core.build.AppFeaturePolicy.liteMode) return
         val wasForeground = appInForeground
         appInForeground = foreground
         if (wasForeground && !foreground) {

@@ -74,18 +74,18 @@ class NuvioApplication : Application(), SingletonImageLoader.Factory {
 
     override fun onCreate() {
         super.onCreate()
-        // Low-RAM edition skips crash reporting (Sentry SDK footprint + a blocking
+        // Lite edition skips crash reporting (Sentry SDK footprint + a blocking
         // DataStore read on the main thread) and the Android TV launcher-channel sync
-        // (the JobService/boot receiver are stripped from the lowram manifest).
-        if (!AppFeaturePolicy.lowRamMode) {
+        // (the JobService/boot receiver are stripped from the lite manifest).
+        if (!AppFeaturePolicy.liteMode) {
             SentryInitializer.start(this, sentrySettingsDataStore)
         }
         PluginRuntimeHooks.onApplicationCreate(this)
-        if (!AppFeaturePolicy.lowRamMode) {
+        if (!AppFeaturePolicy.liteMode) {
             androidTvChannelSyncService.start()
         }
-        // Opt-in memory diagnostics: always on for the low-RAM edition and debug builds.
-        MemoryDiagnostics.enabled = AppFeaturePolicy.lowRamMode || BuildConfig.IS_DEBUG_BUILD
+        // Opt-in memory diagnostics: always on for the Lite edition and debug builds.
+        MemoryDiagnostics.enabled = AppFeaturePolicy.liteMode || BuildConfig.IS_DEBUG_BUILD
         MemoryDiagnostics.snapshot(this, "app-onCreate")
         // Load locale synchronously so it's available before Activity.attachBaseContext.
         // SharedPreferences reads are fast (cached in memory after first access).
@@ -103,9 +103,9 @@ class NuvioApplication : Application(), SingletonImageLoader.Factory {
     override fun newImageLoader(context: android.content.Context): ImageLoader {
         return ImageLoader.Builder(this)
             .components {
-                // Low-RAM edition skips animated-image decoding: an animated GIF/WebP/HEIF
+                // Lite edition skips animated-image decoding: an animated GIF/WebP/HEIF
                 // from an arbitrary poster URL retains every frame, dwarfing the poster cache.
-                if (!AppFeaturePolicy.lowRamMode) {
+                if (!AppFeaturePolicy.liteMode) {
                     if (Build.VERSION.SDK_INT >= 28) {
                         add(AnimatedImageDecoder.Factory())
                     } else {
@@ -138,7 +138,7 @@ class NuvioApplication : Application(), SingletonImageLoader.Factory {
                 // Mid-range devices (≤3GB): use 0.15 for decent image caching.
                 // Normal devices (>3GB): use 0.20 for snappy image loading.
                 val cachePercent = when {
-                    AppFeaturePolicy.lowRamMode -> 0.08
+                    AppFeaturePolicy.liteMode -> 0.08
                     totalRamMb <= 2048 -> 0.10
                     totalRamMb <= 3072 -> 0.15
                     else -> 0.20
@@ -150,16 +150,16 @@ class NuvioApplication : Application(), SingletonImageLoader.Factory {
             .diskCache {
                 DiskCache.Builder()
                     .directory(cacheDir.resolve("image_cache").toOkioPath())
-                    .maxSizeBytes((if (AppFeaturePolicy.lowRamMode) 100L else 200L) * 1024 * 1024)
+                    .maxSizeBytes((if (AppFeaturePolicy.liteMode) 100L else 200L) * 1024 * 1024)
                     .build()
             }
             .crossfade(false)
             .precision(coil3.size.Precision.INEXACT)
             // Hardware bitmaps are always RGBA_8888, so allowRgb565 only takes effect with them
             // off; low-RAM disables them to halve poster bytes (at some draw cost).
-            .allowHardware(!AppFeaturePolicy.lowRamMode)
+            .allowHardware(!AppFeaturePolicy.liteMode)
             .allowRgb565(true)
-            .bitmapFactoryMaxParallelism(if (AppFeaturePolicy.lowRamMode) 2 else 4)
+            .bitmapFactoryMaxParallelism(if (AppFeaturePolicy.liteMode) 2 else 4)
             .build()
     }
 }

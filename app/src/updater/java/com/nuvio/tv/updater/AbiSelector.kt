@@ -16,12 +16,12 @@ internal object AbiSelector {
     fun chooseBestApkAsset(assets: List<GitHubAssetDto>): GitHubAssetDto? {
         val allApk = assets.filter { it.name.endsWith(".apk", ignoreCase = true) }
         if (allApk.isEmpty()) return null
-        // Never cross editions: a lowram install only accepts "-lowram" APKs; a non-lowram
+        // Never cross editions: a lite install only accepts "-lite" APKs; a non-lite
         // install rejects them. Falls back to the full set if a release has no matching edition.
-        val apkAssets = if (BuildConfig.FEATURE_LOW_RAM_EDITION) {
-            allApk.filter { it.name.contains("-lowram", ignoreCase = true) }
+        val apkAssets = if (BuildConfig.FEATURE_LITE_EDITION) {
+            allApk.filter { it.name.contains("-lite", ignoreCase = true) }
         } else {
-            allApk.filter { !it.name.contains("-lowram", ignoreCase = true) }
+            allApk.filter { !it.name.contains("-lite", ignoreCase = true) }
         }.ifEmpty { allApk }
         if (apkAssets.size == 1) return apkAssets.first()
 

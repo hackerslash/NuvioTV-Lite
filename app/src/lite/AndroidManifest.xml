@@ -2,9 +2,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Low-RAM edition: no Android TV launcher-channel sync. Drop the boot-time
+    <!-- Lite edition: no Android TV launcher-channel sync. Drop the boot-time
          process spin-up (BOOT_COMPLETED receiver) and the 15-min JobService.
-         Channel-sync code is also gated off via AppFeaturePolicy.lowRamMode. -->
+         Channel-sync code is also gated off via AppFeaturePolicy.liteMode. -->
     <uses-permission
         android:name="android.permission.RECEIVE_BOOT_COMPLETED"
         tools:node="remove" />
