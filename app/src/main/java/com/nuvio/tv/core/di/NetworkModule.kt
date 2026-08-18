@@ -140,10 +140,11 @@ object NetworkModule {
                     response
                 }
             }
-            .addInterceptor(HttpLoggingInterceptor().apply {
-                level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BASIC
-                        else HttpLoggingInterceptor.Level.NONE
-            })
+            .apply {
+                if (BuildConfig.DEBUG) addInterceptor(
+                    HttpLoggingInterceptor().apply { level = HttpLoggingInterceptor.Level.BASIC }
+                )
+            }
             .build()
     }
 
@@ -162,10 +163,11 @@ object NetworkModule {
                 .build()
             chain.proceed(request)
         }
-        .addInterceptor(HttpLoggingInterceptor().apply {
-            level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BASIC
-            else HttpLoggingInterceptor.Level.NONE
-        })
+        .apply {
+            if (BuildConfig.DEBUG) addInterceptor(
+                HttpLoggingInterceptor().apply { level = HttpLoggingInterceptor.Level.BASIC }
+            )
+        }
         .build()
 
     @Provides
