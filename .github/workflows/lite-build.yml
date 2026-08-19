@@ -106,7 +106,11 @@ jobs:
             tag="v$version"
           fi
           title="NuvioTV Lite Edition ($tag)"
-          args=( "$tag" --target "${GITHUB_SHA}" --title "$title" --notes-file RELEASE_NOTES_LITE.md )
+          # Release body = just the latest version's bullets from CHANGELOG.md
+          # (single source of truth). Skip the "## v..." heading and any "###"
+          # subheadings; stop at the next version's "## " heading.
+          awk '/^## /{n++; if (n>1) exit; next} n==1 && !/^### /' CHANGELOG.md > RELEASE_NOTES.md
+          args=( "$tag" --target "${GITHUB_SHA}" --title "$title" --notes-file RELEASE_NOTES.md )
           if [ "${{ inputs.prerelease }}" = "true" ]; then
             args+=( --prerelease )
           fi

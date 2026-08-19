@@ -39,7 +39,7 @@ A deliberately stripped-down build tuned for the **lowest practical RAM footprin
 preserves the core loop — **browse → pick a source → reliable playback** — and trades
 away heavier features to stay alive under memory pressure.
 
-**What it removes / tunes** (full detail in [`RELEASE_NOTES_LITE.md`](RELEASE_NOTES_LITE.md)):
+**What it removes / tunes** (full detail in [`docs/LITE_PLAN.md`](docs/LITE_PLAN.md)):
 
 - Torrent streaming dropped → **~23 MB smaller APK**, no 41 MB torrent co-process
 - Hard 48 MB playback buffer (vs. 50 s stock buffers) — the biggest heap lever
