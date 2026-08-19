@@ -1,14 +1,24 @@
-# NuvioTV — Lite Edition (v1.0.1-lite)
+# NuvioTV — Lite Edition (v1.0.2-lite)
 
-## What's new in 1.0.1
+## What's new in 1.0.2
 
-- **Faster cold start.** On launch the app validated your saved session against the
-  server before drawing anything, and every screen waited on that check — so startup
-  stalled on a network round trip, badly on a slow or unreachable connection. It now
-  draws immediately from the saved session and validates in the background, signing you
-  out only if the session has actually expired.
+- **Faster, smoother home browsing.** Catalog rows are cached in memory with in-flight
+  request de-duplication, so returning to the home screen no longer re-fetches every row
+  and duplicate requests are collapsed. List keys are now stable, so rows keep their
+  place and focus when data refreshes instead of jumping.
+- **Less UI stutter.** Removed per-frame recomposition on the comments, library, and
+  detail screens, and the hero logo now decodes at display size — lower memory and no
+  re-decode while it animates.
+- **Synced with upstream NuvioTV**, bringing (where they apply to Lite): embedded
+  subtitle styling and fixes for overlapping subtitle cues; Cloud library progress
+  preserved and playback routing + auto-next restored; continue-watching fixes (correct
+  "aired" state, poster art kept when episode thumbnails are off); a stream-source
+  "refresh" action with steadier result focus; Turkish translations; and assorted player
+  stability fixes.
+- **Image memory:** hardware bitmaps are now off across the board so RGB565 halves poster
+  bytes; the Lite cache stays at its conservative 8% of app RAM.
 
-Upgrading from 1.0.0 is in-app; no sideloading needed.
+Upgrading from 1.0.0 / 1.0.1 is in-app; no sideloading needed.
 
 ---
 
@@ -77,9 +87,10 @@ Build it yourself with the `lite` product flavor:
   rather than querying every installed source at once. Sources appear progressively
   instead of all at the end, and a long addon list no longer risks the process being
   killed mid-search.
-- **Image memory cache reduced** to 8% of app RAM (from 10%), disk cache 100 MB (from
-  200 MB), decode parallelism halved, and **animated-image decoding disabled** (animated
-  posters render their first frame) — animated art was the one uncapped bitmap allocation.
+- **Image memory cache reduced** to 8% of app RAM (the standard build scales 15–25% by
+  RAM tier), disk cache 100 MB (from 200 MB), decode parallelism halved, and
+  **animated-image decoding disabled** (animated posters render their first frame) —
+  animated art was the one uncapped bitmap allocation.
 
 ### Kept
 
