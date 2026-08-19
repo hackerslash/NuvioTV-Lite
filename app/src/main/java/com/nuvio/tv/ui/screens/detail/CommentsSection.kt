@@ -34,6 +34,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
@@ -133,13 +134,16 @@ fun CommentsSection(
     } else {
         resolvedTitleModeFocusRequester
     }
-    val visibleFirstCommentId = remember(comments, listState.firstVisibleItemIndex) {
-        comments.getOrNull(max(listState.firstVisibleItemIndex, 0))?.id
+    // derivedStateOf: recompose readers only when the visible set changes, not every scroll frame.
+    val visibleFirstCommentId by remember(comments) {
+        derivedStateOf { comments.getOrNull(max(listState.firstVisibleItemIndex, 0))?.id }
     }
-    val visibleWindowCommentIds = remember(comments, listState.layoutInfo.visibleItemsInfo) {
-        listState.layoutInfo.visibleItemsInfo
-            .mapNotNull { info -> comments.getOrNull(info.index)?.id }
-            .toSet()
+    val visibleWindowCommentIds by remember(comments) {
+        derivedStateOf {
+            listState.layoutInfo.visibleItemsInfo
+                .mapNotNull { info -> comments.getOrNull(info.index)?.id }
+                .toSet()
+        }
     }
     val commentsTargetFocusRequester = remember(
         comments,

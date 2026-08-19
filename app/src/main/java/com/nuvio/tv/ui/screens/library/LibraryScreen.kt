@@ -406,26 +406,35 @@ fun LibraryScreen(
                 val previewForLongPress = remember(item) {
                     item.toMetaPreview().copy(posterShape = PosterShape.POSTER)
                 }
+                val onFocused = remember(item) {
+                    {
+                        lastFocusedPosterKey = focusKey
+                        viewModel.prefetchMetaOnFocus(item.id, item.type)
+                    }
+                }
+                val onClick = remember(item) {
+                    {
+                        lastFocusedPosterKey = focusKey
+                        val backdrop = viewModel.getCachedBackdrop(item.id, item.type)
+                        HeroBackdropState.update(backdrop)
+                        onNavigateToDetail(item.id, item.type, item.addonBaseUrl)
+                    }
+                }
+                val onLongPress = remember(item) {
+                    {
+                        lastFocusedPosterKey = focusKey
+                        viewModel.posterOptions.show(previewForLongPress, item.addonBaseUrl)
+                    }
+                }
                 GridContentCard(
                     item = previewForLongPress,
                     posterCardStyle = posterCardStyle,
                     isWatched = if (isSeries) item.id in watchedSeriesIds else item.id in watchedMovieIds,
                     focusRequester = posterFocusRequesters[focusKey],
                     showLabel = true,
-                    onFocused = {
-                        lastFocusedPosterKey = focusKey
-                        viewModel.prefetchMetaOnFocus(item.id, item.type)
-                    },
-                    onClick = {
-                        lastFocusedPosterKey = focusKey
-                        val backdrop = viewModel.getCachedBackdrop(item.id, item.type)
-                        HeroBackdropState.update(backdrop)
-                        onNavigateToDetail(item.id, item.type, item.addonBaseUrl)
-                    },
-                    onLongPress = {
-                        lastFocusedPosterKey = focusKey
-                        viewModel.posterOptions.show(previewForLongPress, item.addonBaseUrl)
-                    }
+                    onFocused = onFocused,
+                    onClick = onClick,
+                    onLongPress = onLongPress
                 )
             }
         } else {
@@ -495,10 +504,8 @@ fun LibraryScreen(
                 key = { it.stableKey },
                 span = { GridItemSpan(maxLineSpan) }
             ) { item ->
-                CloudLibraryCard(
-                    item = item,
-                    isResolving = uiState.resolvingCloudFileKey?.startsWith(item.stableKey) == true,
-                    onClick = {
+                val onClick = remember(item) {
+                    {
                         val playableFiles = item.playableFiles
                         when (playableFiles.size) {
                             0 -> viewModel.onCloudItemHasNoPlayableFiles()
@@ -506,6 +513,11 @@ fun LibraryScreen(
                             else -> activeCloudItem = item
                         }
                     }
+                }
+                CloudLibraryCard(
+                    item = item,
+                    isResolving = uiState.resolvingCloudFileKey?.startsWith(item.stableKey) == true,
+                    onClick = onClick
                 )
             }
         }

@@ -96,7 +96,7 @@ fun MoreLikeThisSection(
         ) {
             itemsIndexed(
                 items = items,
-                key = { index, item -> item.id + "|" + item.name + "|" + index }
+                key = { _, item -> item.id + "|" + item.name }
             ) { index, item ->
                 val isRestoreTarget = item.id == restoreItemId
                 val isFirstItem = index == 0

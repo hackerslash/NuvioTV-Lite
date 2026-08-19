@@ -612,12 +612,9 @@ fun ClassicHomeContent(
             items = visibleHomeRows,
             key = { index, item ->
                 when (item) {
-                    is HomeRow.Catalog -> {
-                        val r = item.row
-                        "${r.stableKey()}_$index"
-                    }
+                    is HomeRow.Catalog -> item.row.stableKey()
                     is HomeRow.CollectionRow -> "collection_${item.collection.id}"
-                    is HomeRow.PlaceholderCatalog -> "${item.stableCatalogKey}_$index"
+                    is HomeRow.PlaceholderCatalog -> item.stableCatalogKey
                 }
             },
             contentType = { _, item ->

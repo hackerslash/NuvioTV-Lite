@@ -448,7 +448,7 @@ private fun TabbedGridContent(
             ) {
                 itemsIndexed(
                     items = items,
-                    key = { index, item -> "${item.id}_$index" }
+                    key = { _, item -> item.id }
                 ) { index, item ->
                     val itemKey = "${item.id}_$index"
                     val focusReq = itemFocusRequesters.getOrPut(itemKey) { FocusRequester() }

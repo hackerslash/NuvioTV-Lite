@@ -249,35 +249,44 @@ fun CatalogSeeAllScreen(
                             ] == true
                         }
                         val itemFocusKey = catalogItemFocusKey(item)
-                        GridContentCard(
-                            item = item,
-                            posterCardStyle = posterCardStyle,
-                            showLabel = uiState.posterLabelsEnabled,
-                            isWatched = isWatched,
-                            focusRequester = if (index == focusedItemIndex) restoreFocusRequester else null,
-                            onFocused = {
+                        val onFocused = remember(item) {
+                            onFocused@{
                                 // While restoring after Details/resume, ignore transient focus on the
                                 // first/leftmost cell so it cannot overwrite the saved poster key.
                                 if (shouldRestoreFocus &&
                                     focusedItemKey != null &&
                                     itemFocusKey != focusedItemKey
                                 ) {
-                                    return@GridContentCard
+                                    return@onFocused
                                 }
                                 focusedItemKey = itemFocusKey
-                            },
-                            onClick = {
+                            }
+                        }
+                        val onClick = remember(item) {
+                            {
                                 focusedItemKey = itemFocusKey
                                 onNavigateToDetail(
                                     item.id,
                                     item.apiType,
                                     catalogRow.addonBaseUrl
                                 )
-                            },
-                            onLongPress = {
+                            }
+                        }
+                        val onLongPress = remember(item) {
+                            {
                                 focusedItemKey = itemFocusKey
                                 posterOptionsController.show(item, catalogRow.addonBaseUrl)
                             }
+                        }
+                        GridContentCard(
+                            item = item,
+                            posterCardStyle = posterCardStyle,
+                            showLabel = uiState.posterLabelsEnabled,
+                            isWatched = isWatched,
+                            focusRequester = if (index == focusedItemIndex) restoreFocusRequester else null,
+                            onFocused = onFocused,
+                            onClick = onClick,
+                            onLongPress = onLongPress
                         )
                     }
 

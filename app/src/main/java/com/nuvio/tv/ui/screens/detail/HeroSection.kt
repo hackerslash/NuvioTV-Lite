@@ -117,9 +117,15 @@ fun HeroContentSection(
     }
     val logoModel = remember(context, meta.logo) {
         meta.logo?.let { logo ->
+            // Pin decode to the logo's layout ceiling so the animating height doesn't re-decode.
+            val dm = context.resources.displayMetrics
+            val logoWidthPx = (dm.widthPixels * 0.4f).toInt()
+            val logoHeightPx = (100 * dm.density).toInt()
             ImageRequest.Builder(context)
                 .data(logo)
                 .crossfade(true)
+                .memoryCacheKey("${logo}_${logoWidthPx}x${logoHeightPx}")
+                .size(width = logoWidthPx, height = logoHeightPx)
                 .build()
         }
     }

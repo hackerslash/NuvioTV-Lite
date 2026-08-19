@@ -106,8 +106,12 @@ internal fun DiscoverSection(
     onItemLongPress: (MetaPreview, String) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier
 ) {
-    val selectedCatalog = uiState.discoverCatalogs.firstOrNull { it.key == uiState.selectedDiscoverCatalogKey }
-    val filteredCatalogs = uiState.discoverCatalogs.filter { it.type == uiState.selectedDiscoverType }
+    val selectedCatalog = remember(uiState.discoverCatalogs, uiState.selectedDiscoverCatalogKey) {
+        uiState.discoverCatalogs.firstOrNull { it.key == uiState.selectedDiscoverCatalogKey }
+    }
+    val filteredCatalogs = remember(uiState.discoverCatalogs, uiState.selectedDiscoverType) {
+        uiState.discoverCatalogs.filter { it.type == uiState.selectedDiscoverType }
+    }
     val genres = selectedCatalog?.genres.orEmpty()
     var expandedPicker by remember { mutableStateOf<String?>(null) }
     val filterFocusRequester = remember { FocusRequester() }

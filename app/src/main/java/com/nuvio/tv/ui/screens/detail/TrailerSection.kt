@@ -127,7 +127,7 @@ fun TrailerSection(
         ) {
             itemsIndexed(
                 items = trailerItems,
-                key = { index, item -> item.preview.id + "|" + item.preview.name + "|" + index }
+                key = { _, item -> item.preview.id + "|" + item.preview.name }
             ) { index, item ->
                 val isRestoreTarget = item.preview.id == restoreTrailerId
                 val isFirstItem = index == 0
