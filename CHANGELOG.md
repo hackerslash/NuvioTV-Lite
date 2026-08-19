@@ -9,6 +9,37 @@ build itself. The in-app updater compares the release tag against the installed
 `versionName`, so tags must stay version-shaped and releases must be published as
 full releases — the updater ignores prereleases and drafts.
 
+## v1.0.2-lite — 2026-08-19
+
+### Faster, smoother home
+- Catalog rows are cached in memory with in-flight request de-duplication, so returning
+  to the home screen no longer re-fetches every row and concurrent identical requests
+  collapse to a single call.
+- Stable list keys across the home, detail, and folder grids, so rows keep their position
+  and focus when data refreshes instead of remounting.
+- Removed per-frame recomposition on the comments, library, and detail screens (remembered
+  item callbacks; `derivedStateOf` for scroll-driven reads).
+- The hero logo decodes at its on-screen size rather than full resolution, and no longer
+  re-decodes while it animates.
+
+### Synced with upstream NuvioTV
+- Embedded subtitle styling, and fixes for overlapping/merged subtitle cues.
+- Cloud library: playback progress preserved, and playback routing + auto-next restored.
+- Continue Watching: correct "aired" state when reusing enrichment overlays; poster art
+  kept when episode thumbnails are off.
+- Streams: a source "refresh" action, steadier result focus, and no result flashing on
+  return from the player.
+- Turkish translations completed, plus assorted player stability fixes.
+
+## v1.0.1-lite — 2026-08-17
+
+### Faster cold start
+- Startup no longer validates the saved session against the server before drawing
+  anything. The app now renders immediately from the saved session and validates in the
+  background, signing you out only if the session has actually expired. Previously every
+  screen waited on that network round trip, stalling launch on a slow or unreachable
+  connection.
+
 ## v1.0.0-lite — 2026-08-17
 
 First published release. A build of NuvioTV tuned for the lowest practical RAM
