@@ -43,6 +43,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -53,6 +54,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -79,11 +81,14 @@ import com.nuvio.tv.domain.model.LibraryListTab
 import com.nuvio.tv.domain.model.LibrarySourceMode
 import com.nuvio.tv.domain.model.PosterShape
 import com.nuvio.tv.domain.model.TraktListPrivacy
+import com.nuvio.tv.data.local.PlayerPreference
 import com.nuvio.tv.ui.components.EmptyScreenState
 import com.nuvio.tv.ui.components.GridContentCard
 import com.nuvio.tv.ui.screens.detail.requestFocusAfterFrames
 import com.nuvio.tv.ui.screens.home.HeroBackdropState
+import com.nuvio.tv.ui.screens.stream.PlayerChoiceDialog
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import com.nuvio.tv.ui.components.PosterCardDefaults
 import com.nuvio.tv.ui.components.LoadingIndicator
 import com.nuvio.tv.ui.components.NuvioDialog
@@ -110,10 +115,14 @@ private fun localizedTypeLabel(key: String): String = when (key.lowercase()) {
 
 @Composable
 private fun LibraryListTab.localizedTitle(): String {
-    return if (type == LibraryListTab.Type.WATCHLIST) {
-        stringResource(R.string.library_watchlist)
-    } else {
-        title
+    return when {
+        key == "simkl:status:watching" -> stringResource(R.string.library_status_watching)
+        key == "simkl:status:plantowatch" -> stringResource(R.string.library_status_plan_to_watch)
+        key == "simkl:status:hold" -> stringResource(R.string.library_status_on_hold)
+        key == "simkl:status:completed" -> stringResource(R.string.library_status_completed)
+        key == "simkl:status:dropped" -> stringResource(R.string.library_status_dropped)
+        type == LibraryListTab.Type.WATCHLIST -> stringResource(R.string.library_watchlist)
+        else -> title
     }
 }
 
@@ -128,10 +137,14 @@ fun LibraryScreen(
     val uiState by viewModel.uiState.collectAsState()
     val watchedMovieIds by viewModel.watchedMovieIds.collectAsState()
     val watchedSeriesIds by viewModel.watchedSeriesIds.collectAsState()
+    val activityContext = LocalContext.current
+    val scope = rememberCoroutineScope()
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var expandedPicker by remember { mutableStateOf<String?>(null) }
     var viewMode by rememberSaveable { mutableStateOf(LibraryViewMode.Saved) }
     var activeCloudItem by remember { mutableStateOf<CloudLibraryItem?>(null) }
+    var pendingCloudPlayback by remember { mutableStateOf<CloudLibraryPlaybackInfo?>(null) }
+    var showCloudPlayerChoice by remember { mutableStateOf(false) }
     val primaryFocusRequester = remember { FocusRequester() }
     val selectorFocusRequester = remember { FocusRequester() }
     val gridState = rememberLazyGridState()
@@ -148,6 +161,21 @@ fun LibraryScreen(
     }
     val firstVisiblePosterKey = visibleItemKeys.firstOrNull()
     val posterCardStyle = PosterCardDefaults.Style
+
+    val routeCloudPlayback: (CloudLibraryPlaybackInfo) -> Unit = { info ->
+        scope.launch {
+            when (viewModel.getPlayerPreference()) {
+                PlayerPreference.INTERNAL -> onCloudPlaybackResolved(info)
+                PlayerPreference.EXTERNAL -> {
+                    viewModel.launchCloudPlaybackExternally(info, activityContext)
+                }
+                PlayerPreference.ASK_EVERY_TIME -> {
+                    pendingCloudPlayback = info
+                    showCloudPlayerChoice = true
+                }
+            }
+        }
+    }
 
     LaunchedEffect(viewMode, uiState.cloudLibrary.isEnabled, uiState.cloudLibrary.isLoaded, uiState.cloudLibrarySettingsVersion) {
         if (viewMode == LibraryViewMode.Cloud) {
@@ -335,6 +363,7 @@ fun LibraryScreen(
                     selectedSortOption = uiState.selectedSortOption,
                     selectedGenre = uiState.selectedGenre,
                     selectedYear = uiState.selectedYear,
+                    selectedWatchedFilter = uiState.selectedWatchedFilter,
                     primaryFocusRequester = selectorFocusRequester,
                     expandedPicker = expandedPicker,
                     onExpandedChange = { picker, shouldExpand ->
@@ -358,6 +387,10 @@ fun LibraryScreen(
                     },
                     onSelectYear = { key ->
                         viewModel.onSelectYear(key)
+                        expandedPicker = null
+                    },
+                    onSelectWatchedFilter = { filter ->
+                        viewModel.onSelectWatchedFilter(filter)
                         expandedPicker = null
                     }
                 )
@@ -509,7 +542,7 @@ fun LibraryScreen(
                         val playableFiles = item.playableFiles
                         when (playableFiles.size) {
                             0 -> viewModel.onCloudItemHasNoPlayableFiles()
-                            1 -> viewModel.resolveCloudPlayback(item, playableFiles.first(), onCloudPlaybackResolved)
+                            1 -> viewModel.resolveCloudPlayback(item, playableFiles.first(), routeCloudPlayback)
                             else -> activeCloudItem = item
                         }
                     }
@@ -572,10 +605,32 @@ fun LibraryScreen(
             onPlay = { file ->
                 viewModel.resolveCloudPlayback(item, file) { info ->
                     activeCloudItem = null
-                    onCloudPlaybackResolved(info)
+                    routeCloudPlayback(info)
                 }
             },
             onDismiss = { activeCloudItem = null }
+        )
+    }
+
+    if (showCloudPlayerChoice && pendingCloudPlayback != null) {
+        PlayerChoiceDialog(
+            onInternalSelected = {
+                showCloudPlayerChoice = false
+                pendingCloudPlayback?.let(onCloudPlaybackResolved)
+                pendingCloudPlayback = null
+            },
+            onExternalSelected = {
+                showCloudPlayerChoice = false
+                val info = pendingCloudPlayback
+                pendingCloudPlayback = null
+                if (info != null) {
+                    scope.launch { viewModel.launchCloudPlaybackExternally(info, activityContext) }
+                }
+            },
+            onDismiss = {
+                showCloudPlayerChoice = false
+                pendingCloudPlayback = null
+            }
         )
     }
 
@@ -994,6 +1049,7 @@ private fun LibrarySelectorsRow(
     selectedSortOption: LibrarySortOption,
     selectedGenre: String?,
     selectedYear: String?,
+    selectedWatchedFilter: LibraryWatchedFilter,
     primaryFocusRequester: FocusRequester,
     expandedPicker: String?,
     onExpandedChange: (String, Boolean) -> Unit,
@@ -1001,7 +1057,8 @@ private fun LibrarySelectorsRow(
     onSelectType: (LibraryTypeTab) -> Unit,
     onSelectSort: (LibrarySortOption) -> Unit,
     onSelectGenre: (String?) -> Unit,
-    onSelectYear: (String?) -> Unit
+    onSelectYear: (String?) -> Unit,
+    onSelectWatchedFilter: (LibraryWatchedFilter) -> Unit
 ) {
     val selectedListLabel = listTabs.firstOrNull { it.key == selectedListKey }?.localizedTitle()
         ?: stringResource(R.string.action_select)
@@ -1078,47 +1135,62 @@ private fun LibrarySelectorsRow(
             }
         }
 
-        if (genres.isNotEmpty() || years.isNotEmpty()) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.md)
-            ) {
-                if (genres.isNotEmpty()) {
-                    val genreAllOption = LibraryOption(allLabel, "__all__")
-                    LibraryDropdownPicker(
-                        modifier = Modifier.weight(1f),
-                        title = stringResource(R.string.library_filter_genre),
-                        value = selectedGenreLabel,
-                        selectedValue = selectedGenre ?: "__all__",
-                        expanded = expandedPicker == "genre",
-                        options = listOf(genreAllOption) + genres.map {
-                            LibraryOption("${localizedGenreLabel(it.label)} (${it.count})", it.key)
-                        },
-                        onExpandedChange = { onExpandedChange("genre", it) },
-                        onSelect = { option ->
-                            onSelectGenre(if (option.value == "__all__") null else option.value)
-                        }
-                    )
-                }
-
-                if (years.isNotEmpty()) {
-                    val yearAllOption = LibraryOption(allLabel, "__all__")
-                    LibraryDropdownPicker(
-                        modifier = Modifier.weight(1f),
-                        title = stringResource(R.string.library_filter_year),
-                        value = selectedYearLabel,
-                        selectedValue = selectedYear ?: "__all__",
-                        expanded = expandedPicker == "year",
-                        options = listOf(yearAllOption) + years.map {
-                            LibraryOption("${it.label} (${it.count})", it.key)
-                        },
-                        onExpandedChange = { onExpandedChange("year", it) },
-                        onSelect = { option ->
-                            onSelectYear(if (option.value == "__all__") null else option.value)
-                        }
-                    )
-                }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.md)
+        ) {
+            if (genres.isNotEmpty()) {
+                val genreAllOption = LibraryOption(allLabel, "__all__")
+                LibraryDropdownPicker(
+                    modifier = Modifier.weight(1f),
+                    title = stringResource(R.string.library_filter_genre),
+                    value = selectedGenreLabel,
+                    selectedValue = selectedGenre ?: "__all__",
+                    expanded = expandedPicker == "genre",
+                    options = listOf(genreAllOption) + genres.map {
+                        LibraryOption("${localizedGenreLabel(it.label)} (${it.count})", it.key)
+                    },
+                    onExpandedChange = { onExpandedChange("genre", it) },
+                    onSelect = { option ->
+                        onSelectGenre(if (option.value == "__all__") null else option.value)
+                    }
+                )
             }
+
+            if (years.isNotEmpty()) {
+                val yearAllOption = LibraryOption(allLabel, "__all__")
+                LibraryDropdownPicker(
+                    modifier = Modifier.weight(1f),
+                    title = stringResource(R.string.library_filter_year),
+                    value = selectedYearLabel,
+                    selectedValue = selectedYear ?: "__all__",
+                    expanded = expandedPicker == "year",
+                    options = listOf(yearAllOption) + years.map {
+                        LibraryOption("${it.label} (${it.count})", it.key)
+                    },
+                    onExpandedChange = { onExpandedChange("year", it) },
+                    onSelect = { option ->
+                        onSelectYear(if (option.value == "__all__") null else option.value)
+                    }
+                )
+            }
+
+            val watchedFilterLabel = stringResource(selectedWatchedFilter.labelResId)
+            LibraryDropdownPicker(
+                modifier = Modifier.weight(1f),
+                title = stringResource(R.string.library_filter_watched),
+                value = watchedFilterLabel,
+                selectedValue = selectedWatchedFilter.key,
+                expanded = expandedPicker == "watched",
+                options = LibraryWatchedFilter.entries.map {
+                    LibraryOption(stringResource(it.labelResId), it.key)
+                },
+                onExpandedChange = { onExpandedChange("watched", it) },
+                onSelect = { option ->
+                    LibraryWatchedFilter.entries.firstOrNull { it.key == option.value }
+                        ?.let(onSelectWatchedFilter)
+                }
+            )
         }
     }
 }

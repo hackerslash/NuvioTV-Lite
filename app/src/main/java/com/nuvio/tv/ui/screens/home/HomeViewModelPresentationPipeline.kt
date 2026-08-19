@@ -249,8 +249,8 @@ internal fun HomeViewModel.observeModernHomePresentationPipeline() {
                 ModernHomePresentationInput(
                     homeRows = state.homeRows,
                     catalogRows = state.catalogRows,
-                    continueWatchingItems = state.continueWatchingItems,
-                    upcomingItems = state.upcomingItems,
+                    continueWatchingItems = if (state.continueWatchingEnabled) state.continueWatchingItems else emptyList(),
+                    upcomingItems = if (state.continueWatchingEnabled) state.upcomingItems else emptyList(),
                     useLandscapePosters = state.modernLandscapePostersEnabled,
                     showCatalogTypeSuffix = state.catalogTypeSuffixEnabled,
                     showFullReleaseDate = state.showFullReleaseDate,
@@ -356,7 +356,8 @@ internal fun HomeViewModel.requestTrailerPreviewPipeline(
     if (trailerPreviewUrlsState.containsKey(itemId)) return
     if (!trailerPreviewLoadingIds.add(itemId)) return
 
-    viewModelScope.launch(Dispatchers.IO) {
+    trailerPreviewJob?.cancel()
+    trailerPreviewJob = viewModelScope.launch(Dispatchers.IO) {
         try {
             // Debounce: wait for focus to settle before hitting network
             delay(180)

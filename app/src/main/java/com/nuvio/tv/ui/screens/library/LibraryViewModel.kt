@@ -7,9 +7,13 @@ import com.nuvio.tv.core.cloud.CloudLibraryFile
 import com.nuvio.tv.core.cloud.CloudLibraryItem
 import com.nuvio.tv.core.cloud.CloudLibraryItemType
 import com.nuvio.tv.core.cloud.CloudLibraryPlaybackInfo
+import com.nuvio.tv.core.cloud.CloudLibraryPlaybackContext
 import com.nuvio.tv.core.cloud.CloudLibraryPlaybackResult
+import com.nuvio.tv.core.cloud.CloudLibraryPlaybackSessionStore
 import com.nuvio.tv.core.cloud.CloudLibraryRepository
 import com.nuvio.tv.core.cloud.CloudLibraryUiState
+import com.nuvio.tv.core.player.ExternalPlaybackMetadata
+import com.nuvio.tv.core.player.ExternalPlaybackTracker
 import com.nuvio.tv.core.debrid.DebridProviderCapability
 import com.nuvio.tv.core.debrid.DebridProviders
 import com.nuvio.tv.core.debrid.supports
@@ -18,6 +22,8 @@ import com.nuvio.tv.core.tracking.providerId
 import com.nuvio.tv.data.local.DebridSettingsDataStore
 import com.nuvio.tv.data.local.LayoutPreferenceDataStore
 import com.nuvio.tv.data.local.LibraryPreferences
+import com.nuvio.tv.data.local.PlayerPreference
+import com.nuvio.tv.data.local.PlayerSettingsDataStore
 import com.nuvio.tv.data.repository.TraktLibraryService
 import com.nuvio.tv.domain.model.AuthState
 import com.nuvio.tv.domain.model.LibraryEntry
@@ -75,6 +81,12 @@ enum class LibrarySortOption(
     }
 }
 
+enum class LibraryWatchedFilter(val key: String, val labelResId: Int) {
+    ALL("all", R.string.library_watched_filter_all),
+    WATCHED("watched", R.string.library_watched_filter_watched),
+    UNWATCHED("unwatched", R.string.library_watched_filter_unwatched);
+}
+
 data class FilterOption(
     val key: String,
     val label: String,
@@ -119,6 +131,9 @@ data class LibraryUiState(
     val availableYears: List<FilterOption> = emptyList(),
     val selectedGenre: String? = null,
     val selectedYear: String? = null,
+    val selectedWatchedFilter: LibraryWatchedFilter = LibraryWatchedFilter.ALL,
+    val watchedMovieIds: Set<String> = emptySet(),
+    val watchedSeriesIds: Set<String> = emptySet(),
     val isNuvioAccount: Boolean = false,
     val isTrackingAuthenticated: Boolean = false,
     val posterCardWidthDp: Int = 126,
@@ -137,6 +152,9 @@ data class LibraryUiState(
 class LibraryViewModel @Inject constructor(
     private val libraryRepository: LibraryRepository,
     private val cloudLibraryRepository: CloudLibraryRepository,
+    private val cloudPlaybackSessionStore: CloudLibraryPlaybackSessionStore,
+    private val externalPlaybackTracker: ExternalPlaybackTracker,
+    private val playerSettingsDataStore: PlayerSettingsDataStore,
     private val metaRepository: com.nuvio.tv.domain.repository.MetaRepository,
     private val debridSettingsDataStore: DebridSettingsDataStore,
     private val layoutPreferenceDataStore: LayoutPreferenceDataStore,
@@ -166,7 +184,20 @@ class LibraryViewModel @Inject constructor(
         observeCloudLibrarySettings()
         viewModelScope.launch {
             watchProgressRepository.observeWatchedMovieIds()
-                .collect { ids -> _watchedMovieIds.value = ids }
+                .collect { ids ->
+                    _watchedMovieIds.value = ids
+                    _uiState.update { current ->
+                        current.copy(watchedMovieIds = ids).withVisibleItems()
+                    }
+                }
+        }
+        viewModelScope.launch {
+            watchedSeriesStateHolder.fullyWatchedSeriesIds
+                .collect { ids ->
+                    _uiState.update { current ->
+                        current.copy(watchedSeriesIds = ids).withVisibleItems()
+                    }
+                }
         }
     }
 
@@ -222,6 +253,13 @@ class LibraryViewModel @Inject constructor(
     fun onSelectYear(key: String?) {
         _uiState.update { current ->
             val updated = current.copy(selectedYear = key)
+            updated.withVisibleItems()
+        }
+    }
+
+    fun onSelectWatchedFilter(filter: LibraryWatchedFilter) {
+        _uiState.update { current ->
+            val updated = current.copy(selectedWatchedFilter = filter)
             updated.withVisibleItems()
         }
     }
@@ -311,13 +349,21 @@ class LibraryViewModel @Inject constructor(
             _uiState.update { it.copy(resolvingCloudFileKey = null) }
             when (result) {
                 is CloudLibraryPlaybackResult.Success -> {
+                    val playbackContext = CloudLibraryPlaybackContext.create(item, file)
+                    if (playbackContext == null) {
+                        setError(context.getString(R.string.cloud_library_play_failed))
+                        return@launch
+                    }
+                    val sessionToken = cloudPlaybackSessionStore.create(playbackContext)
                     onResolved(
                         CloudLibraryPlaybackInfo(
                             item = item,
                             file = file,
                             url = result.url,
                             filename = result.filename ?: file.name.takeIf { it.isNotBlank() },
-                            videoSizeBytes = result.videoSizeBytes ?: file.sizeBytes
+                            videoSizeBytes = result.videoSizeBytes ?: file.sizeBytes,
+                            sessionToken = sessionToken,
+                            sequenceIndex = playbackContext.currentIndex
                         )
                     )
                 }
@@ -333,6 +379,41 @@ class LibraryViewModel @Inject constructor(
             }
         }
     }
+
+    suspend fun launchCloudPlaybackExternally(
+        info: CloudLibraryPlaybackInfo,
+        activityContext: Context
+    ): Boolean {
+        val filename = info.filename ?: info.file.name
+        val metadata = ExternalPlaybackMetadata(
+            contentId = info.item.stableKey,
+            contentType = "cloud",
+            contentName = info.item.name,
+            poster = null,
+            backdrop = null,
+            logo = null,
+            videoId = "${info.item.stableKey}:${info.file.stableKey}",
+            season = 1,
+            episode = info.sequenceIndex + 1,
+            episodeTitle = filename,
+            year = null
+        )
+        val launched = runCatching {
+            externalPlaybackTracker.launchPlayer(
+                metadata = metadata,
+                url = info.url,
+                title = filename,
+                headers = null,
+                cloudSessionToken = info.sessionToken,
+                context = activityContext
+            )
+        }.getOrDefault(false)
+        if (!launched) setError(context.getString(R.string.cloud_library_play_failed))
+        return launched
+    }
+
+    suspend fun getPlayerPreference(): PlayerPreference =
+        playerSettingsDataStore.playerSettings.first().playerPreference
 
     fun onRefresh() {
         if (_uiState.value.isSyncing) return
@@ -779,7 +860,7 @@ class LibraryViewModel @Inject constructor(
         val typeFiltered = listFiltered.filter { entry ->
             selectedTypeKey == null ||
                 selectedTypeKey == LibraryTypeTab.ALL_KEY ||
-                entry.type.trim().lowercase(Locale.ROOT) == selectedTypeKey
+                (entry.mediaCategory ?: entry.type).trim().lowercase(Locale.ROOT) == selectedTypeKey
         }
 
         // Step 3: Genre filter
@@ -796,6 +877,21 @@ class LibraryViewModel @Inject constructor(
             genreFiltered.filter { entry -> entry.extractYear() == selectedYear }
         } else {
             genreFiltered
+        }
+
+        // Step 5: Watched status filter
+        val watchedFiltered = when (selectedWatchedFilter) {
+            LibraryWatchedFilter.ALL -> yearFiltered
+            LibraryWatchedFilter.WATCHED -> yearFiltered.filter { entry ->
+                val isMovie = entry.type.equals("movie", ignoreCase = true)
+                if (isMovie) watchedMovieIds.contains(entry.id)
+                else watchedSeriesIds.contains(entry.id)
+            }
+            LibraryWatchedFilter.UNWATCHED -> yearFiltered.filter { entry ->
+                val isMovie = entry.type.equals("movie", ignoreCase = true)
+                if (isMovie) !watchedMovieIds.contains(entry.id)
+                else !watchedSeriesIds.contains(entry.id)
+            }
         }
 
         // Faceted counts — each filter counts items matching all OTHER active filters
@@ -843,33 +939,33 @@ class LibraryViewModel @Inject constructor(
             genreMatch && yearMatch
         }
 
-        // Step 5: Sort
+        // Step 6: Sort
         val sorted = when (selectedSortOption) {
             LibrarySortOption.DEFAULT -> if (sourceMode.providerId != null) {
-                yearFiltered.sortedWith(
+                watchedFiltered.sortedWith(
                     compareBy<LibraryEntry> { it.traktRank ?: Int.MAX_VALUE }
                         .thenByDescending { it.listedAt }
                         .thenBy(String.CASE_INSENSITIVE_ORDER) { it.name.ifBlank { it.id } }
                         .thenBy { it.id }
                 )
             } else {
-                yearFiltered
+                watchedFiltered
             }
-            LibrarySortOption.ADDED_DESC -> yearFiltered.sortedWith(
+            LibrarySortOption.ADDED_DESC -> watchedFiltered.sortedWith(
                 compareByDescending<LibraryEntry> { it.listedAt }
                     .thenBy(String.CASE_INSENSITIVE_ORDER) { it.name.ifBlank { it.id } }
                     .thenBy { it.id }
             )
-            LibrarySortOption.ADDED_ASC -> yearFiltered.sortedWith(
+            LibrarySortOption.ADDED_ASC -> watchedFiltered.sortedWith(
                 compareBy<LibraryEntry> { it.listedAt }
                     .thenBy(String.CASE_INSENSITIVE_ORDER) { it.name.ifBlank { it.id } }
                     .thenBy { it.id }
             )
-            LibrarySortOption.TITLE_ASC -> yearFiltered.sortedWith(
+            LibrarySortOption.TITLE_ASC -> watchedFiltered.sortedWith(
                 compareBy<LibraryEntry> { titleSortKey(it.name.ifBlank { it.id }) }
                     .thenBy { it.id }
             )
-            LibrarySortOption.TITLE_DESC -> yearFiltered.sortedWith(
+            LibrarySortOption.TITLE_DESC -> watchedFiltered.sortedWith(
                 compareByDescending<LibraryEntry> { titleSortKey(it.name.ifBlank { it.id }) }
                     .thenBy { it.id }
             )
@@ -947,14 +1043,16 @@ class LibraryViewModel @Inject constructor(
     ): List<LibraryTypeTab> {
         val byKey = linkedMapOf<String, String>()
         allTypeItems.forEach { entry ->
-            val key = entry.type.trim().ifBlank { "unknown" }.lowercase(Locale.ROOT)
+            // Use mediaCategory (e.g. "anime") as the display type when present,
+            // so anime shows as a separate filter from movies/series.
+            val key = (entry.mediaCategory ?: entry.type).trim().ifBlank { "unknown" }.lowercase(Locale.ROOT)
             if (!byKey.containsKey(key)) {
                 byKey[key] = prettifyTypeLabel(key)
             }
         }
         val countByType = mutableMapOf<String, Int>()
         filteredItems.forEach { entry ->
-            val key = entry.type.trim().ifBlank { "unknown" }.lowercase(Locale.ROOT)
+            val key = (entry.mediaCategory ?: entry.type).trim().ifBlank { "unknown" }.lowercase(Locale.ROOT)
             countByType[key] = (countByType[key] ?: 0) + 1
         }
         val allCount = filteredItems.size

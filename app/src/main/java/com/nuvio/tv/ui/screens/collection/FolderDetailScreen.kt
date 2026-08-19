@@ -132,10 +132,11 @@ fun FolderDetailScreen(
             failedEnrichmentIds = failedEnrichmentIds,
             onNavigateToDetail = onNavigateToDetail,
             onLoadMoreCatalog = viewModel::loadMoreForCatalog,
+            onSelectTab = viewModel::selectTab,
+            onLoadMoreForSelectedTab = { viewModel.loadMoreItems(viewModel.uiState.value.selectedTabIndex) },
             onSaveFocusState = { vi, vo, rk, ikm, m, ri, ii ->
                 viewModel.saveFollowLayoutFocusState(vi, vo, rk, ikm, m, ri, ii)
             },
-            onSaveGridFocusState = viewModel::saveFollowLayoutGridFocusState,
             onItemFocus = viewModel::onItemFocused,
             onPreloadAdjacentItem = viewModel::preloadAdjacentItem,
             onCatalogItemLongPress = { item, addonBaseUrl ->
@@ -798,8 +799,9 @@ private fun FollowLayoutContent(
     failedEnrichmentIds: Set<String> = emptySet(),
     onNavigateToDetail: (String, String, String) -> Unit,
     onLoadMoreCatalog: (String, String, String) -> Unit = { _, _, _ -> },
+    onSelectTab: (Int) -> Unit = {},
+    onLoadMoreForSelectedTab: () -> Unit = {},
     onSaveFocusState: (Int, Int, String?, Map<String, String>, Map<String, Int>, Int, Int) -> Unit,
-    onSaveGridFocusState: (Int, Int, String?) -> Unit,
     onItemFocus: (MetaPreview) -> Unit = {},
     onPreloadAdjacentItem: (MetaPreview) -> Unit = {},
     onCatalogItemLongPress: (MetaPreview, String) -> Unit = { _, _ -> },
@@ -833,38 +835,33 @@ private fun FollowLayoutContent(
     val loadMoreLabel = stringResource(R.string.action_load_more)
 
     when (uiState.homeLayout) {
-        HomeLayout.CLASSIC -> ClassicHomeContent(
-            uiState = homeState,
-            posterCardStyle = posterCardStyle,
-            focusState = focusState,
-            trailerPreviewUrls = trailerPreviewUrls,
-            trailerPreviewAudioUrls = trailerPreviewAudioUrls,
-            onNavigateToDetail = onNavigateToDetail,
-            onContinueWatchingClick = noOpCwClick,
-            onNavigateToCatalogSeeAll = onLoadMoreCatalog,
-            onNavigateToFolderDetail = noOpFolderDetail,
-            onRemoveContinueWatching = noOpRemoveCw,
-            isCatalogItemWatched = isItemWatched,
-            catalogSeeAllLabel = loadMoreLabel,
-            onRequestTrailerPreview = { item ->
-                onRequestTrailerPreview(item.id, item.name, item.releaseInfo, item.apiType)
-            },
-            onItemFocus = onItemFocus,
-            onSaveFocusState = onSaveFocusState
-        )
-        HomeLayout.GRID -> GridHomeContent(
-            uiState = homeState,
-            gridFocusState = focusState,
-            onNavigateToDetail = onNavigateToDetail,
-            onContinueWatchingClick = noOpCwClick,
-            onNavigateToCatalogSeeAll = onLoadMoreCatalog,
-            onNavigateToFolderDetail = noOpFolderDetail,
-            onRemoveContinueWatching = noOpRemoveCw,
-            isCatalogItemWatched = isItemWatched,
-            catalogSeeAllLabel = loadMoreLabel,
-            posterCardStyle = posterCardStyle,
-            onSaveGridFocusState = onSaveGridFocusState
-        )
+        HomeLayout.CLASSIC -> {
+            RowsContent(
+                uiState = uiState,
+                focusState = focusState,
+                onNavigateToDetail = onNavigateToDetail,
+                onLoadMoreCatalog = onLoadMoreCatalog,
+                onSaveFocusState = onSaveFocusState,
+                isItemWatched = isItemWatched,
+                onItemFocus = onItemFocus,
+                onItemLongPress = onCatalogItemLongPress
+            )
+        }
+        HomeLayout.GRID -> {
+            Column(modifier = Modifier.fillMaxSize()) {
+                TabbedGridContent(
+                    uiState = uiState,
+                    folder = uiState.folder ?: return,
+                    tabFocusState = FolderDetailGridFocusState(),
+                    onSelectTab = onSelectTab,
+                    onNavigateToDetail = onNavigateToDetail,
+                    isItemWatched = isItemWatched,
+                    onLoadMore = onLoadMoreForSelectedTab,
+                    onSaveFocusState = { _, _, _ -> },
+                    onItemLongPress = onCatalogItemLongPress
+                )
+            }
+        }
         HomeLayout.MODERN -> ModernHomeContent(
             uiState = homeState,
             modernPresentation = homeState.modernHomePresentation,

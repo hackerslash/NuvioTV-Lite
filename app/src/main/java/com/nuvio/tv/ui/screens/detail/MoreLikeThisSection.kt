@@ -43,7 +43,8 @@ fun MoreLikeThisSection(
     onRestoreFocusHandled: () -> Unit = {},
     onItemFocused: (MetaPreview) -> Unit = {},
     onItemClick: (MetaPreview) -> Unit,
-    onItemLongPress: (MetaPreview) -> Unit = {}
+    onItemLongPress: (MetaPreview) -> Unit = {},
+    isItemWatched: (MetaPreview) -> Boolean = { false }
 ) {
     if (items.isEmpty()) return
 
@@ -114,6 +115,7 @@ fun MoreLikeThisSection(
                         posterCardStyle = landscapeStyle,
                         showLabel = true,
                         imageCrossfade = true,
+                        isWatched = isItemWatched(item),
                         focusRequester = focusRequester,
                         upFocusRequester = upFocusRequester,
                         downFocusRequester = downFocusRequester,

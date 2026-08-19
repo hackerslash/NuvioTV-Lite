@@ -21,6 +21,8 @@ class CastDetailViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val tmdbMetadataService: TmdbMetadataService,
     private val tmdbSettingsDataStore: TmdbSettingsDataStore,
+    private val watchProgressRepository: com.nuvio.tv.domain.repository.WatchProgressRepository,
+    private val watchedSeriesStateHolder: com.nuvio.tv.data.local.WatchedSeriesStateHolder,
     val posterOptions: com.nuvio.tv.ui.components.posteroptions.PosterOptionsController,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
@@ -34,9 +36,21 @@ class CastDetailViewModel @Inject constructor(
     private val _uiState = MutableStateFlow<CastDetailUiState>(CastDetailUiState.Loading)
     val uiState: StateFlow<CastDetailUiState> = _uiState.asStateFlow()
 
+    private val _watchedMovieIds = MutableStateFlow<Set<String>>(emptySet())
+    val watchedMovieIds: StateFlow<Set<String>> = _watchedMovieIds.asStateFlow()
+    val watchedSeriesIds: StateFlow<Set<String>> = watchedSeriesStateHolder.fullyWatchedSeriesIds
+
     init {
         posterOptions.bind(viewModelScope)
         loadPersonDetail()
+        observeWatchedStatus()
+    }
+
+    private fun observeWatchedStatus() {
+        viewModelScope.launch {
+            watchProgressRepository.observeWatchedMovieIds()
+                .collect { ids -> _watchedMovieIds.value = ids }
+        }
     }
 
     fun retry() {

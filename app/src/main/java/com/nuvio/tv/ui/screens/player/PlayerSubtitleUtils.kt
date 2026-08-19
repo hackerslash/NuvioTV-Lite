@@ -1,6 +1,9 @@
 package com.nuvio.tv.ui.screens.player
 
+import android.text.SpannableStringBuilder
+import android.text.Spanned
 import androidx.media3.common.MimeTypes
+import androidx.media3.common.text.Cue
 import com.nuvio.tv.ui.util.LANGUAGE_OVERRIDES
 
 internal object PlayerSubtitleUtils {
@@ -206,5 +209,30 @@ internal object PlayerSubtitleUtils {
             MimeTypes.TEXT_SSA,
             MimeTypes.APPLICATION_TTML
         ).toList()
+    }
+
+    /**
+     * Merges simultaneously active unpositioned text cues into a single multi-line cue
+     * to prevent Media3 SubtitlePainter from drawing colliding lines on top of each other.
+     */
+    fun mergeOverlappingCues(cues: List<Cue>): List<Cue> {
+        if (cues.size <= 1 || !cues.all { it.bitmap == null && it.line == Cue.DIMEN_UNSET }) {
+            return cues
+        }
+        val validTexts = cues.mapNotNull { it.text }.filter { it.isNotBlank() }
+        if (validTexts.isEmpty()) return emptyList()
+
+        val hasSpanned = validTexts.any { it is Spanned }
+        val mergedText: CharSequence = if (hasSpanned) {
+            val builder = SpannableStringBuilder()
+            for (i in validTexts.indices) {
+                if (i > 0) builder.append('\n')
+                builder.append(validTexts[i])
+            }
+            builder
+        } else {
+            validTexts.distinct().joinToString("\n")
+        }
+        return listOf(cues[0].buildUpon().setText(mergedText).build())
     }
 }

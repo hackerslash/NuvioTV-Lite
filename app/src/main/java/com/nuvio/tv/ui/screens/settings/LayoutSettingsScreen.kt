@@ -614,6 +614,19 @@ fun LayoutSettingsContent(
                     focusRequester = continueWatchingHeaderFocus,
                     onFocused = { focusedSection = LayoutSettingsSection.CONTINUE_WATCHING }
                 ) {
+                    CompactToggleRow(
+                        title = stringResource(R.string.layout_cw_enabled),
+                        subtitle = stringResource(R.string.layout_cw_enabled_sub),
+                        checked = uiState.continueWatchingEnabled,
+                        onToggle = {
+                            viewModel.onEvent(
+                                LayoutSettingsEvent.SetContinueWatchingEnabled(!uiState.continueWatchingEnabled)
+                            )
+                        },
+                        onFocused = { focusedSection = LayoutSettingsSection.CONTINUE_WATCHING }
+                    )
+
+                    if (uiState.continueWatchingEnabled) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.md)
@@ -720,6 +733,7 @@ fun LayoutSettingsContent(
                         onClick = { showCwSortModeDialog = true },
                         onFocused = { focusedSection = LayoutSettingsSection.CONTINUE_WATCHING }
                     )
+                    } // end if (uiState.continueWatchingEnabled)
                 }
             }
 

@@ -115,6 +115,7 @@ import coil3.compose.rememberAsyncImagePainter
 import coil3.request.ImageRequest
 import androidx.compose.ui.res.stringResource
 import com.nuvio.tv.R
+import com.nuvio.tv.ui.util.localizeEpisodeTitle
 import com.nuvio.tv.data.local.InternalPlayerEngine
 import com.nuvio.tv.data.local.LibassRenderType
 import com.nuvio.tv.data.local.SubtitleStyleSettings
@@ -274,7 +275,7 @@ fun PlayerScreen(
             if (skipButtonActuallyVisible) {
                 runCatching { skipIntroFocusRequester.requestFocus() }
             }
-        } else if (uiState.activeSkipInterval != null && !uiState.skipIntervalDismissed && !uiState.showControls) {
+        } else if (skipButtonActuallyVisible && !uiState.showControls) {
             viewModel.onEvent(PlayerEvent.OnDismissSkipIntro)
         } else if (uiState.postPlayMode is PostPlayMode.StillWatching) {
             viewModel.onEvent(PlayerEvent.OnDismissStillWatchingPrompt)
@@ -1654,7 +1655,7 @@ private fun PlayerView.applySubtitleStyleIfNeeded(subtitleStyle: SubtitleStyleSe
             )
         )
 
-        setApplyEmbeddedStyles(false)
+        setApplyEmbeddedStyles(true)
 
         val bottomPaddingFraction =
             (0.06f + (subtitleStyle.verticalOffset / 250f)).coerceIn(0f, 0.4f)
@@ -1835,11 +1836,14 @@ private fun PlayerControlsOverlay(
                             uiState.currentSeason,
                             uiState.currentEpisode
                         )
-                        val episodeInfo = buildString {
-                            append(seasonEpisodeCode)
-                            if (!uiState.currentEpisodeTitle.isNullOrBlank()) {
-                                append(" • ${uiState.currentEpisodeTitle}")
-                            }
+                        val appContext = LocalContext.current
+                        val localizedEpisodeTitle = uiState.currentEpisodeTitle
+                            ?.takeIf { it.isNotBlank() }
+                            ?.localizeEpisodeTitle(appContext)
+                        val episodeInfo = if (localizedEpisodeTitle != null) {
+                            "$seasonEpisodeCode • $localizedEpisodeTitle"
+                        } else {
+                            seasonEpisodeCode
                         }
                         Text(
                             text = episodeInfo,

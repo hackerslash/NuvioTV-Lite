@@ -151,7 +151,7 @@ fun GridHomeContent(
 
     // Offset for section indices: pre-items + continue watching item (if present)
     val gridItems = uiState.gridItems
-    val continueWatchingItems = uiState.continueWatchingItems
+    val continueWatchingItems = if (uiState.continueWatchingEnabled) uiState.continueWatchingItems else emptyList()
     val continueWatchingOffset = if (continueWatchingItems.isNotEmpty()) 1 else 0
 
     LaunchedEffect(gridItems, gridFocusState.hasSavedFocus, gridFocusState.focusedItemKey) {
@@ -460,7 +460,7 @@ fun GridHomeContent(
             }
 
             // Emit Upcoming section if SPLIT_UPCOMING mode has upcoming items
-            if (uiState.upcomingItems.isNotEmpty()) {
+            if (uiState.continueWatchingEnabled && uiState.upcomingItems.isNotEmpty()) {
                 item(
                     key = "upcoming_section",
                     span = { GridItemSpan(maxLineSpan) },

@@ -7,6 +7,8 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
+import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.preferencesDataStore
 import com.nuvio.tv.R
 import com.nuvio.tv.domain.model.UserProfile
@@ -18,7 +20,13 @@ import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
 
-private val Context.profileDataStore: DataStore<Preferences> by preferencesDataStore(name = "profile_settings")
+private val Context.profileDataStore: DataStore<Preferences> by preferencesDataStore(
+    name = "profile_settings",
+    corruptionHandler = ReplaceFileCorruptionHandler { ex ->
+        android.util.Log.e("ProfileDataStore", "DataStore corrupted: ${ex.message} — resetting to empty")
+        emptyPreferences()
+    }
+)
 
 @Singleton
 class ProfileDataStore @Inject constructor(

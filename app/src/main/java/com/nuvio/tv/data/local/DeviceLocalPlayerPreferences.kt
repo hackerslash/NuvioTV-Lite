@@ -25,7 +25,11 @@ import javax.inject.Singleton
 class DeviceLocalPlayerPreferences @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
-    private val store: DataStore<Preferences> = PreferenceDataStoreFactory.create {
+    private val store: DataStore<Preferences> = PreferenceDataStoreFactory.create(
+        corruptionHandler = androidx.datastore.core.handlers.ReplaceFileCorruptionHandler {
+            androidx.datastore.preferences.core.emptyPreferences()
+        }
+    ) {
         context.preferencesDataStoreFile("device_local_player_prefs")
     }
 

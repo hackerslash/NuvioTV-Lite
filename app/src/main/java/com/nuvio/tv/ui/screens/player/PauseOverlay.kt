@@ -50,6 +50,7 @@ import java.util.Locale
 import kotlinx.coroutines.delay
 import androidx.compose.ui.res.stringResource
 import com.nuvio.tv.R
+import com.nuvio.tv.ui.util.localizeEpisodeTitle
 
 @Composable
 fun PauseOverlay(
@@ -213,8 +214,9 @@ private fun PauseMetadataView(
             }
 
             if (!episodeTitle.isNullOrBlank()) {
+                val context = LocalContext.current
                 Text(
-                    text = episodeTitle,
+                    text = episodeTitle.localizeEpisodeTitle(context),
                     style = MaterialTheme.typography.titleLarge,
                     color = Color.White,
                     maxLines = 2,

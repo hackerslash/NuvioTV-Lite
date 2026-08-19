@@ -172,6 +172,8 @@ internal class PlayerPlaybackAnalyticsDiagnostics {
         initializationStartedAtWallTimeMs = 0L
         startPositionMs = null
         lastHealthSnapshotAtElapsedMs = 0L
+        PlaybackConnectionEvents.clear()
+        LoggingDataSource.clear()
     }
 
     fun recordRawEventLine(line: String) {
@@ -676,6 +678,14 @@ internal class PlayerPlaybackAnalyticsDiagnostics {
             force = true
         )
         val firstFrameElapsed = firstFrameElapsedMs
+        val combinedRawEventLines = buildList {
+            addAll(rawEventLines)
+            PlaybackConnectionEvents.resolvedHost()?.let {
+                add("resolved_serving_host host=$it")
+            }
+            addAll(PlaybackConnectionEvents.recentEvents())
+            addAll(LoggingDataSource.recentEvents())
+        }
         return PlaybackIssuePlaybackAnalyticsInput(
             schemaVersion = 1,
             sessionStartedAtMs = sessionStartedAtWallTimeMs,
@@ -738,9 +748,9 @@ internal class PlayerPlaybackAnalyticsDiagnostics {
             totalBytesLoaded = totalBytesLoaded.coerceAtLeast(0L),
             lastLoad = lastLoad,
             lastLoadError = lastLoadError,
-            rawEventLines = rawEventLines.toList(),
+            rawEventLines = combinedRawEventLines,
             events = events.toList(),
-            rawEvents = rawEventLines.toList(),
+            rawEvents = combinedRawEventLines,
             deepExoEvents = events.toList(),
             stutterSignals = events.filter { it.name.isPlaybackWarningEvent() },
             healthSnapshots = healthSnapshots.toList(),

@@ -91,6 +91,8 @@ fun CastDetailScreen(
     onNavigateToDetail: (itemId: String, itemType: String, addonBaseUrl: String?) -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val watchedMovieIds by viewModel.watchedMovieIds.collectAsState()
+    val watchedSeriesIds by viewModel.watchedSeriesIds.collectAsState()
 
     BackHandler { onBackPress() }
 
@@ -116,7 +118,11 @@ fun CastDetailScreen(
                     CastDetailContent(
                         person = state.personDetail,
                         onNavigateToDetail = onNavigateToDetail,
-                        posterOptions = viewModel.posterOptions
+                        posterOptions = viewModel.posterOptions,
+                        isItemWatched = { item ->
+                            if (item.apiType == "movie") item.id in watchedMovieIds
+                            else item.id in watchedSeriesIds
+                        }
                     )
                 }
             }
@@ -138,7 +144,8 @@ fun CastDetailScreen(
 private fun CastDetailContent(
     person: PersonDetail,
     onNavigateToDetail: (itemId: String, itemType: String, addonBaseUrl: String?) -> Unit,
-    posterOptions: com.nuvio.tv.ui.components.posteroptions.PosterOptionsController
+    posterOptions: com.nuvio.tv.ui.components.posteroptions.PosterOptionsController,
+    isItemWatched: (MetaPreview) -> Boolean = { false }
 ) {
     val backgroundColor = NuvioTheme.colors.Background
     val accentColor = NuvioTheme.colors.Secondary
@@ -224,7 +231,8 @@ private fun CastDetailContent(
                         },
                         onItemLongPress = { item ->
                             posterOptions.show(item, null)
-                        }
+                        },
+                        isItemWatched = isItemWatched
                     )
                 }
             }
@@ -425,7 +433,8 @@ private fun FilmographyRow(
     restoreFocusToken: Int = 0,
     onRestoreFocusHandled: () -> Unit = {},
     onItemClick: (MetaPreview) -> Unit,
-    onItemLongPress: (MetaPreview) -> Unit = {}
+    onItemLongPress: (MetaPreview) -> Unit = {},
+    isItemWatched: (MetaPreview) -> Boolean = { false }
 ) {
     val hasRequestedInitialFocus = remember(credits) { mutableStateOf(false) }
     val restoreFocusRequester = remember { FocusRequester() }
@@ -470,6 +479,7 @@ private fun FilmographyRow(
                 item = item,
                 onClick = { onItemClick(item) },
                 onLongPress = { onItemLongPress(item) },
+                isWatched = isItemWatched(item),
                 modifier = if (isFirstItem) {
                     Modifier.onGloballyPositioned {
                         if (!hasRequestedInitialFocus.value) {

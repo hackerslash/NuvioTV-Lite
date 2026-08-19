@@ -100,6 +100,7 @@ class LayoutPreferenceDataStore @Inject constructor(
     private val cardDepthTrailersEnabledKey = booleanPreferencesKey("card_depth_trailers_enabled")
     private val blurUnwatchedEpisodesKey = booleanPreferencesKey("blur_unwatched_episodes")
     private val useEpisodeThumbnailsInCwKey = booleanPreferencesKey("use_episode_thumbnails_in_cw")
+    private val continueWatchingEnabledKey = booleanPreferencesKey("continue_watching_enabled")
     private val continueWatchingCardStyleKey = stringPreferencesKey("continue_watching_card_style")
     private val showUnairedNextUpKey = booleanPreferencesKey("show_unaired_next_up")
     private val nextUpFromFurthestEpisodeKey = booleanPreferencesKey("next_up_from_furthest_episode")
@@ -147,6 +148,10 @@ class LayoutPreferenceDataStore @Inject constructor(
         } catch (e: IllegalArgumentException) {
             HomeLayout.MODERN
         }
+    }
+
+    val continueWatchingEnabled: Flow<Boolean> = profileFlow { prefs ->
+        prefs[continueWatchingEnabledKey] ?: true
     }
 
     val continueWatchingCardStyle: Flow<ContinueWatchingCardStyle> = profileFlow { prefs ->
@@ -664,6 +669,12 @@ class LayoutPreferenceDataStore @Inject constructor(
     suspend fun setUseEpisodeThumbnailsInCw(enabled: Boolean) {
         store().edit { prefs ->
             prefs[useEpisodeThumbnailsInCwKey] = enabled
+        }
+    }
+
+    suspend fun setContinueWatchingEnabled(enabled: Boolean) {
+        store().edit { prefs ->
+            prefs[continueWatchingEnabledKey] = enabled
         }
     }
 

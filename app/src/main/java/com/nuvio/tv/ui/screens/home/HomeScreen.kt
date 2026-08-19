@@ -205,7 +205,7 @@ fun HomeScreen(
     val noAddonsError = stringResource(R.string.home_error_no_addons)
     val noCatalogAddonsError = stringResource(R.string.home_error_no_catalog_addons)
     val hasAnyContent = uiState.catalogRows.isNotEmpty() ||
-        uiState.continueWatchingItems.isNotEmpty() ||
+        (uiState.continueWatchingEnabled && uiState.continueWatchingItems.isNotEmpty()) ||
         uiState.heroItems.isNotEmpty() ||
         hasCollectionContent
     val showStartupLoader = when {

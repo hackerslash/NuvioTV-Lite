@@ -187,13 +187,14 @@ internal fun PlayerRuntimeController.renderSidecarCuesAtCurrentPosition() {
     val active = collectActiveSidecarCues(cues, positionUs).let { current ->
         if (currentPlayerSettingsForReport.subtitleStyle.stripSdh) SubtitleSdhFilter.filterCues(current) else current
     }
-    val signature = activeCueSignature(active)
+    val merged = PlayerSubtitleUtils.mergeOverlappingCues(active)
+    val signature = activeCueSignature(merged)
     if (signature == lastSidecarCueSignature) return
     lastSidecarCueSignature = signature
     val currentKey = activeSidecarSubtitleKey ?: return
     postToSubtitleView { view ->
         if (view.getTag(R.id.player_view_sidecar_generation_tag) == currentKey) {
-            view.setCues(active)
+            view.setCues(merged)
         }
     }
 }

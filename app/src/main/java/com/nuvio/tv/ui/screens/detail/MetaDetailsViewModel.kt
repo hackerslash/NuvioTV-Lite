@@ -161,6 +161,7 @@ class MetaDetailsViewModel @Inject constructor(
         observeWatchProgress()
         observeWatchedEpisodes()
         observeMovieWatched()
+        observeRelatedWatchedStatus()
         observeBlurUnwatchedEpisodes()
         observeShowFullReleaseDate()
         observeHideUnreleasedContent()
@@ -586,6 +587,24 @@ class MetaDetailsViewModel @Inject constructor(
                 .collectLatest { enabled ->
                 _uiState.update { state ->
                     if (state.blurUnwatchedEpisodes == enabled) state else state.copy(blurUnwatchedEpisodes = enabled)
+                }
+            }
+        }
+    }
+
+    private fun observeRelatedWatchedStatus() {
+        viewModelScope.launch {
+            kotlinx.coroutines.flow.combine(
+                watchProgressRepository.observeWatchedMovieIds(),
+                watchedSeriesStateHolder.fullyWatchedSeriesIds
+            ) { movieIds, seriesIds ->
+                buildMap {
+                    movieIds.forEach { id -> put("${id}|movie", true) }
+                    seriesIds.forEach { id -> put("${id}|series", true) }
+                }
+            }.distinctUntilChanged().collect { status ->
+                _uiState.update { state ->
+                    if (state.relatedWatchedStatus == status) state else state.copy(relatedWatchedStatus = status)
                 }
             }
         }

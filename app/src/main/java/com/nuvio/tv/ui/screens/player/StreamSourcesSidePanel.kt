@@ -45,6 +45,8 @@ import com.nuvio.tv.ui.components.LoadingIndicator
 import com.nuvio.tv.ui.theme.NuvioTheme
 import androidx.compose.ui.res.stringResource
 import com.nuvio.tv.R
+import com.nuvio.tv.ui.util.localizeEpisodeTitle
+import androidx.compose.ui.platform.LocalContext
 
 @Composable
 internal fun StreamSourcesSidePanel(
@@ -112,6 +114,7 @@ internal fun StreamSourcesSidePanel(
             Spacer(modifier = Modifier.height(NuvioTheme.spacing.lg))
 
             // Current content info
+            val context = LocalContext.current
             val seasonEpisodeCode = if (uiState.currentSeason != null && uiState.currentEpisode != null) {
                 stringResource(
                     R.string.season_episode_format,
@@ -121,17 +124,16 @@ internal fun StreamSourcesSidePanel(
             } else {
                 null
             }
+            val localizedEpisodeTitle = uiState.currentEpisodeTitle
+                ?.takeIf { it.isNotBlank() }
+                ?.localizeEpisodeTitle(context)
+            val contentInfoText = when {
+                seasonEpisodeCode != null && localizedEpisodeTitle != null -> "$seasonEpisodeCode • $localizedEpisodeTitle"
+                seasonEpisodeCode != null -> seasonEpisodeCode
+                else -> uiState.title
+            }
             Text(
-                text = buildString {
-                    if (seasonEpisodeCode != null) {
-                        append(seasonEpisodeCode)
-                        if (!uiState.currentEpisodeTitle.isNullOrBlank()) {
-                            append(" • ${uiState.currentEpisodeTitle}")
-                        }
-                    } else {
-                        append(uiState.title)
-                    }
-                },
+                text = contentInfoText,
                 style = MaterialTheme.typography.bodyLarge,
                 color = NuvioTheme.extendedColors.textSecondary,
                 maxLines = 1,

@@ -5,13 +5,16 @@ import com.nuvio.tv.core.debrid.DebridStreamPresentation
 import com.nuvio.tv.core.debrid.LocalDebridAvailabilityService
 import com.nuvio.tv.core.network.NetworkResult
 import com.nuvio.tv.core.plugin.PluginManager
+import com.nuvio.tv.core.profile.ProfileManager
 import com.nuvio.tv.core.tmdb.TmdbService
+import com.nuvio.tv.data.local.DebridSettingsDataStore
 import com.nuvio.tv.data.remote.api.AddonApi
 import com.nuvio.tv.data.remote.dto.StreamDto
 import com.nuvio.tv.data.remote.dto.StreamResponseDto
 import com.nuvio.tv.domain.model.Addon
 import com.nuvio.tv.domain.model.AddonResource
 import com.nuvio.tv.domain.model.AddonStreams
+import com.nuvio.tv.domain.model.DebridSettings
 import com.nuvio.tv.domain.model.RepositoryType
 import com.nuvio.tv.domain.model.ScraperInfo
 import com.nuvio.tv.domain.repository.AddonRepository
@@ -22,7 +25,9 @@ import io.mockk.mockk
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
@@ -32,7 +37,7 @@ import retrofit2.Response
 
 class StreamRepositoryPluginIsolationTest {
     @Test
-    fun `addon results arrive while plugin TMDB lookup is pending`() = runTest {
+    fun `addon results arrive while plugin TMDB lookup is pending`() = runBlocking {
         val harness = newHarness(listOf(compatibleScraper()))
         val tmdbResult = CompletableDeferred<String?>()
         coEvery { harness.tmdbService.ensureTmdbId("tt1341338", "movie") } coAnswers {
@@ -53,6 +58,8 @@ class StreamRepositoryPluginIsolationTest {
         assertEquals(1, groups.single().streams.size)
         assertTrue(tmdbResult.isActive)
         coVerify(exactly = 1) { harness.api.getStreams(any()) }
+        tmdbResult.complete(null)
+        Unit
     }
 
     @Test
@@ -92,10 +99,17 @@ class StreamRepositoryPluginIsolationTest {
         val pluginManager = mockk<PluginManager>(relaxed = true)
         every { pluginManager.enabledScrapers } returns flowOf(enabledScrapers)
         every { pluginManager.pluginsEnabled } returns flowOf(enabledScrapers.isNotEmpty())
+        every { pluginManager.groupStreamsByRepository } returns flowOf(false)
+        every { pluginManager.repositories } returns flowOf(emptyList())
+
+        val profileManager = mockk<ProfileManager>(relaxed = true)
+        every { profileManager.activeProfileId } returns MutableStateFlow(1)
 
         val tmdbService = mockk<TmdbService>(relaxed = true)
+        val debridSettingsDataStore = mockk<DebridSettingsDataStore>()
+        every { debridSettingsDataStore.settings } returns flowOf(DebridSettings())
         val presentation = mockk<DebridStreamPresentation>()
-        coEvery { presentation.apply(any(), any<Boolean>()) } coAnswers {
+        every { presentation.apply(any(), any<DebridSettings>(), any(), any()) } answers {
             firstArg<List<AddonStreams>>()
         }
         val availability = mockk<LocalDebridAvailabilityService>()
@@ -112,6 +126,8 @@ class StreamRepositoryPluginIsolationTest {
                 api = api,
                 addonRepository = addonRepository,
                 pluginManager = pluginManager,
+                profileManager = profileManager,
+                debridSettingsDataStore = debridSettingsDataStore,
                 tmdbService = tmdbService,
                 debridStreamPresentation = presentation,
                 localDebridAvailabilityService = availability

@@ -133,6 +133,7 @@ class FolderDetailViewModel @Inject constructor(
     private var movieWatchedJob: Job? = null
     private var enrichFocusJob: Job? = null
     private val enrichedItemIds = java.util.Collections.synchronizedSet(mutableSetOf<String>())
+    private val backgroundMetaPrefetchedIds = java.util.Collections.synchronizedSet(mutableSetOf<String>())
     private val _enrichingItemId = MutableStateFlow<String?>(null)
     val enrichingItemId: StateFlow<String?> = _enrichingItemId.asStateFlow()
     private val _enrichedPreviews = MutableStateFlow<Map<String, MetaPreview>>(emptyMap())
@@ -1109,6 +1110,17 @@ class FolderDetailViewModel @Inject constructor(
         enrichFocusJob?.cancel()
         enrichFocusJob = viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             kotlinx.coroutines.delay(350)
+
+            // Background-prefetch meta from addons so detail screen opens instantly.
+            if (backgroundMetaPrefetchedIds.add(item.id)) {
+                viewModelScope.launch {
+                    metaRepository.getMetaFromAllAddons(
+                        type = item.apiType,
+                        id = item.id
+                    ).first { it !is com.nuvio.tv.core.network.NetworkResult.Loading }
+                }
+            }
+
             val tmdbSettings = tmdbSettingsDataStore.settings.first()
             val homeLayout = _uiState.value.homeLayout
             val tmdbEnabled = tmdbSettings.enabled &&

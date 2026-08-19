@@ -30,6 +30,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 
 /** Hard ceiling for next-episode stream search to prevent hanging forever. */
 private const val NEXT_EPISODE_HARD_TIMEOUT_MS = 120_000L
+private const val CLOUD_LIBRARY_AUTO_NEXT_TIMEOUT_MS = 65_000L
 
 /**
  * Schedules incremental badge matching for source streams in the background.
@@ -150,6 +151,7 @@ internal fun PlayerRuntimeController.buildSourceRequestKey(type: String, videoId
 }
 
 internal fun PlayerRuntimeController.loadSourceStreams(forceRefresh: Boolean) {
+    streamRepository.setLocalPluginSearchPaused(false)
     val type: String
     val vid: String
     val seasonArg: Int?
@@ -217,7 +219,8 @@ internal fun PlayerRuntimeController.loadSourceStreams(forceRefresh: Boolean) {
             type = type,
             videoId = vid,
             season = seasonArg,
-            episode = episodeArg
+            episode = episodeArg,
+            forceRefresh = forceRefresh
         ).collect { result ->
             when (result) {
                 is NetworkResult.Success -> {
@@ -366,6 +369,7 @@ internal fun PlayerRuntimeController.dismissSourcesPanel() {
     sourceStreamsScope = null
     sourceStreamsJob = null
     sourceChipErrorDismissJob?.cancel()
+    streamRepository.setLocalPluginSearchPaused(true)
     _uiState.update {
         it.copy(
             showSourcesPanel = false,
@@ -658,6 +662,7 @@ internal fun PlayerRuntimeController.switchToSourceStream(
     sourceStreamsScope?.cancel()
     sourceStreamsScope = null
     sourceStreamsJob = null
+    streamRepository.setLocalPluginSearchPaused(true)
     if (openExternalStreamInBrowser(stream = stream, fromEpisodePanel = false)) {
         return
     }
@@ -807,6 +812,7 @@ internal fun PlayerRuntimeController.dismissEpisodesPanel() {
     episodeStreamsScope?.cancel()
     episodeStreamsScope = null
     episodeStreamsJob = null
+    streamRepository.setLocalPluginSearchPaused(true)
     _uiState.update {
         it.copy(
             showEpisodesPanel = false,
@@ -970,6 +976,7 @@ internal fun PlayerRuntimeController.buildEpisodeRequestKey(type: String, video:
 }
 
 internal fun PlayerRuntimeController.loadStreamsForEpisode(video: Video, forceRefresh: Boolean) {
+    streamRepository.setLocalPluginSearchPaused(false)
     val type = contentType
     if (type.isNullOrBlank()) {
         _uiState.update { it.copy(episodeStreamsError = context.getString(com.nuvio.tv.R.string.player_stream_error_missing_content_type)) }
@@ -1027,7 +1034,8 @@ internal fun PlayerRuntimeController.loadStreamsForEpisode(video: Video, forceRe
             type = type,
             videoId = video.id,
             season = video.season,
-            episode = video.episode
+            episode = video.episode,
+            forceRefresh = forceRefresh
         ).collect { result ->
             when (result) {
                 is NetworkResult.Success -> {
@@ -1370,6 +1378,7 @@ private fun PlayerRuntimeController.switchToEpisodeStreamCommon(
     nextEpisodeAutoPlayJob = null
     stillWatchingPromptJob?.cancel()
     stillWatchingPromptJob = null
+    streamRepository.setLocalPluginSearchPaused(true)
     flushPlaybackSnapshotForSwitchOrExit()
 
     val targetVideo = forcedTargetVideo
@@ -1517,6 +1526,11 @@ internal fun PlayerRuntimeController.playNextEpisode(userInitiated: Boolean = fa
         return
     }
 
+    if (type.equals("cloud", ignoreCase = true)) {
+        playNextCloudLibraryFile(nextVideo = nextVideo, userInitiated = userInitiated)
+        return
+    }
+
     val episodeForMode = state.nextEpisode ?: nextInfo
     _uiState.update {
         it.copy(
@@ -1530,6 +1544,7 @@ internal fun PlayerRuntimeController.playNextEpisode(userInitiated: Boolean = fa
     nextEpisodeAutoPlayJob?.cancel()
     nextEpisodeAutoPlayJob = scope.launch {
         try {
+            streamRepository.setLocalPluginSearchPaused(false)
             val playerSettings = playerSettingsDataStore.playerSettings.first()
             val shouldAutoSelectInManualMode =
                 playerSettings.streamAutoPlayMode == StreamAutoPlayMode.MANUAL &&
@@ -1757,6 +1772,79 @@ internal fun PlayerRuntimeController.playNextEpisode(userInitiated: Boolean = fa
                 )
             }
             showEpisodeStreamPicker(video = nextVideo, forceRefresh = false)
+        }
+    }
+}
+
+private fun PlayerRuntimeController.playNextCloudLibraryFile(
+    nextVideo: Video,
+    userInitiated: Boolean
+) {
+    val playbackContext = cloudPlaybackContext ?: return
+    val nextFile = playbackContext.nextFile ?: return
+    val nextInfo = _uiState.value.nextEpisode ?: return
+    _uiState.update {
+        it.copy(postPlayMode = PostPlayMode.AutoPlay(nextEpisode = nextInfo, searching = true))
+    }
+
+    nextEpisodeAutoPlayJob?.cancel()
+    nextEpisodeAutoPlayJob = scope.launch {
+        try {
+            when (val result = withTimeoutOrNull(CLOUD_LIBRARY_AUTO_NEXT_TIMEOUT_MS) {
+                cloudLibraryRepository.resolvePlayback(playbackContext.item, nextFile)
+            }) {
+                is com.nuvio.tv.core.cloud.CloudLibraryPlaybackResult.Success -> {
+                    val filename = result.filename ?: nextFile.name
+                    val stream = Stream(
+                        name = playbackContext.item.providerName,
+                        title = filename,
+                        description = playbackContext.item.name,
+                        url = result.url,
+                        ytId = null,
+                        infoHash = null,
+                        fileIdx = null,
+                        externalUrl = null,
+                        behaviorHints = com.nuvio.tv.domain.model.StreamBehaviorHints(
+                            notWebReady = null,
+                            bingeGroup = null,
+                            countryWhitelist = null,
+                            proxyHeaders = null,
+                            videoSize = result.videoSizeBytes ?: nextFile.sizeBytes,
+                            filename = filename
+                        ),
+                        addonName = playbackContext.item.providerName,
+                        addonLogo = null
+                    )
+                    val advancedContext = playbackContext.advanceTo(nextFile)
+                    cloudSessionToken?.let { cloudPlaybackSessionStore.update(it, advancedContext) }
+                    cloudPlaybackContext = advancedContext
+                    _uiState.update { it.copy(title = filename) }
+                    switchToEpisodeStream(
+                        stream = stream,
+                        forcedTargetVideo = nextVideo,
+                        isAutoPlay = !userInitiated
+                    )
+                }
+                else -> {
+                    _uiState.update {
+                        it.copy(
+                            postPlayMode = null,
+                            postPlayDismissedForCurrentEpisode = true,
+                            error = context.getString(com.nuvio.tv.R.string.cloud_library_play_failed)
+                        )
+                    }
+                }
+            }
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Exception) {
+            _uiState.update {
+                it.copy(
+                    postPlayMode = null,
+                    postPlayDismissedForCurrentEpisode = true,
+                    error = context.getString(com.nuvio.tv.R.string.cloud_library_play_failed)
+                )
+            }
         }
     }
 }

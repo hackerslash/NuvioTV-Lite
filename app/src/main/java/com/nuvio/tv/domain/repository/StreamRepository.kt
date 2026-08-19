@@ -6,6 +6,9 @@ import com.nuvio.tv.domain.model.Stream
 import kotlinx.coroutines.flow.Flow
 
 interface StreamRepository {
+    /** Suspends local plugin work while playback owns the device, then resumes the same search. */
+    fun setLocalPluginSearchPaused(paused: Boolean)
+
     /**
      * Fetches streams from all installed addons for a given video ID
      * @param type The content type (movie, series, etc.)
@@ -18,7 +21,8 @@ interface StreamRepository {
         type: String,
         videoId: String,
         season: Int? = null,
-        episode: Int? = null
+        episode: Int? = null,
+        forceRefresh: Boolean = false
     ): Flow<NetworkResult<List<AddonStreams>>>
 
     /**

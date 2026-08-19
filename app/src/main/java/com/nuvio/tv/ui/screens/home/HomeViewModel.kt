@@ -461,6 +461,13 @@ class HomeViewModel @Inject constructor(
                 }
         }
         viewModelScope.launch {
+            layoutPreferenceDataStore.continueWatchingEnabled
+                .distinctUntilChanged()
+                .collect { enabled ->
+                    _uiState.update { it.copy(continueWatchingEnabled = enabled) }
+                }
+        }
+        viewModelScope.launch {
             layoutPreferenceDataStore.continueWatchingCardStyle
                 .distinctUntilChanged()
                 .collect { style ->

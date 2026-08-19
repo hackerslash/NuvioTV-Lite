@@ -61,6 +61,7 @@ data class HomeUiState(
     val showFullReleaseDate: Boolean = true,
     val blurUnwatchedEpisodes: Boolean = false,
     val useEpisodeThumbnailsInCw: Boolean = true,
+    val continueWatchingEnabled: Boolean = true,
     val continueWatchingCardStyle: ContinueWatchingCardStyle = ContinueWatchingCardStyle.CARD,
     val heroEnrichmentEnabled: Boolean = false,
     val startupAuthNotice: StartupAuthNotice? = null,

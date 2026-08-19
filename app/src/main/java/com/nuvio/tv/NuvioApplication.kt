@@ -134,15 +134,12 @@ class NuvioApplication : Application(), SingletonImageLoader.Factory {
             }
             .memoryCache {
                 val totalRamMb = DeviceMemoryTier.totalRamMb
-                // Low-RAM devices (≤2GB): use 0.10 — larger cache reduces GC pressure
-                // from rapid bitmap eviction during scrolling.
-                // Mid-range devices (≤3GB): use 0.15 for decent image caching.
-                // Normal devices (>3GB): use 0.20 for snappy image loading.
+                // Cache % scales with RAM; Lite stays conservative for low-RAM boxes.
                 val cachePercent = when {
                     AppFeaturePolicy.liteMode -> 0.08
-                    totalRamMb <= 2048 -> 0.10
-                    totalRamMb <= 3072 -> 0.15
-                    else -> 0.20
+                    totalRamMb <= 2048 -> 0.15
+                    totalRamMb <= 3072 -> 0.20
+                    else -> 0.25
                 }
                 MemoryCache.Builder()
                     .maxSizePercent(context, cachePercent)
@@ -156,9 +153,8 @@ class NuvioApplication : Application(), SingletonImageLoader.Factory {
             }
             .crossfade(false)
             .precision(coil3.size.Precision.INEXACT)
-            // Hardware bitmaps are always RGBA_8888, so allowRgb565 only takes effect with them
-            // off; low-RAM disables them to halve poster bytes (at some draw cost).
-            .allowHardware(!AppFeaturePolicy.liteMode)
+            // Hardware bitmaps are RGBA_8888; keeping them off lets allowRgb565 halve poster bytes.
+            .allowHardware(false)
             .allowRgb565(true)
             .bitmapFactoryMaxParallelism(if (AppFeaturePolicy.liteMode) 2 else 4)
             .build()

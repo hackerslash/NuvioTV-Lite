@@ -73,6 +73,7 @@ data class LayoutSettingsUiState(
     val showFullReleaseDate: Boolean = true,
     val nextUpFromFurthestEpisode: Boolean = true,
     val showUnairedNextUp: Boolean = true,
+    val continueWatchingEnabled: Boolean = true,
     val continueWatchingSortMode: ContinueWatchingSortMode = ContinueWatchingSortMode.DEFAULT,
     val continueWatchingCardStyle: ContinueWatchingCardStyle = ContinueWatchingCardStyle.CARD,
 )
@@ -125,6 +126,7 @@ sealed class LayoutSettingsEvent {
     data class SetShowFullReleaseDate(val enabled: Boolean) : LayoutSettingsEvent()
     data class SetNextUpFromFurthestEpisode(val enabled: Boolean) : LayoutSettingsEvent()
     data class SetShowUnairedNextUp(val enabled: Boolean) : LayoutSettingsEvent()
+    data class SetContinueWatchingEnabled(val enabled: Boolean) : LayoutSettingsEvent()
     data class SetContinueWatchingSortMode(val mode: ContinueWatchingSortMode) : LayoutSettingsEvent()
     data class SetContinueWatchingCardStyle(val style: ContinueWatchingCardStyle) : LayoutSettingsEvent()
     data object ResetPosterCardStyle : LayoutSettingsEvent()
@@ -342,6 +344,13 @@ class LayoutSettingsViewModel @Inject constructor(
             }
         }
         viewModelScope.launch {
+            layoutPreferenceDataStore.continueWatchingEnabled
+                .distinctUntilChanged()
+                .collect { enabled ->
+                    updateUiStateIfChanged { it.copy(continueWatchingEnabled = enabled) }
+                }
+        }
+        viewModelScope.launch {
             layoutPreferenceDataStore.continueWatchingSortMode
                 .distinctUntilChanged()
                 .collect { mode ->
@@ -398,6 +407,7 @@ class LayoutSettingsViewModel @Inject constructor(
             is LayoutSettingsEvent.SetShowFullReleaseDate -> setShowFullReleaseDate(event.enabled)
             is LayoutSettingsEvent.SetNextUpFromFurthestEpisode -> setNextUpFromFurthestEpisode(event.enabled)
             is LayoutSettingsEvent.SetShowUnairedNextUp -> setShowUnairedNextUp(event.enabled)
+            is LayoutSettingsEvent.SetContinueWatchingEnabled -> setContinueWatchingEnabled(event.enabled)
             is LayoutSettingsEvent.SetContinueWatchingSortMode -> setContinueWatchingSortMode(event.mode)
             is LayoutSettingsEvent.SetContinueWatchingCardStyle -> setContinueWatchingCardStyle(event.style)
             LayoutSettingsEvent.ResetPosterCardStyle -> resetPosterCardStyle()
@@ -729,6 +739,13 @@ class LayoutSettingsViewModel @Inject constructor(
         if (_uiState.value.showUnairedNextUp == enabled) return
         viewModelScope.launch {
             layoutPreferenceDataStore.setShowUnairedNextUp(enabled)
+        }
+    }
+
+    private fun setContinueWatchingEnabled(enabled: Boolean) {
+        if (_uiState.value.continueWatchingEnabled == enabled) return
+        viewModelScope.launch {
+            layoutPreferenceDataStore.setContinueWatchingEnabled(enabled)
         }
     }
 

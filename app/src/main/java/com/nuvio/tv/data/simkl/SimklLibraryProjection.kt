@@ -134,6 +134,7 @@ private fun SimklLibraryEntry.toLibraryEntry(
         imdbId = media.ids.idValue("imdb"),
         tmdbId = media.ids.idValue("tmdb")?.toIntOrNull(),
         simklId = simklId,
+        mediaCategory = if (mediaType == SimklMediaType.ANIME) "anime" else null,
         trackingProviderId = TrackingProviderId.SIMKL.storageId,
         trackingProviderItemId = simklId?.let { "simkl:$it" },
         trackingSourceUrl = buildSimklSourceUrl(mediaType, media)

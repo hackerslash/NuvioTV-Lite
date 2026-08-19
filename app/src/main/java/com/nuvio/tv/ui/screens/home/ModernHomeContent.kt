@@ -364,7 +364,7 @@ fun ModernHomeContent(
 
         if (!restoredFromSavedState.value && focusState.hasSavedFocus) {
             val savedRowKey = focusState.focusedRowKey ?: when {
-                focusState.focusedRowIndex == -1 && uiState.continueWatchingItems.isNotEmpty() -> "continue_watching"
+                focusState.focusedRowIndex == -1 && uiState.continueWatchingEnabled && uiState.continueWatchingItems.isNotEmpty() -> "continue_watching"
                 focusState.focusedRowIndex >= 0 -> rowKeyByGlobalRowIndex.map[focusState.focusedRowIndex]
                 else -> null
             }
