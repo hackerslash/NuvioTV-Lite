@@ -9,6 +9,24 @@ build itself. The in-app updater compares the release tag against the installed
 `versionName`, so tags must stay version-shaped and releases must be published as
 full releases — the updater ignores prereleases and drafts.
 
+## v1.1.0-lite — 2026-08-20
+
+### Leaner image pipeline
+- Lite skips the new stale-while-revalidate poster cache: no background revalidation
+  network traffic and no growing per-URL tracking maps on low-RAM boxes. Posters still
+  refresh on normal cache expiry.
+- Each visible poster no longer parks a background watcher coroutine that Lite never uses.
+
+### Synced with upstream NuvioTV
+- Redesigned episode options overlay on the details screen.
+- Steadier subtitles: hardened SDH filtering aligned with the MPV player.
+- Bluetooth audio: playback keeps running across headphone/route changes, with audio delay
+  applied in place.
+- The library now remembers your Movies/Shows type selection.
+- Configurable rating visibility, plus new theme and profile personalization options.
+- Sharper profile background gradients (fixed banding on full-screen backgrounds).
+- Assorted profile, playback, and settings refinements.
+
 ## v1.0.2-lite — 2026-08-19
 
 ### Faster, smoother home
