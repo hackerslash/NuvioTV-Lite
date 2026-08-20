@@ -87,6 +87,7 @@ import androidx.tv.material3.Icon
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import coil3.compose.AsyncImage
+import com.nuvio.tv.core.build.AppFeaturePolicy
 import com.nuvio.tv.core.player.ExternalPlayerLauncher
 import com.nuvio.tv.core.streams.StreamBadgePlacement
 import com.nuvio.tv.core.streams.StreamBadgeSettings
@@ -479,21 +480,34 @@ fun StreamScreen(
         }
 
         if (showP2pConsentDialog && pendingTorrentPlaybackInfo != null) {
-            P2pConsentDialog(
-                onEnableP2p = {
-                    viewModel.enableP2p()
-                    showP2pConsentDialog = false
-                    val info = pendingTorrentPlaybackInfo!!
-                    pendingTorrentPlaybackInfo = null
-                    routePlayback(info)
-                },
-                onDismiss = {
+            if (!AppFeaturePolicy.torrentEnabled) {
+                LaunchedEffect(Unit) {
+                    Toast.makeText(
+                        context,
+                        context.getString(R.string.p2p_unavailable_edition),
+                        Toast.LENGTH_LONG
+                    ).show()
                     showP2pConsentDialog = false
                     pendingTorrentPlaybackInfo = null
-                    // Cancelled P2P consent — fall back to manual stream selection
                     viewModel.onEvent(StreamScreenEvent.OnAutoPlayConsumed)
                 }
-            )
+            } else {
+                P2pConsentDialog(
+                    onEnableP2p = {
+                        viewModel.enableP2p()
+                        showP2pConsentDialog = false
+                        val info = pendingTorrentPlaybackInfo!!
+                        pendingTorrentPlaybackInfo = null
+                        routePlayback(info)
+                    },
+                    onDismiss = {
+                        showP2pConsentDialog = false
+                        pendingTorrentPlaybackInfo = null
+                        // Cancelled P2P consent — fall back to manual stream selection
+                        viewModel.onEvent(StreamScreenEvent.OnAutoPlayConsumed)
+                    }
+                )
+            }
         }
 
     }

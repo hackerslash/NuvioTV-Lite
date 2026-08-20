@@ -55,7 +55,7 @@ class TorrentService @Inject constructor(
         // Lite edition ships without libtorrserver.so; fail fast rather than
         // trying to launch a binary that isn't in the APK.
         if (!com.nuvio.tv.core.build.AppFeaturePolicy.torrentEnabled) {
-            throw TorrentException("Torrent streaming is not available in this edition")
+            throw TorrentException(appContext.getString(com.nuvio.tv.R.string.p2p_unavailable_edition))
         }
         stopStream()
         _state.value = TorrentState.Connecting

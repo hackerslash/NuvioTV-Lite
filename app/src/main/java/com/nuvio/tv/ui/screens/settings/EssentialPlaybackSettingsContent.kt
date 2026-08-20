@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nuvio.tv.R
+import com.nuvio.tv.core.build.AppFeaturePolicy
 import com.nuvio.tv.data.local.AudioLanguageOption
 import com.nuvio.tv.data.local.StreamAutoPlayMode
 import com.nuvio.tv.ui.components.P2pConsentDialog
@@ -99,20 +100,22 @@ fun EssentialPlaybackSettingsContent(
                         },
                         enabled = settings != null
                     )
-                    SettingsToggleRow(
-                        title = stringResource(R.string.essential_p2p_streams),
-                        subtitle = stringResource(R.string.essential_p2p_streams_subtitle),
-                        checked = torrentSettings?.p2pEnabled == true,
-                        onToggle = {
-                            val current = torrentSettings ?: return@SettingsToggleRow
-                            if (current.p2pEnabled) {
-                                viewModel.setP2pEnabled(false)
-                            } else {
-                                showP2pConsentDialog = true
-                            }
-                        },
-                        enabled = torrentSettings != null
-                    )
+                    if (AppFeaturePolicy.torrentEnabled) {
+                        SettingsToggleRow(
+                            title = stringResource(R.string.essential_p2p_streams),
+                            subtitle = stringResource(R.string.essential_p2p_streams_subtitle),
+                            checked = torrentSettings?.p2pEnabled == true,
+                            onToggle = {
+                                val current = torrentSettings ?: return@SettingsToggleRow
+                                if (current.p2pEnabled) {
+                                    viewModel.setP2pEnabled(false)
+                                } else {
+                                    showP2pConsentDialog = true
+                                }
+                            },
+                            enabled = torrentSettings != null
+                        )
+                    }
                 }
             }
             item(key = "subtitles_audio") {

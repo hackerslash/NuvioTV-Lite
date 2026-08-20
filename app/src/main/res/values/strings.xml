@@ -1542,6 +1542,7 @@
     <string name="settings_p2p_subtitle">Allow peer-to-peer (torrent) streams</string>
     <string name="settings_p2p_hide_stats_title">Hide torrent stats</string>
     <string name="settings_p2p_hide_stats_subtitle">Hide buffer, seeds, peers and download speed during loading and playback</string>
+    <string name="p2p_unavailable_edition">P2P streaming is not available in this edition</string>
     <string name="p2p_download_title">Downloading P2P Engine</string>
     <string name="p2p_download_subtitle">This is a one-time download required for P2P streaming.</string>
     <string name="stream_type_external">External</string>

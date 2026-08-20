@@ -216,7 +216,7 @@ fun TmdbSettingsContent(
                     )
                 }
 
-                if (AppFeaturePolicy.inAppTrailerPlaybackEnabled) {
+                if (AppFeaturePolicy.trailerPlaybackEnabled) {
                     item(key = "tmdb_trailers") {
                         SettingsToggleRow(
                             title = stringResource(R.string.tmdb_trailers_title),

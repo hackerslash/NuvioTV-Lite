@@ -64,6 +64,7 @@ import androidx.tv.material3.Icon
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import com.nuvio.tv.R
+import com.nuvio.tv.core.build.AppFeaturePolicy
 import com.nuvio.tv.data.local.Dv7HandlingMode
 import com.nuvio.tv.data.local.InternalPlayerEngine
 import com.nuvio.tv.domain.model.ExperienceMode
@@ -492,12 +493,14 @@ fun AdvancedSettingsContent(
 
         item(key = "playback_issue_reports") {
             SettingsGroupCard(modifier = Modifier.fillMaxWidth()) {
-                SettingsToggleRow(
-                    title = stringResource(R.string.advanced_sentry_reports),
-                    subtitle = stringResource(R.string.advanced_sentry_reports_subtitle),
-                    checked = uiState.sentryEnabled,
-                    onToggle = { showSentryDialog = true }
-                )
+                if (!AppFeaturePolicy.liteMode) {
+                    SettingsToggleRow(
+                        title = stringResource(R.string.advanced_sentry_reports),
+                        subtitle = stringResource(R.string.advanced_sentry_reports_subtitle),
+                        checked = uiState.sentryEnabled,
+                        onToggle = { showSentryDialog = true }
+                    )
+                }
                 SettingsToggleRow(
                     title = stringResource(R.string.advanced_playback_issue_reports),
                     subtitle = stringResource(R.string.advanced_playback_issue_reports_subtitle),

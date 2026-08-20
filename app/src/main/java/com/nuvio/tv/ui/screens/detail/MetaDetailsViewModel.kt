@@ -1518,7 +1518,9 @@ class MetaDetailsViewModel @Inject constructor(
             updated = updated.copy(networks = enrichment.networks)
         }
 
-        if (enrichment != null && settings.useTrailers && enrichment.trailers.isNotEmpty()) {
+        if (enrichment != null && AppFeaturePolicy.trailerPlaybackEnabled &&
+            settings.useTrailers && enrichment.trailers.isNotEmpty()
+        ) {
             val mergedTrailers = mergeTrailers(
                 existing = updated.trailers,
                 incoming = enrichment.trailers

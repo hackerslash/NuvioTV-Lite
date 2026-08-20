@@ -542,19 +542,21 @@ fun LayoutSettingsContent(
                         }
                     }
 
-                    CompactToggleRow(
-                        title = stringResource(R.string.layout_trailer_button),
-                        subtitle = stringResource(R.string.layout_trailer_button_sub),
-                        checked = uiState.detailPageTrailerButtonEnabled,
-                        onToggle = {
-                            viewModel.onEvent(
-                                LayoutSettingsEvent.SetDetailPageTrailerButtonEnabled(
-                                    !uiState.detailPageTrailerButtonEnabled
+                    if (AppFeaturePolicy.trailerPlaybackEnabled) {
+                        CompactToggleRow(
+                            title = stringResource(R.string.layout_trailer_button),
+                            subtitle = stringResource(R.string.layout_trailer_button_sub),
+                            checked = uiState.detailPageTrailerButtonEnabled,
+                            onToggle = {
+                                viewModel.onEvent(
+                                    LayoutSettingsEvent.SetDetailPageTrailerButtonEnabled(
+                                        !uiState.detailPageTrailerButtonEnabled
+                                    )
                                 )
-                            )
-                        },
-                        onFocused = { focusedSection = LayoutSettingsSection.DETAIL_PAGE }
-                    )
+                            },
+                            onFocused = { focusedSection = LayoutSettingsSection.DETAIL_PAGE }
+                        )
+                    }
 
                     CompactToggleRow(
                         title = stringResource(R.string.layout_prefer_external_meta),

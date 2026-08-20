@@ -58,6 +58,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
 import com.nuvio.tv.R
+import com.nuvio.tv.core.build.AppFeaturePolicy
 import com.nuvio.tv.core.player.DisplayCapabilities
 import androidx.tv.material3.Border
 import androidx.tv.material3.Card
@@ -585,44 +586,47 @@ internal fun PlaybackSettingsSections(
                 onItemFocused = { focusedSection = PlaybackSection.AUDIO_TRAILER },
                 enabled = !generalUi.isExternalPlayer,
                 videoExtraItems = {
-                    item(key = "general_afr_header") {
-                        PlaybackSectionHeader(
-                            title = stringResource(R.string.playback_auto_frame_rate),
-                            description = generalUi.frameRateMatchingLabel,
-                            expanded = afrExpanded,
-                            onToggle = { afrExpanded = !afrExpanded },
-                            focusRequester = afrHeaderFocus,
-                            onFocused = { focusedSection = PlaybackSection.AUDIO_TRAILER },
-                            enabled = !generalUi.isExternalPlayer,
-                            showWarningIcon = showAfrWarning,
-                            icon = Icons.Default.Speed
-                        )
-                    }
-
-                    if (afrExpanded) {
-                        item(key = "general_afr_capability_warning") {
-                            AfrCapabilityWarningCard(
-                                snapshot = displayCapabilities,
-                                afrModeOn = playerSettings.frameRateMatchingMode != FrameRateMatchingMode.OFF,
-                                resolutionMatchingOn = playerSettings.resolutionMatchingEnabled,
-                                headerFocusRequester = afrHeaderFocus,
-                                onDisableAll = onDisableAfrAndResolution,
-                                onDisableAfrOnly = onDisableAfrOnly,
-                                onDisableResolutionOnly = onDisableResolutionOnly,
-                                onFocused = { focusedSection = PlaybackSection.AUDIO_TRAILER }
+                    // Without the frame-rate probe, AFR and resolution matching are no-ops.
+                    if (AppFeaturePolicy.autoFrameRateProbeEnabled) {
+                        item(key = "general_afr_header") {
+                            PlaybackSectionHeader(
+                                title = stringResource(R.string.playback_auto_frame_rate),
+                                description = generalUi.frameRateMatchingLabel,
+                                expanded = afrExpanded,
+                                onToggle = { afrExpanded = !afrExpanded },
+                                focusRequester = afrHeaderFocus,
+                                onFocused = { focusedSection = PlaybackSection.AUDIO_TRAILER },
+                                enabled = !generalUi.isExternalPlayer,
+                                showWarningIcon = showAfrWarning,
+                                icon = Icons.Default.Speed
                             )
                         }
-                        item(key = "general_afr_options") {
-                            FrameRateMatchingModeOptions(
-                                selectedMode = playerSettings.frameRateMatchingMode,
-                                resolutionMatchingEnabled = playerSettings.resolutionMatchingEnabled,
-                                resolutionSwitchingSupported = !displayCapabilities.apiSupported ||
-                                    displayCapabilities.supportsResolutionSwitching,
-                                onSelect = onSetFrameRateMatchingMode,
-                                onSetResolutionMatchingEnabled = onSetResolutionMatchingEnabled,
-                                onFocused = { focusedSection = PlaybackSection.AUDIO_TRAILER },
-                                enabled = !generalUi.isExternalPlayer
-                            )
+
+                        if (afrExpanded) {
+                            item(key = "general_afr_capability_warning") {
+                                AfrCapabilityWarningCard(
+                                    snapshot = displayCapabilities,
+                                    afrModeOn = playerSettings.frameRateMatchingMode != FrameRateMatchingMode.OFF,
+                                    resolutionMatchingOn = playerSettings.resolutionMatchingEnabled,
+                                    headerFocusRequester = afrHeaderFocus,
+                                    onDisableAll = onDisableAfrAndResolution,
+                                    onDisableAfrOnly = onDisableAfrOnly,
+                                    onDisableResolutionOnly = onDisableResolutionOnly,
+                                    onFocused = { focusedSection = PlaybackSection.AUDIO_TRAILER }
+                                )
+                            }
+                            item(key = "general_afr_options") {
+                                FrameRateMatchingModeOptions(
+                                    selectedMode = playerSettings.frameRateMatchingMode,
+                                    resolutionMatchingEnabled = playerSettings.resolutionMatchingEnabled,
+                                    resolutionSwitchingSupported = !displayCapabilities.apiSupported ||
+                                        displayCapabilities.supportsResolutionSwitching,
+                                    onSelect = onSetFrameRateMatchingMode,
+                                    onSetResolutionMatchingEnabled = onSetResolutionMatchingEnabled,
+                                    onFocused = { focusedSection = PlaybackSection.AUDIO_TRAILER },
+                                    enabled = !generalUi.isExternalPlayer
+                                )
+                            }
                         }
                     }
                 }
@@ -660,34 +664,36 @@ internal fun PlaybackSettingsSections(
             )
         }
 
-        playbackCollapsibleSection(
-            keyPrefix = "p2p",
-            title = strSectionP2p,
-            description = strSectionP2pDesc,
-            expanded = p2pExpanded,
-            onToggle = { p2pExpanded = !p2pExpanded },
-            focusRequester = p2pHeaderFocus,
-            onHeaderFocused = { focusedSection = PlaybackSection.P2P }
-        ) {
-            item(key = "p2p_enabled") {
-                ToggleSettingsItem(
-                    icon = Icons.Default.Info,
-                    title = strSectionP2p,
-                    subtitle = strSectionP2pDesc,
-                    isChecked = p2pEnabled,
-                    onCheckedChange = onSetP2pEnabled,
-                    onFocused = { focusedSection = PlaybackSection.P2P }
-                )
-            }
-            item(key = "p2p_hide_stats") {
-                ToggleSettingsItem(
-                    icon = Icons.Default.Info,
-                    title = strHideTorrentStats,
-                    subtitle = strHideTorrentStatsDesc,
-                    isChecked = hideTorrentStats,
-                    onCheckedChange = onSetHideTorrentStats,
-                    onFocused = { focusedSection = PlaybackSection.P2P }
-                )
+        if (AppFeaturePolicy.torrentEnabled) {
+            playbackCollapsibleSection(
+                keyPrefix = "p2p",
+                title = strSectionP2p,
+                description = strSectionP2pDesc,
+                expanded = p2pExpanded,
+                onToggle = { p2pExpanded = !p2pExpanded },
+                focusRequester = p2pHeaderFocus,
+                onHeaderFocused = { focusedSection = PlaybackSection.P2P }
+            ) {
+                item(key = "p2p_enabled") {
+                    ToggleSettingsItem(
+                        icon = Icons.Default.Info,
+                        title = strSectionP2p,
+                        subtitle = strSectionP2pDesc,
+                        isChecked = p2pEnabled,
+                        onCheckedChange = onSetP2pEnabled,
+                        onFocused = { focusedSection = PlaybackSection.P2P }
+                    )
+                }
+                item(key = "p2p_hide_stats") {
+                    ToggleSettingsItem(
+                        icon = Icons.Default.Info,
+                        title = strHideTorrentStats,
+                        subtitle = strHideTorrentStatsDesc,
+                        isChecked = hideTorrentStats,
+                        onCheckedChange = onSetHideTorrentStats,
+                        onFocused = { focusedSection = PlaybackSection.P2P }
+                    )
+                }
             }
         }
 
