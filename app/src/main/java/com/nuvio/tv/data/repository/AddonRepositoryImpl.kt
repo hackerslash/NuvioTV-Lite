@@ -12,6 +12,7 @@ import com.nuvio.tv.data.remote.api.AddonApi
 import com.nuvio.tv.domain.model.Addon
 import com.nuvio.tv.domain.repository.AddonRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
@@ -20,6 +21,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
@@ -99,8 +101,16 @@ class AddonRepositoryImpl @Inject constructor(
     private var lastManifestRefreshTime = 0L
     private var manifestRefreshJob: Job? = null
 
+    private val manifestCacheLoaded = CompletableDeferred<Unit>()
+
     init {
-        syncScope.launch { loadManifestCacheFromDisk() }
+        syncScope.launch {
+            try {
+                loadManifestCacheFromDisk()
+            } finally {
+                manifestCacheLoaded.complete(Unit)
+            }
+        }
     }
 
     private fun isCacheStale(): Boolean =
@@ -185,23 +195,7 @@ class AddonRepositoryImpl @Inject constructor(
                     (enabledByUrl[canonical] ?: true) && getCachedManifest(canonical) == null
                 }
                 if (hasCacheMiss) {
-                    val fresh = coroutineScope {
-                        urls.map { url ->
-                            async {
-                                val canonical = canonicalizeUrl(url)
-                                val enabled = enabledByUrl[canonical] ?: true
-                                if (!enabled) {
-                                    return@async getCachedManifest(canonical)
-                                        ?.copy(enabled = false)
-                                        ?: placeholderAddon(canonical, userNames, enabled = false)
-                                }
-                                (getCachedManifest(canonical) ?: when (val result = fetchAddon(url)) {
-                                    is NetworkResult.Success -> result.data
-                                    else -> null
-                                })?.copy(enabled = enabled)
-                            }
-                        }.awaitAll().filterNotNull()
-                    }
+                    val fresh = resolveAddons(urls, userNames, enabledByUrl)
 
                     if (fresh != cached) {
                         emit(applyDisplayNames(fresh, userNames, enabledByUrl))
@@ -216,6 +210,39 @@ class AddonRepositoryImpl @Inject constructor(
         .stateIn(syncScope, SharingStarted.Eagerly, emptyList<Addon>())
 
     override fun getInstalledAddons(): Flow<List<Addon>> = installedAddonsFlow
+
+    private suspend fun resolveAddons(
+        urls: List<String>,
+        userNames: Map<String, String>,
+        enabledByUrl: Map<String, Boolean>
+    ): List<Addon> = coroutineScope {
+        urls.map { url ->
+            async {
+                val canonical = canonicalizeUrl(url)
+                val enabled = enabledByUrl[canonical] ?: true
+                if (!enabled) {
+                    return@async getCachedManifest(canonical)
+                        ?.copy(enabled = false)
+                        ?: placeholderAddon(canonical, userNames, enabled = false)
+                }
+                (getCachedManifest(canonical) ?: when (val result = fetchAddon(url)) {
+                    is NetworkResult.Success -> result.data
+                    else -> null
+                })?.copy(enabled = enabled)
+            }
+        }.awaitAll().filterNotNull()
+    }
+
+    override suspend fun getResolvedInstalledAddons(): List<Addon> =
+        withContext(Dispatchers.IO) {
+            manifestCacheLoaded.await()
+            val urls = preferences.installedAddonUrls.first()
+            if (urls.isEmpty()) return@withContext emptyList()
+            val userNames = preferences.userSetNames.first()
+            val enabledByUrl = preferences.addonEnabledStates.first()
+                .mapKeys { (url, _) -> canonicalizeUrl(url) }
+            applyDisplayNames(resolveAddons(urls, userNames, enabledByUrl), userNames, enabledByUrl)
+        }
 
     override suspend fun fetchAddon(baseUrl: String): NetworkResult<Addon> {
         val cleanBaseUrl = canonicalizeUrl(baseUrl)
