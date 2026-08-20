@@ -9,6 +9,14 @@ build itself. The in-app updater compares the release tag against the installed
 `versionName`, so tags must stay version-shaped and releases must be published as
 full releases — the updater ignores prereleases and drafts.
 
+## v1.1.1-lite — 2026-08-20
+
+### Settings match what the edition ships
+- The P2P, crash-report, trailer and auto-frame-rate toggles no longer appear in Lite.
+  None of those features are compiled into this build, so the switches did nothing.
+- Picking a P2P/torrent stream now says up front that it is unavailable, instead of
+  opening the player and failing part-way through the loading overlay.
+
 ## v1.1.0-lite — 2026-08-20
 
 ### Leaner image pipeline
