@@ -43,6 +43,7 @@ import androidx.tv.material3.Text
 import coil3.compose.AsyncImage
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
+import coil3.request.allowRgb565
 import coil3.request.crossfade
 import com.nuvio.tv.R
 import com.nuvio.tv.data.remote.supabase.ProfileBackgroundCatalogItem
@@ -197,6 +198,7 @@ fun ProfileBackgroundImage(
             .data(background.imageFile)
             .memoryCacheKey("profile-background-${background.id}-v${background.assetVersion}")
             .diskCachePolicy(CachePolicy.DISABLED)
+            .allowRgb565(false)
             .crossfade(true)
             .build(),
         contentDescription = contentDescription,
@@ -218,6 +220,7 @@ fun CustomProfileBackgroundImage(
             .memoryCacheKey("custom-profile-background-$imageUrl")
             .diskCacheKey("custom-profile-background-$imageUrl")
             .diskCachePolicy(CachePolicy.ENABLED)
+            .allowRgb565(false)
             .crossfade(true)
             .build(),
         contentDescription = contentDescription,
