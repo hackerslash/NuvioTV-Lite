@@ -10,6 +10,7 @@ object AppFeaturePolicy {
     val inAppUpdatesEnabled: Boolean = BuildConfig.FEATURE_IN_APP_UPDATES_ENABLED
     val inAppTrailerPlaybackEnabled: Boolean = false
     val externalTrailerPlaybackEnabled: Boolean = BuildConfig.FEATURE_EXTERNAL_TRAILERS_ENABLED
+    val supportNuvioEnabled: Boolean = false
     val trailerPlaybackMode: TrailerPlaybackMode = TrailerPlaybackMode.EXTERNAL
     val imdbRatingLogoEnabled: Boolean = false
 

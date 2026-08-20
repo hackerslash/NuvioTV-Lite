@@ -251,7 +251,8 @@ private fun PlayerRuntimeController.executeSubtitleDownload(url: String): String
             error(context.getString(com.nuvio.tv.R.string.subtitle_download_failed_http, response.code))
         }
         val bodyBytes = response.body?.bytes()
-        if (bodyBytes == null || bodyBytes.isEmpty()) {
+            ?: error(context.getString(com.nuvio.tv.R.string.subtitle_download_empty_content))
+        if (bodyBytes.isEmpty()) {
             error(context.getString(com.nuvio.tv.R.string.subtitle_download_empty_content))
         }
         val body = SubtitleCharsetDetector.decode(bodyBytes)

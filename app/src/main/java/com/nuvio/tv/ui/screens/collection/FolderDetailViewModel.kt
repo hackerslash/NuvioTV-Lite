@@ -21,6 +21,7 @@ import com.nuvio.tv.domain.model.CollectionSource
 import com.nuvio.tv.domain.model.CollectionFolder
 import com.nuvio.tv.domain.model.FocusedPosterTrailerPlaybackTarget
 import com.nuvio.tv.domain.model.FolderViewMode
+import com.nuvio.tv.domain.model.HomeImdbRatingsVisibility
 import com.nuvio.tv.domain.model.HomeLayout
 import com.nuvio.tv.domain.model.MetaPreview
 import com.nuvio.tv.domain.model.TmdbCollectionSource
@@ -61,6 +62,7 @@ data class FolderDetailUiState(
     val collectionTitle: String = "",
     val viewMode: FolderViewMode = FolderViewMode.TABBED_GRID,
     val homeLayout: HomeLayout = HomeLayout.MODERN,
+    val homeImdbRatingsVisibility: HomeImdbRatingsVisibility = HomeImdbRatingsVisibility.SHOW_ALL,
     val posterLabelsEnabled: Boolean = true,
     val catalogAddonNameEnabled: Boolean = true,
     val catalogTypeSuffixEnabled: Boolean = true,
@@ -231,6 +233,7 @@ class FolderDetailViewModel @Inject constructor(
 
             val addons = addonRepository.getInstalledAddons().first().enabledAddons()
             val homeLayout = layoutPreferenceDataStore.selectedLayout.first()
+            val homeImdbRatingsVisibility = layoutPreferenceDataStore.homeImdbRatingsVisibility.first()
             val posterLabelsEnabled = layoutPreferenceDataStore.posterLabelsEnabled.first()
             val catalogAddonNameEnabled = layoutPreferenceDataStore.catalogAddonNameEnabled.first()
             val catalogTypeSuffixEnabled = layoutPreferenceDataStore.catalogTypeSuffixEnabled.first()
@@ -328,6 +331,7 @@ class FolderDetailViewModel @Inject constructor(
                     collectionTitle = collection?.title ?: "",
                     viewMode = viewMode,
                     homeLayout = homeLayout,
+                    homeImdbRatingsVisibility = homeImdbRatingsVisibility,
                     posterLabelsEnabled = posterLabelsEnabled,
                     catalogAddonNameEnabled = catalogAddonNameEnabled,
                     catalogTypeSuffixEnabled = catalogTypeSuffixEnabled,
@@ -527,6 +531,7 @@ class FolderDetailViewModel @Inject constructor(
                         useLandscapePosters = state.modernLandscapePostersEnabled,
                         showCatalogTypeSuffix = state.catalogTypeSuffixEnabled,
                         showFullReleaseDate = state.showFullReleaseDate,
+                        showImdbRatings = state.homeImdbRatingsVisibility.showRatings,
                         localeTag = com.nuvio.tv.LocaleCache.localeTag
                     ),
                     cache = modernCarouselRowBuildCache,
@@ -541,6 +546,7 @@ class FolderDetailViewModel @Inject constructor(
                         heroSectionEnabled = false,
                         isLoading = anyLoading,
                         homeLayout = s.homeLayout,
+                        homeImdbRatingsVisibility = s.homeImdbRatingsVisibility,
                         posterLabelsEnabled = if (s.homeLayout == HomeLayout.MODERN) false else s.posterLabelsEnabled,
                         modernLandscapePostersEnabled = s.modernLandscapePostersEnabled,
                         modernHeroFullScreenBackdropEnabled = s.modernHeroFullScreenBackdropEnabled,
@@ -572,6 +578,7 @@ class FolderDetailViewModel @Inject constructor(
                     heroSectionEnabled = false,
                     isLoading = anyLoading,
                     homeLayout = s.homeLayout,
+                    homeImdbRatingsVisibility = s.homeImdbRatingsVisibility,
                     posterLabelsEnabled = s.posterLabelsEnabled,
                     modernLandscapePostersEnabled = s.modernLandscapePostersEnabled,
                     modernHeroFullScreenBackdropEnabled = s.modernHeroFullScreenBackdropEnabled,

@@ -1366,7 +1366,10 @@ private fun StepperButton(
             }
             .then(
                 if (isFocused) {
-                    Modifier.border(NuvioTheme.spacing.xxs, NuvioTheme.colors.FocusRing, RoundedCornerShape(NuvioTheme.radii.md))
+                    Modifier.border(
+                        NuvioTheme.focusRing.border(NuvioTheme.spacing.xxs),
+                        RoundedCornerShape(NuvioTheme.radii.md)
+                    )
                 } else {
                     Modifier
                 }
@@ -1538,7 +1541,7 @@ private fun ColorChip(
             .then(
                 when {
                     isSelected -> Modifier.border(NuvioTheme.spacing.xxs, Color.White, CircleShape)
-                    isFocused -> Modifier.border(NuvioTheme.spacing.xxs, NuvioTheme.colors.FocusRing, CircleShape)
+                    isFocused -> Modifier.border(NuvioTheme.focusRing.border(NuvioTheme.spacing.xxs), CircleShape)
                     else -> Modifier
                 }
             )
@@ -1567,7 +1570,7 @@ private fun overlayCardBorder() = CardDefaults.border(
         shape = RoundedCornerShape(NuvioTheme.radii.md)
     ),
     focusedBorder = Border(
-        border = BorderStroke(NuvioTheme.spacing.xxs, NuvioTheme.colors.FocusRing),
+        border = NuvioTheme.focusRing.border(NuvioTheme.spacing.xxs),
         shape = RoundedCornerShape(NuvioTheme.radii.md)
     )
 )

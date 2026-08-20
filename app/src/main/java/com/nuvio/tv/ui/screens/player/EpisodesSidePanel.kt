@@ -432,7 +432,7 @@ private fun EpisodesSeasonTabs(
                         shape = RoundedCornerShape(NuvioTheme.spacing.xl)
                     ),
                     focusedBorder = Border(
-                        border = BorderStroke(NuvioTheme.spacing.xxs, NuvioTheme.colors.FocusRing),
+                        border = NuvioTheme.focusRing.border(NuvioTheme.spacing.xxs),
                         shape = RoundedCornerShape(NuvioTheme.spacing.xl)
                     )
                 ),
@@ -490,7 +490,7 @@ private fun EpisodeItem(
         ),
         border = CardDefaults.border(
             focusedBorder = Border(
-                border = BorderStroke(NuvioTheme.spacing.xxs, NuvioTheme.colors.FocusRing),
+                border = NuvioTheme.focusRing.border(NuvioTheme.spacing.xxs),
                 shape = RoundedCornerShape(NuvioTheme.radii.xl)
             )
         ),

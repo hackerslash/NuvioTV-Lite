@@ -3185,7 +3185,11 @@ internal fun DialogButton(
         ),
         border = ButtonDefaults.border(
             focusedBorder = Border(
-                border = BorderStroke(NuvioTheme.spacing.xxs, if (isPrimary) NuvioTheme.colors.SecondaryVariant else NuvioTheme.colors.FocusRing),
+                border = if (isPrimary) {
+                    BorderStroke(NuvioTheme.spacing.xxs, NuvioTheme.colors.SecondaryVariant)
+                } else {
+                    NuvioTheme.focusRing.border(NuvioTheme.spacing.xxs)
+                },
                 shape = RoundedCornerShape(NuvioTheme.radii.md)
             )
         ),

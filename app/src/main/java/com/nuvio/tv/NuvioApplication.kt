@@ -21,18 +21,19 @@ import com.nuvio.tv.core.build.AppFeaturePolicy
 import com.nuvio.tv.core.device.DeviceMemoryTier
 import com.nuvio.tv.core.diagnostics.MemoryDiagnostics
 import com.nuvio.tv.core.diagnostics.SentryInitializer
+import com.nuvio.tv.core.image.StaleWhileRevalidateCacheStrategy
 import com.nuvio.tv.core.runtime.PluginRuntimeHooks
 import com.nuvio.tv.core.sync.androidtv.AndroidTvChannelSyncService
 import com.nuvio.tv.core.network.IPv4FirstDns
 import com.nuvio.tv.data.local.SentrySettingsDataStore
 import com.nuvio.tv.data.simkl.SimklAnimeIdPreferenceHolder
-import coil3.network.cachecontrol.CacheControlCacheStrategy
 import dagger.hilt.android.HiltAndroidApp
 import okhttp3.Cookie
 import okhttp3.CookieJar
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
 @HiltAndroidApp
@@ -105,6 +106,24 @@ class NuvioApplication : Application(), SingletonImageLoader.Factory {
     }
 
     override fun newImageLoader(context: android.content.Context): ImageLoader {
+        val imageOkHttpClient by lazy {
+            val imageDispatcher = okhttp3.Dispatcher().apply {
+                maxRequests = 32
+                maxRequestsPerHost = 16
+            }
+            OkHttpClient.Builder()
+                .dispatcher(imageDispatcher)
+                .dns(IPv4FirstDns())
+                .connectTimeout(5, TimeUnit.SECONDS)
+                .readTimeout(8, TimeUnit.SECONDS)
+                .callTimeout(15, TimeUnit.SECONDS)
+                .followRedirects(true)
+                .followSslRedirects(true)
+                .build()
+        }
+
+        val imageLoaderRef: () -> ImageLoader = { SingletonImageLoader.get(this) }
+
         return ImageLoader.Builder(this)
             .components {
                 // Lite edition skips animated-image decoding: an animated GIF/WebP/HEIF
@@ -117,19 +136,25 @@ class NuvioApplication : Application(), SingletonImageLoader.Factory {
                     }
                 }
                 add(SvgDecoder.Factory())
-                // CacheControlCacheStrategy respects server Cache-Control headers,
-                // so dynamic images (e.g. BetterPosters with max-age) revalidate.
                 add(
-                    coil3.network.okhttp.OkHttpNetworkFetcherFactory(
-                        callFactory = {
-                            OkHttpClient.Builder()
-                                .dns(IPv4FirstDns())
-                                .followRedirects(true)
-                                .followSslRedirects(true)
-                                .build()
-                        },
-                        cacheStrategy = { CacheControlCacheStrategy() },
-                    )
+                    // Lite skips stale-while-revalidate: no background revalidation network
+                    // churn and no process-lifetime URL maps on low-RAM boxes. Posters refresh
+                    // on normal cache expiry via Coil's default CacheControl strategy.
+                    if (AppFeaturePolicy.liteMode) {
+                        coil3.network.okhttp.OkHttpNetworkFetcherFactory(
+                            callFactory = { imageOkHttpClient },
+                        )
+                    } else {
+                        coil3.network.okhttp.OkHttpNetworkFetcherFactory(
+                            callFactory = { imageOkHttpClient },
+                            cacheStrategy = {
+                                StaleWhileRevalidateCacheStrategy(
+                                    revalidationClient = { imageOkHttpClient },
+                                    imageLoaderProvider = imageLoaderRef,
+                                )
+                            },
+                        )
+                    }
                 )
             }
             .memoryCache {
