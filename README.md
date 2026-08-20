@@ -4,49 +4,54 @@
   <br />
   <br />
 
-  [![Contributors][contributors-shield]][contributors-url]
-  [![Forks][forks-shield]][forks-url]
-  [![Stargazers][stars-shield]][stars-url]
-  [![Issues][issues-shield]][issues-url]
-  [![License][license-shield]][license-url]
-
   <p>
-    A modern Android TV media player powered by the Stremio addon ecosystem.
+    NuvioTV, rebuilt to survive on a low-RAM Android TV box.
     <br />
-    Stremio Addon ecosystem • Android TV optimized • Playback-focused experience
+    Same Stremio-addon playback core • capped memory • self-updating from GitHub Releases
   </p>
 
 </div>
 
-## About
+## Why this fork exists
 
-NuvioTV is a modern media player designed specifically for Android TV.
+Plenty of Android TV sticks and boxes sold today are low-RAM devices, and stock NuvioTV
+([NuvioMedia/NuvioTV](https://github.com/NuvioMedia/NuvioTV)) is tuned for devices with
+more headroom than that. On a low-RAM box its buffer sizing, unbounded concurrent addon
+queries, and heavier features (torrent streaming, the JS plugin runtime, launcher-channel
+sync) push it into the kernel's low-memory killer well before anything throws an
+`OutOfMemoryError`. This fork exists to fix that class of device, not to add features.
 
-It acts as a client-side playback interface that can integrate with the Stremio addon ecosystem for content discovery and source resolution through user-installed extensions.
+Everything here is upstream's playback core with the memory ceiling actually enforced,
+plus a **Lite Edition** build flavor that strips what a low-RAM box can't afford. See the
+[Changelog](CHANGELOG.md) for what shipped release-by-release, and
+[`docs/LITE_PLAN.md`](docs/LITE_PLAN.md) for the original per-change memory analysis.
 
-Built with Kotlin and optimized for a TV-first viewing experience.
+## What's actually different from upstream
 
-> **NuvioTV Lite is a performance-focused fork** of
-> [NuvioMedia/NuvioTV](https://github.com/NuvioMedia/NuvioTV). Alongside the standard
-> build it ships a dedicated **Lite Edition** (see below) — tuned for 2 GB Android TV
-> boxes — plus memory and startup optimizations that benefit every build.
-> In-app updates for the Lite Edition come from this fork's own GitHub Releases.
+| | Upstream NuvioTV | This fork |
+|---|---|---|
+| Device tiering | Heap size (`largeHeap` reports ~512 MB on both a low-RAM and high-RAM device) | Physical RAM (`isLowRamDevice` + a cutoff) |
+| Playback buffer on low-RAM | Heap-ratio only, ~435 MB observed on a low-RAM device | Hard 250 MB ceiling |
+| Concurrent addon stream queries | Unbounded — every configured addon queried at once | Capped at 3 (low-RAM) / 8 (elsewhere) |
+| Torrent streaming, JS plugins, in-app trailers, AFR probe, launcher sync | Present | Stripped in **Lite Edition** only (still present in this fork's `full`/`playstore` flavors) |
+| Updates | Play Store / manual APK | In-app OTA updates from this fork's GitHub Releases |
+| Settings UI | — | Unchanged — no new toggles, this is all build-flavor and internal tuning |
+
+Day-to-day upstream fixes and features are merged in regularly; this fork isn't a
+permanent divergence, just upstream plus the memory work above.
 
 ## ⚡ Lite Edition
 
-A deliberately stripped-down build tuned for the **lowest practical RAM footprint on
-2 GB Android TV boxes**, where the OS and launcher already eat most of the memory. It
-preserves the core loop — **browse → pick a source → reliable playback** — and trades
-away heavier features to stay alive under memory pressure.
-
-**What it removes / tunes** (full detail in [`docs/LITE_PLAN.md`](docs/LITE_PLAN.md)):
+The build flavor this fork is really about: tuned for the **lowest practical RAM
+footprint on low-RAM Android TV boxes**, where the OS and launcher already eat most of the
+memory. It preserves the core loop — **browse → pick a source → reliable playback** —
+and trades away heavier features to stay alive under memory pressure.
 
 - Torrent streaming dropped → **~23 MB smaller APK**, no 41 MB torrent co-process
-- Hard 48 MB playback buffer (vs. 50 s stock buffers) — the biggest heap lever
-- Plugins/JS runtime, in-app + external trailers, launcher-channel sync + boot receiver, Sentry, custom server connections, and the auto-frame-rate probe all disabled
-- Tighter image cache (RGB565, 8 % memory / 100 MB disk), animated-image decode off, bounded metadata caches, no idle animations
-
-See [`docs/LITE_PLAN.md`](docs/LITE_PLAN.md) for the full analysis, per-change memory estimates and risk assessment.
+- Plugins/JS runtime, in-app + external trailers, launcher-channel sync + boot receiver,
+  Sentry, and the auto-frame-rate probe all disabled
+- Installs as a separate `com.nuvio.tv.lite` package ("Nuvio Lite") alongside a standard
+  NuvioTV install — nothing is overwritten
 
 ## Installation
 
@@ -56,7 +61,7 @@ Download the latest APK from **[GitHub Releases](https://github.com/hackerslash/
 
 Pick the APK matching your box's CPU:
 
-- **`armeabi-v7a`** — start here: most 2 GB TV boxes and sticks are 32-bit
+- **`armeabi-v7a`** — start here: most low-RAM TV boxes and sticks are 32-bit
 - **`arm64-v8a`** — 64-bit boxes (check your device before picking this)
 - **`x86_64` / `x86`** — emulators and x86 devices
 - **`universal`** — works everywhere but is the largest download
@@ -66,104 +71,15 @@ fetch the matching APK automatically.
 
 The `-lite` APKs are the Lite Edition; the standard APKs are the full build.
 
-## Development
-
-### Prerequisites
-
-- Android Studio (latest version)
-- JDK 17 (CI builds on Temurin 17; newer JDKs are not supported by AGP)
-- Android SDK (API 29+)
-- Gradle 8.0+
-
-### Setup
+## Build from source
 
 ```bash
 git clone https://github.com/hackerslash/NuvioTV-Lite.git
 cd NuvioTV-Lite
-```
-
-### Full Debug Build
-
-```bash
-./gradlew :app:compileFullDebugKotlin
-./gradlew :app:assembleFullDebug
-```
-
-### Lite Edition Build
-
-```bash
-# per-ABI + universal release APKs
-./gradlew :app:assembleLiteRelease
-# or an app bundle
-./gradlew :app:bundleLiteRelease
+./gradlew :app:assembleFullDebug     # full build
+./gradlew :app:assembleLiteRelease   # Lite Edition, per-ABI + universal APKs
 ```
 
 Flavors: `full` (all features), `playstore` (lean, Play-compliant), `lite`
-(memory-optimized 2 GB edition).
+(memory-optimized low-RAM edition).
 
-### Running on Emulator or Device
-
-```bash
-# Full debug build
-./gradlew :app:assembleFullDebug
-
-# Run on connected device
-adb shell am start -n com.nuviodebug.com/com.nuvio.tv.MainActivity
-```
-
-### Measuring Cold Start
-
-A sideloaded APK stays at ART's `verify` filter — no ahead-of-time compilation — until
-background dexopt runs on idle and charge. Until then it cold-starts far slower than the
-same code installed from Play, which compiles at install time. `adb-optimize.sh` performs
-that compilation on demand so the two are comparable:
-
-```bash
-./scripts/adb-optimize.sh                 # defaults to com.nuvio.tv.lite
-./scripts/adb-optimize.sh com.nuvio.app   # or any installed package
-```
-
-It uses an attached device, or finds one on the local subnet (Android TV boxes typically
-expose `adbd` on port 5555 whenever USB debugging is enabled), and prompts when several
-are connected. It reports the cold-start median either side of the compile, and skips the
-compile entirely when dexopt reports the app is already past `reason=install` — at that
-point it has been compiled against real usage data and recompiling only adds noise.
-
-## Legal & DMCA
-
-NuvioTV functions solely as a client-side interface for browsing metadata and playing media provided by user-installed extensions and/or user-provided sources. It is intended for content the user owns or is otherwise authorized to access.
-
-NuvioTV is not affiliated with any third-party extensions or content providers. It does not host, store, or distribute any media content.
-
-For comprehensive legal information, including our full disclaimer, third-party extension policy, and DMCA/Copyright information, please visit our **[Legal & Disclaimer Page](https://nuvioapp.space/legal)**.
-
-## Built With
-
-* Kotlin
-* Jetpack Compose & TV Material3
-* ExoPlayer / Media3
-* Hilt (Dependency Injection)
-* Retrofit (Networking)
-* Gradle
-
-## Star History
-
-<a href="https://www.star-history.com/?type=date&legend=top-left&repos=hackerslash%2FNuvioTV-Lite">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=hackerslash/NuvioTV-Lite&type=date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=hackerslash/NuvioTV-Lite&type=date&legend=top-left" />
-   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=hackerslash/NuvioTV-Lite&type=date&legend=top-left" />
- </picture>
-</a>
-
-<!-- MARKDOWN LINKS & IMAGES -->
-[contributors-shield]: https://img.shields.io/github/contributors/hackerslash/NuvioTV-Lite.svg?style=for-the-badge
-[contributors-url]: https://github.com/hackerslash/NuvioTV-Lite/graphs/contributors
-[forks-shield]: https://img.shields.io/github/forks/hackerslash/NuvioTV-Lite.svg?style=for-the-badge
-[forks-url]: https://github.com/hackerslash/NuvioTV-Lite/network/members
-[stars-shield]: https://img.shields.io/github/stars/hackerslash/NuvioTV-Lite.svg?style=for-the-badge
-[stars-url]: https://github.com/hackerslash/NuvioTV-Lite/stargazers
-[issues-shield]: https://img.shields.io/github/issues/hackerslash/NuvioTV-Lite.svg?style=for-the-badge
-[issues-url]: https://github.com/hackerslash/NuvioTV-Lite/issues
-[license-shield]: https://img.shields.io/github/license/hackerslash/NuvioTV-Lite.svg?style=for-the-badge
-[license-url]: http://www.gnu.org/licenses/gpl-3.0.en.html
