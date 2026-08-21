@@ -532,8 +532,8 @@ internal fun PlayerRuntimeController.initializePlayer(
                     budgetBytes = budgetBytes,
                     allocator = allocator
                 ).also { currentBitrateAwareLoadControl = it }
-            } else if (com.nuvio.tv.core.build.AppFeaturePolicy.liteMode) {
-                // Lite edition: aggressive, heap-capped defaults on the stock path.
+            } else if (com.nuvio.tv.core.build.AppFeaturePolicy.liteMode || MemoryBudget.isLowRamTier) {
+                // Lite and low-RAM: aggressive, heap-capped defaults on the stock path.
                 // A hard 48MB byte cap (prioritizeTimeOverSize=false) with 20s max / 5s
                 // back buffer bounds out-of-box playback heap on 2GB devices.
                 effectiveBackBufferDurationMs = 5_000
