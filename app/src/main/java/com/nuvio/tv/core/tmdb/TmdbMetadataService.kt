@@ -702,13 +702,17 @@ class TmdbMetadataService(
                 append(",en,null")
             }
 
+            // Large franchises run 25-40 parts, each parsing a backdrops array.
+            val imageSemaphore = Semaphore(TMDB_SEASON_REQUEST_CONCURRENCY)
             val items = coroutineScope {
                 sortedParts.map { part ->
                     async {
                         val title = part.title ?: return@async null
 
                         val localizedBackdropPath = runCatching {
-                            tmdbApi.getMovieImages(part.id, TMDB_API_KEY, includeImageLanguage).body()
+                            imageSemaphore.withPermit {
+                                tmdbApi.getMovieImages(part.id, TMDB_API_KEY, includeImageLanguage).body()
+                            }
                         }.getOrNull()?.let { images ->
                             selectBestLocalizedImagePath(
                                 images = images.backdrops.orEmpty(),

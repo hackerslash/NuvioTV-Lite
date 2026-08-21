@@ -459,7 +459,7 @@ internal fun PlayerRuntimeController.initializePlayer(
             // lowmemorykiller spiral, so for confirmed DV7 on low-RAM we drop the back buffer
             // and shrink the budget at first frame (below).
             val libdoviConversionActive = effectiveDv7Mode == Dv7HandlingMode.DV81_LIBDOVI
-            NuvioExoPlayerPerformanceHelper.updateSettings(playerSettings, context)
+            NuvioExoPlayerPerformanceHelper.updateSettings(playerSettings)
             NuvioExoPlayerPerformanceHelper.enabled = playerSettings.nuvioPerformanceModeEnabled
             val streamMime = currentStreamMimeType
             val isHls = streamMime != null && (
@@ -482,7 +482,7 @@ internal fun PlayerRuntimeController.initializePlayer(
                     PlayerRuntimeController.TAG,
                     "BUFFER_GATE: engine=exo-native-perf master=on; NuvioExoPlayerPerformanceHelper.buildLoadControl host=${url.safeHost()}"
                 )
-                NuvioExoPlayerPerformanceHelper.buildLoadControl(context)
+                NuvioExoPlayerPerformanceHelper.buildLoadControl()
             } else if (playerSettings.bufferEngineEnabled) {
                 val bufferSettings = playerSettings.bufferSettings
                 // Managed (default) caps the buffer at the device budget; off uses Target Buffer Size.
@@ -532,8 +532,8 @@ internal fun PlayerRuntimeController.initializePlayer(
                     budgetBytes = budgetBytes,
                     allocator = allocator
                 ).also { currentBitrateAwareLoadControl = it }
-            } else if (com.nuvio.tv.core.build.AppFeaturePolicy.liteMode) {
-                // Lite edition: aggressive, heap-capped defaults on the stock path.
+            } else if (com.nuvio.tv.core.build.AppFeaturePolicy.liteMode || MemoryBudget.isLowRamTier) {
+                // Lite and low-RAM: aggressive, heap-capped defaults on the stock path.
                 // A hard 48MB byte cap (prioritizeTimeOverSize=false) with 20s max / 5s
                 // back buffer bounds out-of-box playback heap on 2GB devices.
                 effectiveBackBufferDurationMs = 5_000
@@ -578,9 +578,16 @@ internal fun PlayerRuntimeController.initializePlayer(
             }
 
             if (playerSettings.parallelNetworkEnabled) {
+                // Clamped here because this is the one place these reach the allocator.
+                val (parallelConnections, parallelChunkKb) = MemoryBudget.clampParallel(
+                    connectionCount = playerSettings.parallelConnectionCount,
+                    chunkKb = playerSettings.parallelChunkSizeKb,
+                    bufferMb = MemoryBudget.effectiveBufferMb(playerSettings.bufferSettings.targetBufferSizeMb),
+                    isLowRamTier = MemoryBudget.isLowRamTier
+                )
                 mediaSourceFactory.useParallelConnections = playerSettings.useParallelConnections
-                mediaSourceFactory.parallelConnectionCount = playerSettings.parallelConnectionCount
-                mediaSourceFactory.parallelChunkSizeKb = playerSettings.parallelChunkSizeKb
+                mediaSourceFactory.parallelConnectionCount = parallelConnections
+                mediaSourceFactory.parallelChunkSizeKb = parallelChunkKb
                 mediaSourceFactory.nuvioPerformanceModeEnabled = playerSettings.nuvioPerformanceModeEnabled
             } else {
                 // Reset each playback so the factory doesn't keep last stream's state.

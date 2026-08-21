@@ -6,6 +6,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import com.nuvio.tv.core.build.AppFeaturePolicy
+import com.nuvio.tv.core.device.DeviceMemoryTier
 
 /**
  * Returns a key that increments when [imageUrl] gets a fresh version
@@ -15,9 +17,9 @@ import androidx.compose.runtime.setValue
 fun rememberImageRevalidationKey(imageUrl: String?): Int {
     var version by remember(imageUrl) { mutableIntStateOf(0) }
 
-    // Lite has stale-while-revalidate disabled, so the bus never emits — skip the
-    // per-poster flow collector entirely rather than parking an idle coroutine per card.
-    if (imageUrl != null && !com.nuvio.tv.core.build.AppFeaturePolicy.liteMode) {
+    // Lite and low-RAM have stale-while-revalidate disabled, so the bus never emits — skip the
+    // per-poster collector. Both flags are fixed for the process, so this branch is stable.
+    if (imageUrl != null && !AppFeaturePolicy.liteMode && !DeviceMemoryTier.isLowRam) {
         LaunchedEffect(imageUrl) {
             ImageInvalidationBus.events.collect { invalidatedUrl ->
                 if (invalidatedUrl == imageUrl) {

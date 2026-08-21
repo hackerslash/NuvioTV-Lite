@@ -22,9 +22,6 @@ import com.nuvio.tv.NuvioApplication
 import com.nuvio.tv.core.network.IPv4FirstDns
 import com.nuvio.tv.data.local.PlayerSettings
 import com.nuvio.tv.data.local.VodCacheSizeMode
-import okhttp3.ConnectionPool
-import okhttp3.Dispatcher
-import okhttp3.OkHttpClient
 import okhttp3.Request
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext

@@ -106,6 +106,8 @@ class NuvioApplication : Application(), SingletonImageLoader.Factory {
     }
 
     override fun newImageLoader(context: android.content.Context): ImageLoader {
+        // Memory knobs follow the device tier too, so a full build on a 2GB box gets Lite's cuts.
+        val lowMemoryProfile = AppFeaturePolicy.liteMode || DeviceMemoryTier.isLowRam
         val imageOkHttpClient by lazy {
             val imageDispatcher = okhttp3.Dispatcher().apply {
                 maxRequests = 32
@@ -126,9 +128,9 @@ class NuvioApplication : Application(), SingletonImageLoader.Factory {
 
         return ImageLoader.Builder(this)
             .components {
-                // Lite edition skips animated-image decoding: an animated GIF/WebP/HEIF
+                // Lite and low-RAM skip animated-image decoding: an animated GIF/WebP/HEIF
                 // from an arbitrary poster URL retains every frame, dwarfing the poster cache.
-                if (!AppFeaturePolicy.liteMode) {
+                if (!lowMemoryProfile) {
                     if (Build.VERSION.SDK_INT >= 28) {
                         add(AnimatedImageDecoder.Factory())
                     } else {
@@ -137,10 +139,10 @@ class NuvioApplication : Application(), SingletonImageLoader.Factory {
                 }
                 add(SvgDecoder.Factory())
                 add(
-                    // Lite skips stale-while-revalidate: no background revalidation network
-                    // churn and no process-lifetime URL maps on low-RAM boxes. Posters refresh
+                    // Lite and low-RAM skip stale-while-revalidate: no background revalidation
+                    // churn and no process-lifetime URL maps. Posters refresh
                     // on normal cache expiry via Coil's default CacheControl strategy.
-                    if (AppFeaturePolicy.liteMode) {
+                    if (lowMemoryProfile) {
                         coil3.network.okhttp.OkHttpNetworkFetcherFactory(
                             callFactory = { imageOkHttpClient },
                         )
@@ -159,10 +161,9 @@ class NuvioApplication : Application(), SingletonImageLoader.Factory {
             }
             .memoryCache {
                 val totalRamMb = DeviceMemoryTier.totalRamMb
-                // Cache % scales with RAM; Lite stays conservative for low-RAM boxes.
+                // Cache % scales with RAM; isLowRam (<=2560MB) absorbs the former <=2048 tier.
                 val cachePercent = when {
-                    AppFeaturePolicy.liteMode -> 0.08
-                    totalRamMb <= 2048 -> 0.15
+                    lowMemoryProfile -> 0.08
                     totalRamMb <= 3072 -> 0.20
                     else -> 0.25
                 }
@@ -181,7 +182,7 @@ class NuvioApplication : Application(), SingletonImageLoader.Factory {
             // Hardware bitmaps are RGBA_8888; keeping them off lets allowRgb565 halve poster bytes.
             .allowHardware(false)
             .allowRgb565(true)
-            .bitmapFactoryMaxParallelism(if (AppFeaturePolicy.liteMode) 2 else 4)
+            .bitmapFactoryMaxParallelism(if (lowMemoryProfile) 2 else 4)
             .build()
     }
 }

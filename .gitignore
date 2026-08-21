@@ -47,7 +47,6 @@ scripts/*
 !scripts/release_notes/
 !scripts/release_notes/*.py
 !scripts/release-metadata.sh
-!scripts/release_beta.py
 !scripts/adb-optimize.sh
 !scripts/tests/
 !scripts/tests/*.py
