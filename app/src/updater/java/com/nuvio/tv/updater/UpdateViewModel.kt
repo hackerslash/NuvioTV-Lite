@@ -239,7 +239,15 @@ class UpdateViewModel @Inject constructor(
         }
 
         _uiState.update { it.copy(showUnknownSourcesDialog = false) }
-        ApkInstaller.launchInstall(context, apkFile)
+        if (!ApkInstaller.launchInstall(context, apkFile)) {
+            apkFile.delete()
+            _uiState.update {
+                it.copy(
+                    errorMessage = context.getString(R.string.update_error_signature_mismatch),
+                    showBanner = true
+                )
+            }
+        }
     }
 
     fun openUnknownSourcesSettings() {

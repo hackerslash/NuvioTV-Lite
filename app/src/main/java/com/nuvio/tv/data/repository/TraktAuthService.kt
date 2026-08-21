@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import com.nuvio.tv.BuildConfig
 import com.nuvio.tv.R
+import com.nuvio.tv.core.util.isUsableCredential
 import com.nuvio.tv.data.local.AuthSessionNoticeDataStore
 import com.nuvio.tv.data.local.TraktAuthDataStore
 import com.nuvio.tv.data.local.TraktAuthState
@@ -118,14 +119,14 @@ class TraktAuthService @Inject constructor(
     }
 
     fun hasRequiredCredentials(): Boolean {
-        return BuildConfig.TRAKT_CLIENT_ID.isNotBlank() && BuildConfig.TRAKT_CLIENT_SECRET.isNotBlank()
+        return BuildConfig.TRAKT_CLIENT_ID.isUsableCredential() && BuildConfig.TRAKT_CLIENT_SECRET.isUsableCredential()
     }
 
     suspend fun getCurrentAuthState(): TraktAuthState = traktAuthDataStore.getCurrentState()
 
     suspend fun startDeviceAuth(): Result<TraktDeviceCodeResponseDto> {
         if (!hasRequiredCredentials()) {
-            return Result.failure(IllegalStateException(context.getString(R.string.trakt_error_missing_credentials)))
+            return Result.failure(IllegalStateException(context.getString(R.string.feature_unlicensed)))
         }
 
         // Reuse an existing, still-valid device flow if one is already active.
@@ -199,7 +200,7 @@ class TraktAuthService @Inject constructor(
 
     suspend fun pollDeviceToken(): TraktTokenPollResult {
         if (!hasRequiredCredentials()) {
-            return TraktTokenPollResult.Failed(context.getString(R.string.trakt_error_missing_credentials))
+            return TraktTokenPollResult.Failed(context.getString(R.string.feature_unlicensed))
         }
 
         val state = getCurrentAuthState()

@@ -1,5 +1,6 @@
 package com.nuvio.tv.data.simkl
 
+import com.nuvio.tv.core.util.isUsableCredential
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.sync.Mutex
@@ -27,7 +28,7 @@ class SimklAuthRepository(
 
     val state: StateFlow<SimklAuthState> = storage.state
 
-    fun hasRequiredCredentials(): Boolean = configuration.clientId.isNotBlank()
+    fun hasRequiredCredentials(): Boolean = configuration.clientId.isUsableCredential()
 
     suspend fun startPinAuth(): SimklPinSession = mutex.withLock {
         val authScope = storage.currentScope()

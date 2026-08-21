@@ -1,6 +1,8 @@
 package com.nuvio.tv.data.repository
 
 import android.content.Context
+import com.nuvio.tv.BuildConfig
+import com.nuvio.tv.core.util.isUsableCredential
 import com.nuvio.tv.data.local.AuthSessionNoticeDataStore
 import com.nuvio.tv.data.local.TraktAuthDataStore
 import com.nuvio.tv.data.local.TraktAuthState
@@ -11,12 +13,15 @@ import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.assertFalse
+import org.junit.Assume.assumeTrue
 import org.junit.Test
 import retrofit2.Response
 
 class TraktAuthServiceTest {
     @Test
     fun `refresh token 400 clears credentials and prevents another refresh`() = runTest {
+        // Refresh is gated on usable credentials, which unlicensed builds ship without.
+        assumeTrue(BuildConfig.TRAKT_CLIENT_ID.isUsableCredential())
         val traktApi = mockk<TraktApi>()
         val traktAuthDataStore = mockk<TraktAuthDataStore>()
         val authSessionNoticeDataStore = mockk<AuthSessionNoticeDataStore>()
