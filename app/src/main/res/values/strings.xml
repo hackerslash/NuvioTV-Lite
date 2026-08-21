@@ -3058,6 +3058,6 @@
     <string name="stream_test_video_bitrate">Average Video Bitrate: %1$s</string>
     <string name="stream_test_error_connection">Connection failed. The last played stream link may have expired or is unreachable. Please play the video again and retry.</string>
 
-    <string name="feature_unlicensed">This feature is not supported yet because the maintainer does not have a license. It will be included shortly.</string>
+    <string name="trakt_unlicensed">Trakt is not available yet because the maintainer does not have a Trakt API key. Until then you can sync your Trakt data into Nuvio with the Sync Bridge at nuvio.wiki/tools#sync-bridge.</string>
     <string name="update_error_signature_mismatch">Update rejected: the downloaded file is not signed by the same developer as the installed app. Get the update from the official release page.</string>
 </resources>

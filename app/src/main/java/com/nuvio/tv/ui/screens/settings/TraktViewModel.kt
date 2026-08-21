@@ -113,7 +113,7 @@ class TraktViewModel @Inject constructor(
         if (!traktAuthService.hasRequiredCredentials()) {
             _uiState.update {
                 it.copy(
-                    errorMessage = context.getString(R.string.feature_unlicensed),
+                    errorMessage = context.getString(R.string.trakt_unlicensed),
                     credentialsConfigured = false
                 )
             }

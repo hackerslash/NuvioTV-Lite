@@ -126,7 +126,7 @@ class TraktAuthService @Inject constructor(
 
     suspend fun startDeviceAuth(): Result<TraktDeviceCodeResponseDto> {
         if (!hasRequiredCredentials()) {
-            return Result.failure(IllegalStateException(context.getString(R.string.feature_unlicensed)))
+            return Result.failure(IllegalStateException(context.getString(R.string.trakt_unlicensed)))
         }
 
         // Reuse an existing, still-valid device flow if one is already active.
@@ -200,7 +200,7 @@ class TraktAuthService @Inject constructor(
 
     suspend fun pollDeviceToken(): TraktTokenPollResult {
         if (!hasRequiredCredentials()) {
-            return TraktTokenPollResult.Failed(context.getString(R.string.feature_unlicensed))
+            return TraktTokenPollResult.Failed(context.getString(R.string.trakt_unlicensed))
         }
 
         val state = getCurrentAuthState()
