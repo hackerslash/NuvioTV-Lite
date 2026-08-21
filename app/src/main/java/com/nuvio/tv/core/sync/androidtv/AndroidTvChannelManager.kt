@@ -13,6 +13,8 @@ import androidx.tvprovider.media.tv.PreviewProgram
 import androidx.tvprovider.media.tv.TvContractCompat
 import com.nuvio.tv.MainActivity
 import com.nuvio.tv.R
+import com.nuvio.tv.core.recommendations.programProgressMillis
+import com.nuvio.tv.core.recommendations.watchProgressPlayUri
 import com.nuvio.tv.domain.model.WatchProgress
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -262,23 +264,7 @@ class AndroidTvChannelManager @Inject constructor(
         sortOrder: Int,
         key: String
     ): ContentValues {
-        val intentUri = Uri.parse(
-            Intent(context, MainActivity::class.java).apply {
-                action = Intent.ACTION_VIEW
-                putExtra("contentId", progress.contentId)
-                putExtra("contentType", progress.contentType)
-                putExtra("videoId", progress.videoId)
-                putExtra("name", progress.name)
-                putExtra("poster", progress.poster)
-                putExtra("backdrop", progress.backdrop)
-                putExtra("logo", progress.logo)
-                progress.season?.let { putExtra("season", it) }
-                progress.episode?.let { putExtra("episode", it) }
-                progress.episodeTitle?.let { putExtra("episodeTitle", it) }
-                putExtra("launchMode", "stream")
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-            }.toUri(Intent.URI_INTENT_SCHEME)
-        )
+        val intentUri = watchProgressPlayUri(context, progress)
 
         val type = if (progress.contentType.equals("movie", ignoreCase = true))
             TvContractCompat.PreviewPrograms.TYPE_MOVIE
@@ -305,21 +291,10 @@ class AndroidTvChannelManager @Inject constructor(
         imageUri?.let { builder.setPosterArtUri(Uri.parse(it)).setPosterArtAspectRatio(aspectRatio!!) }
         progress.logo?.let { builder.setLogoUri(Uri.parse(it)) }
 
-        if (progress.duration > 0) {
-            builder.setDurationMillis(progress.duration.toInt())
-            val positionMs = if (progress.position > 0) {
-                progress.position.toInt()
-            } else {
-                (progress.progressPercent?.let { it / 100f * progress.duration }?.toLong() ?: 0L).toInt()
-            }
+        val progressMillis = progress.programProgressMillis()
+        progressMillis?.let { (durationMs, positionMs) ->
+            builder.setDurationMillis(durationMs)
             builder.setLastPlaybackPositionMillis(positionMs)
-        } else if (progress.progressPercent != null && progress.progressPercent > 0f) {
-            // No real duration known (e.g. Simkl/Trakt sync), but we have a percent.
-            // Use synthetic values so the launcher can render a progress bar.
-            val syntheticDuration = 100_000
-            val syntheticPosition = (progress.progressPercent / 100f * syntheticDuration).toInt()
-            builder.setDurationMillis(syntheticDuration)
-            builder.setLastPlaybackPositionMillis(syntheticPosition)
         }
 
         if (type == TvContractCompat.PreviewPrograms.TYPE_TV_EPISODE) {
@@ -342,7 +317,7 @@ class AndroidTvChannelManager @Inject constructor(
             }
             // Clear duration/position when unknown so stale values (e.g. previous 1hr fallback)
             // don't persist across UPDATE cycles.
-            if (progress.duration <= 0 && (progress.progressPercent == null || progress.progressPercent <= 0f)) {
+            if (progressMillis == null) {
                 it.putNull("duration_millis")
                 it.putNull("last_playback_position_millis")
             }

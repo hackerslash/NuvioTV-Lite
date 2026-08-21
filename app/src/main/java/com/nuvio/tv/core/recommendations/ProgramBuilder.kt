@@ -48,19 +48,9 @@ class ProgramBuilder @Inject constructor(
             builder.setPosterArtUri(uriWithCacheBuster)
         }
 
-        if (progress.duration > 0) {
-            val positionMs = if (progress.position > 0) {
-                progress.position.toInt()
-            } else {
-                (progress.progressPercent?.let { it / 100f * progress.duration }?.toLong() ?: 0L).toInt()
-            }
+        progress.programProgressMillis()?.let { (durationMs, positionMs) ->
+            builder.setDurationMillis(durationMs)
             builder.setLastPlaybackPositionMillis(positionMs)
-            builder.setDurationMillis(progress.duration.toInt())
-        } else if (progress.progressPercent != null && progress.progressPercent > 0f) {
-            val syntheticDuration = 100_000
-            val syntheticPosition = (progress.progressPercent / 100f * syntheticDuration).toInt()
-            builder.setDurationMillis(syntheticDuration)
-            builder.setLastPlaybackPositionMillis(syntheticPosition)
         }
 
         if (!isMovie) {
@@ -222,24 +212,45 @@ class ProgramBuilder @Inject constructor(
         }
     }
 
-    private fun buildPlayUri(progress: WatchProgress): Uri =
-        Uri.parse(
-            Intent(context, MainActivity::class.java).apply {
-                action = Intent.ACTION_VIEW
-                putExtra("contentId", progress.contentId)
-                putExtra("contentType", progress.contentType)
-                putExtra("videoId", progress.videoId)
-                putExtra("name", progress.name)
-                putExtra("poster", progress.poster)
-                putExtra("backdrop", progress.backdrop)
-                putExtra("logo", progress.logo)
-                progress.season?.let { putExtra("season", it) }
-                progress.episode?.let { putExtra("episode", it) }
-                progress.episodeTitle?.let { putExtra("episodeTitle", it) }
-                putExtra("launchMode", "stream")
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-            }.toUri(Intent.URI_INTENT_SCHEME)
-        )
+    private fun buildPlayUri(progress: WatchProgress): Uri = watchProgressPlayUri(context, progress)
+}
+
+/** Extras must stay in sync with MainActivity's launch-intent reader or the row falls back to Detail. */
+internal fun watchProgressPlayUri(context: Context, progress: WatchProgress): Uri =
+    Uri.parse(
+        Intent(context, MainActivity::class.java).apply {
+            action = Intent.ACTION_VIEW
+            putExtra("contentId", progress.contentId)
+            putExtra("contentType", progress.contentType)
+            putExtra("videoId", progress.videoId)
+            putExtra("name", progress.name)
+            putExtra("poster", progress.poster)
+            putExtra("backdrop", progress.backdrop)
+            putExtra("logo", progress.logo)
+            progress.season?.let { putExtra("season", it) }
+            progress.episode?.let { putExtra("episode", it) }
+            progress.episodeTitle?.let { putExtra("episodeTitle", it) }
+            putExtra("launchMode", "stream")
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        }.toUri(Intent.URI_INTENT_SCHEME)
+    )
+
+private const val SYNTHETIC_DURATION_MS = 100_000
+
+/** Duration/position for a launcher program, or null when there is no progress to show. */
+internal fun WatchProgress.programProgressMillis(): Pair<Int, Int>? {
+    if (duration > 0) {
+        val positionMs = if (position > 0) {
+            position.toInt()
+        } else {
+            (progressPercent?.let { it / 100f * duration }?.toLong() ?: 0L).toInt()
+        }
+        return duration.toInt() to positionMs
+    }
+    // Simkl/Trakt items carry a percent but no duration; synthesize so the launcher draws a bar.
+    val percent = progressPercent ?: return null
+    if (percent <= 0f) return null
+    return SYNTHETIC_DURATION_MS to (percent / 100f * SYNTHETIC_DURATION_MS).toInt()
 }
 
 internal fun watchNextIdMatchesContentId(providerId: String?, contentId: String): Boolean {
