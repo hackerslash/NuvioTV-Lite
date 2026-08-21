@@ -105,7 +105,7 @@ jobs:
             fi
             tag="v$version"
           fi
-          title="NuvioTV Lite Edition ($tag)"
+          title="$tag"
           # Release body = just the latest version's bullets from CHANGELOG.md
           # (single source of truth). Skip the "## v..." heading and any "###"
           # subheadings; stop at the next version's "## " heading.
