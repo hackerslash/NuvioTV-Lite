@@ -13,6 +13,5 @@ object AppFeaturePolicy {
     // Lite edition markers — the full flavor is never low-RAM.
     val liteMode: Boolean = false
     val torrentEnabled: Boolean = true
-    val autoFrameRateProbeEnabled: Boolean = true
     val dolbyVisionNativeConversionEnabled: Boolean = true
 }

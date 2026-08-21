@@ -586,47 +586,44 @@ internal fun PlaybackSettingsSections(
                 onItemFocused = { focusedSection = PlaybackSection.AUDIO_TRAILER },
                 enabled = !generalUi.isExternalPlayer,
                 videoExtraItems = {
-                    // Without the frame-rate probe, AFR and resolution matching are no-ops.
-                    if (AppFeaturePolicy.autoFrameRateProbeEnabled) {
-                        item(key = "general_afr_header") {
-                            PlaybackSectionHeader(
-                                title = stringResource(R.string.playback_auto_frame_rate),
-                                description = generalUi.frameRateMatchingLabel,
-                                expanded = afrExpanded,
-                                onToggle = { afrExpanded = !afrExpanded },
-                                focusRequester = afrHeaderFocus,
-                                onFocused = { focusedSection = PlaybackSection.AUDIO_TRAILER },
-                                enabled = !generalUi.isExternalPlayer,
-                                showWarningIcon = showAfrWarning,
-                                icon = Icons.Default.Speed
+                    item(key = "general_afr_header") {
+                        PlaybackSectionHeader(
+                            title = stringResource(R.string.playback_auto_frame_rate),
+                            description = generalUi.frameRateMatchingLabel,
+                            expanded = afrExpanded,
+                            onToggle = { afrExpanded = !afrExpanded },
+                            focusRequester = afrHeaderFocus,
+                            onFocused = { focusedSection = PlaybackSection.AUDIO_TRAILER },
+                            enabled = !generalUi.isExternalPlayer,
+                            showWarningIcon = showAfrWarning,
+                            icon = Icons.Default.Speed
+                        )
+                    }
+
+                    if (afrExpanded) {
+                        item(key = "general_afr_capability_warning") {
+                            AfrCapabilityWarningCard(
+                                snapshot = displayCapabilities,
+                                afrModeOn = playerSettings.frameRateMatchingMode != FrameRateMatchingMode.OFF,
+                                resolutionMatchingOn = playerSettings.resolutionMatchingEnabled,
+                                headerFocusRequester = afrHeaderFocus,
+                                onDisableAll = onDisableAfrAndResolution,
+                                onDisableAfrOnly = onDisableAfrOnly,
+                                onDisableResolutionOnly = onDisableResolutionOnly,
+                                onFocused = { focusedSection = PlaybackSection.AUDIO_TRAILER }
                             )
                         }
-
-                        if (afrExpanded) {
-                            item(key = "general_afr_capability_warning") {
-                                AfrCapabilityWarningCard(
-                                    snapshot = displayCapabilities,
-                                    afrModeOn = playerSettings.frameRateMatchingMode != FrameRateMatchingMode.OFF,
-                                    resolutionMatchingOn = playerSettings.resolutionMatchingEnabled,
-                                    headerFocusRequester = afrHeaderFocus,
-                                    onDisableAll = onDisableAfrAndResolution,
-                                    onDisableAfrOnly = onDisableAfrOnly,
-                                    onDisableResolutionOnly = onDisableResolutionOnly,
-                                    onFocused = { focusedSection = PlaybackSection.AUDIO_TRAILER }
-                                )
-                            }
-                            item(key = "general_afr_options") {
-                                FrameRateMatchingModeOptions(
-                                    selectedMode = playerSettings.frameRateMatchingMode,
-                                    resolutionMatchingEnabled = playerSettings.resolutionMatchingEnabled,
-                                    resolutionSwitchingSupported = !displayCapabilities.apiSupported ||
-                                        displayCapabilities.supportsResolutionSwitching,
-                                    onSelect = onSetFrameRateMatchingMode,
-                                    onSetResolutionMatchingEnabled = onSetResolutionMatchingEnabled,
-                                    onFocused = { focusedSection = PlaybackSection.AUDIO_TRAILER },
-                                    enabled = !generalUi.isExternalPlayer
-                                )
-                            }
+                        item(key = "general_afr_options") {
+                            FrameRateMatchingModeOptions(
+                                selectedMode = playerSettings.frameRateMatchingMode,
+                                resolutionMatchingEnabled = playerSettings.resolutionMatchingEnabled,
+                                resolutionSwitchingSupported = !displayCapabilities.apiSupported ||
+                                    displayCapabilities.supportsResolutionSwitching,
+                                onSelect = onSetFrameRateMatchingMode,
+                                onSetResolutionMatchingEnabled = onSetResolutionMatchingEnabled,
+                                onFocused = { focusedSection = PlaybackSection.AUDIO_TRAILER },
+                                enabled = !generalUi.isExternalPlayer
+                            )
                         }
                     }
                 }

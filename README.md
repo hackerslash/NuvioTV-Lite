@@ -23,8 +23,7 @@ sync) push it into the kernel's low-memory killer well before anything throws an
 
 Everything here is upstream's playback core with the memory ceiling actually enforced,
 plus a **Lite Edition** build flavor that strips what a low-RAM box can't afford. See the
-[Changelog](CHANGELOG.md) for what shipped release-by-release, and
-[`docs/LITE_PLAN.md`](docs/LITE_PLAN.md) for the original per-change memory analysis.
+[Changelog](CHANGELOG.md) for what shipped release-by-release.
 
 ## What's actually different from upstream
 
@@ -33,7 +32,7 @@ plus a **Lite Edition** build flavor that strips what a low-RAM box can't afford
 | Device tiering | Heap size (`largeHeap` reports ~512 MB on both a low-RAM and high-RAM device) | Physical RAM (`isLowRamDevice` + a cutoff) |
 | Playback buffer on low-RAM | Heap-ratio only, ~435 MB observed on a low-RAM device | Hard 250 MB ceiling |
 | Concurrent addon stream queries | Unbounded — every configured addon queried at once | Capped at 3 (low-RAM) / 8 (elsewhere) |
-| Torrent streaming, JS plugins, in-app trailers, AFR probe, launcher sync | Present | Stripped in **Lite Edition** only (still present in this fork's `full`/`playstore` flavors) |
+| Torrent streaming, JS plugins, in-app trailers, launcher sync | Present | Stripped in **Lite Edition** only (still present in this fork's `full`/`playstore` flavors) |
 | Updates | Play Store / manual APK | In-app OTA updates from this fork's GitHub Releases |
 | Settings UI | — | Unchanged — no new toggles, this is all build-flavor and internal tuning |
 
@@ -49,7 +48,7 @@ and trades away heavier features to stay alive under memory pressure.
 
 - Torrent streaming dropped → **~23 MB smaller APK**, no 41 MB torrent co-process
 - Plugins/JS runtime, in-app + external trailers, launcher-channel sync + boot receiver,
-  Sentry, and the auto-frame-rate probe all disabled
+  and Sentry all disabled
 - Installs as a separate `com.nuvio.tv.lite` package ("Nuvio Lite") alongside a standard
   NuvioTV install — nothing is overwritten
 
