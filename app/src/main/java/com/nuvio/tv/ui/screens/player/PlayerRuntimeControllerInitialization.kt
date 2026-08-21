@@ -459,7 +459,7 @@ internal fun PlayerRuntimeController.initializePlayer(
             // lowmemorykiller spiral, so for confirmed DV7 on low-RAM we drop the back buffer
             // and shrink the budget at first frame (below).
             val libdoviConversionActive = effectiveDv7Mode == Dv7HandlingMode.DV81_LIBDOVI
-            NuvioExoPlayerPerformanceHelper.updateSettings(playerSettings, context)
+            NuvioExoPlayerPerformanceHelper.updateSettings(playerSettings)
             NuvioExoPlayerPerformanceHelper.enabled = playerSettings.nuvioPerformanceModeEnabled
             val streamMime = currentStreamMimeType
             val isHls = streamMime != null && (
@@ -482,7 +482,7 @@ internal fun PlayerRuntimeController.initializePlayer(
                     PlayerRuntimeController.TAG,
                     "BUFFER_GATE: engine=exo-native-perf master=on; NuvioExoPlayerPerformanceHelper.buildLoadControl host=${url.safeHost()}"
                 )
-                NuvioExoPlayerPerformanceHelper.buildLoadControl(context)
+                NuvioExoPlayerPerformanceHelper.buildLoadControl()
             } else if (playerSettings.bufferEngineEnabled) {
                 val bufferSettings = playerSettings.bufferSettings
                 // Managed (default) caps the buffer at the device budget; off uses Target Buffer Size.

@@ -10,6 +10,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.ScrubbingModeParameters
 import androidx.media3.exoplayer.upstream.DefaultAllocator
 import androidx.media3.exoplayer.upstream.DefaultBandwidthMeter
+import com.nuvio.tv.core.device.DeviceMemoryTier
 import com.nuvio.tv.data.local.PlayerSettings
 
 /**
@@ -83,7 +84,7 @@ object NuvioExoPlayerPerformanceHelper {
     /**
      * Updates the performance helper with customized settings from PlayerSettings.
      */
-    fun updateSettings(settings: PlayerSettings, context: Context) {
+    fun updateSettings(settings: PlayerSettings) {
         val customBuffers = settings.bufferEngineEnabled
         val bufferSettings = settings.bufferSettings
         enableHttp2 = settings.enableHttp2
@@ -94,7 +95,7 @@ object NuvioExoPlayerPerformanceHelper {
         bufferForPlaybackAfterRebufferMs = if (customBuffers) bufferSettings.bufferForPlaybackAfterRebufferMs else 3_000
         backBufferMs = if (customBuffers) bufferSettings.backBufferDurationMs else DEFAULT_NUVIO_BACK_BUFFER_MS
 
-        val safeLimitMb = getSafeNativeMemoryLimitMb(context)
+        val safeLimitMb = getSafeNativeMemoryLimitMb(DeviceMemoryTier.totalRamBytes)
         targetBufferSizeMb = if (customBuffers && !settings.bufferBudgetManaged) {
             val storedSize = bufferSettings.targetBufferSizeMb
             if (!settings.allowLargeTargetBuffer && storedSize > safeLimitMb) {
@@ -129,76 +130,10 @@ object NuvioExoPlayerPerformanceHelper {
     // ─── LoadControl ──────────────────────────────────────────────────────────
 
     /**
-     * Helper to read system memory directly from /proc/meminfo as a reliable fallback.
-     */
-    private fun getRamFromMemInfo(): Long {
-        return try {
-            val file = java.io.File("/proc/meminfo")
-            if (file.exists()) {
-                file.useLines { lines ->
-                    val firstLine = lines.firstOrNull() ?: ""
-                    val match = java.util.regex.Pattern.compile("\\d+").matcher(firstLine)
-                    if (match.find()) {
-                        match.group().toLong() * 1024L
-                    } else {
-                        0L
-                    }
-                }
-            } else {
-                0L
-            }
-        } catch (e: Exception) {
-            0L
-        }
-    }
-
-    @Volatile
-    private var cachedDevicePhysicalRamBytes: Long = 0L
-
-    /**
-     * Clears the cached RAM size. Useful for testing.
-     */
-    fun clearCache() {
-        cachedDevicePhysicalRamBytes = 0L
-    }
-
-    /**
-     * Gets the total physical memory of the device in bytes.
-     */
-    fun getDevicePhysicalRamBytes(context: Context): Long {
-        if (cachedDevicePhysicalRamBytes > 0L) {
-            return cachedDevicePhysicalRamBytes
-        }
-        val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as? android.app.ActivityManager
-        if (activityManager != null) {
-            val memoryInfo = android.app.ActivityManager.MemoryInfo()
-            activityManager.getMemoryInfo(memoryInfo)
-            if (memoryInfo.totalMem > 0L) {
-                cachedDevicePhysicalRamBytes = memoryInfo.totalMem
-                return memoryInfo.totalMem
-            }
-        }
-        val ram = getRamFromMemInfo()
-        if (ram > 0L) {
-            cachedDevicePhysicalRamBytes = ram
-        }
-        return ram
-    }
-
-    /**
-     * Gets the total physical memory of the device in GB.
-     */
-    fun getDevicePhysicalRamGb(context: Context): Double {
-        val totalBytes = getDevicePhysicalRamBytes(context)
-        return totalBytes.toDouble() / (1024.0 * 1024.0 * 1024.0)
-    }
-
-    /**
      * Gets a friendly, marketed description of the device physical memory.
      * Uses mid-point boundaries adjusted for up to 20% hardware reservations.
      */
-    fun getFriendlyRamLabel(context: Context): String {
-        val totalMem = getDevicePhysicalRamBytes(context)
+    fun getFriendlyRamLabel(totalMem: Long): String {
         val gb = 1024L * 1024L * 1024L
         return when {
             totalMem <= 0L -> "Unknown"
@@ -217,8 +152,7 @@ object NuvioExoPlayerPerformanceHelper {
     /**
      * Calculates the safe ExoPlayer native target buffer size limit in MB based on RAM tier thresholds.
      */
-    fun getSafeNativeMemoryLimitMb(context: Context): Int {
-        val totalMem = getDevicePhysicalRamBytes(context)
+    fun getSafeNativeMemoryLimitMb(totalMem: Long): Int {
         val gb = 1024L * 1024L * 1024L
         return when {
             totalMem <= 0L -> 250 // Safe default
@@ -235,8 +169,7 @@ object NuvioExoPlayerPerformanceHelper {
     /**
      * Calculates the warning native target buffer size limit in MB based on RAM tier thresholds.
      */
-    fun getWarningNativeMemoryLimitMb(context: Context): Int {
-        val totalMem = getDevicePhysicalRamBytes(context)
+    fun getWarningNativeMemoryLimitMb(totalMem: Long): Int {
         val gb = 1024L * 1024L * 1024L
         return when {
             totalMem <= 0L -> 325
@@ -254,7 +187,7 @@ object NuvioExoPlayerPerformanceHelper {
      * Builds a [DefaultLoadControl] tuned for Nuvio performance when enabled,
      * or a standard ExoPlayer [DefaultLoadControl] when disabled.
      */
-    fun buildLoadControl(context: Context? = null): DefaultLoadControl {
+    fun buildLoadControl(): DefaultLoadControl {
         return if (enabled) {
             val targetBufferBytes = (targetBufferSizeMb.toLong() * 1024L * 1024L)
                 .coerceAtMost(Int.MAX_VALUE.toLong())

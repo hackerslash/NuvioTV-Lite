@@ -52,7 +52,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.platform.LocalContext
+import com.nuvio.tv.core.device.DeviceMemoryTier
 import com.nuvio.tv.ui.screens.player.NuvioExoPlayerPerformanceHelper
 import com.nuvio.tv.R
 import android.view.KeyEvent
@@ -409,7 +409,6 @@ fun PlaybackSettingsContent(
             enter = fadeIn(),
             exit = fadeOut()
         ) {
-            val context = LocalContext.current
             val isNativeAutoMode = playerSettings.nuvioPerformanceModeEnabled && !playerSettings.bufferEngineEnabled
             
             // Buffer engine off: only parallel overhead counts. On: managed uses the device cap,
@@ -419,7 +418,7 @@ fun PlaybackSettingsContent(
                     if (playerSettings.bufferEngineEnabled && !playerSettings.bufferBudgetManaged) {
                         MemoryBudget.effectiveBufferMb(playerSettings.bufferSettings.targetBufferSizeMb)
                     } else {
-                        NuvioExoPlayerPerformanceHelper.getSafeNativeMemoryLimitMb(context)
+                        NuvioExoPlayerPerformanceHelper.getSafeNativeMemoryLimitMb(DeviceMemoryTier.totalRamBytes)
                     }
                 }
                 playerSettings.bufferEngineEnabled -> {
@@ -436,13 +435,13 @@ fun PlaybackSettingsContent(
             )
 
             val safeLimitMb = if (playerSettings.nuvioPerformanceModeEnabled) {
-                NuvioExoPlayerPerformanceHelper.getSafeNativeMemoryLimitMb(context)
+                NuvioExoPlayerPerformanceHelper.getSafeNativeMemoryLimitMb(DeviceMemoryTier.totalRamBytes)
             } else {
                 MemoryBudget.budgetMb
             }
 
             val warningLimitMb = if (playerSettings.nuvioPerformanceModeEnabled) {
-                NuvioExoPlayerPerformanceHelper.getWarningNativeMemoryLimitMb(context)
+                NuvioExoPlayerPerformanceHelper.getWarningNativeMemoryLimitMb(DeviceMemoryTier.totalRamBytes)
             } else {
                 (MemoryBudget.budgetMb * 1.25f).toInt()
             }

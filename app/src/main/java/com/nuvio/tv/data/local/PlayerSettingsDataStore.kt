@@ -9,6 +9,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import com.nuvio.tv.core.profile.ProfileManager
+import com.nuvio.tv.core.device.DeviceMemoryTier
 import com.nuvio.tv.core.player.LastPlaybackDiagnostics
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -1524,7 +1525,7 @@ class PlayerSettingsDataStore @Inject constructor(
             if (!enabled) {
                 val isNativeMemory = isNativeMemoryActive(prefs)
                 val safeLimitMb = if (isNativeMemory) {
-                    NuvioExoPlayerPerformanceHelper.getSafeNativeMemoryLimitMb(context)
+                    NuvioExoPlayerPerformanceHelper.getSafeNativeMemoryLimitMb(DeviceMemoryTier.totalRamBytes)
                 } else {
                     val parallelNetworkEnabled = prefs[parallelNetworkEnabledKey] ?: false
                     val useParallelConnections = prefs[useParallelConnectionsKey] ?: false
@@ -1595,7 +1596,7 @@ class PlayerSettingsDataStore @Inject constructor(
         store().edit { prefs ->
             prefs[nuvioPerformanceModeEnabledKey] = actualEnabled
             if (actualEnabled) {
-                val safeLimitMb = NuvioExoPlayerPerformanceHelper.getSafeNativeMemoryLimitMb(context)
+                val safeLimitMb = NuvioExoPlayerPerformanceHelper.getSafeNativeMemoryLimitMb(DeviceMemoryTier.totalRamBytes)
                 prefs[minBufferMsKey] = 200_000
                 prefs[maxBufferMsKey] = 280_000
                 prefs[bufferForPlaybackMsKey] = 1_500
