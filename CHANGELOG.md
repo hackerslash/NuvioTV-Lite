@@ -11,13 +11,18 @@ full releases — the updater ignores prereleases and drafts.
 
 ## v1.2.1-lite — 2026-08-21
 
-- Simkl now runs on the Lite edition's own API credentials, so linking a Simkl account works again.
+### Simkl runs on this edition's own keys
+- Simkl now runs on the Lite edition's own API credentials, so linking a Simkl
+  account works again.
 - Trakt stays gated with a clear notice. Will be fixed once api keys are sorted.
-- Update APKs are verified against the installed signing certificate before
-  installing, and a mismatched download is discarded instead of handed to the
-  installer.
-- Lite carries its own Android TV banner, so it is tellable apart from a
-  standard Nuvio install on the launcher home row.
+
+### Updates are checked before they install
+- Update APKs are verified against the installed signing certificate first, and a
+  mismatched download is discarded instead of being handed to the installer.
+
+### Its own identity on the launcher
+- Lite carries its own Android TV banner, so it is tellable apart from a standard
+  Nuvio install sitting next to it on the launcher home row.
 
 ## v1.2.0-lite — 2026-08-21
 
