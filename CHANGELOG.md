@@ -11,10 +11,8 @@ full releases — the updater ignores prereleases and drafts.
 
 ## v1.2.1-lite — 2026-08-21
 
-- Simkl now runs on the Lite edition's own API credentials, so linking a Simkl
-  account works again.
-- Trakt stays gated with a clear notice. Its login needs a client secret that
-  belongs to upstream NuvioTV, so this edition cannot complete the sign-in.
+- Simkl now runs on the Lite edition's own API credentials, so linking a Simkl account works again.
+- Trakt stays gated with a clear notice. Will be fixed once api keys are sorted.
 - Update APKs are verified against the installed signing certificate before
   installing, and a mismatched download is discarded instead of handed to the
   installer.
