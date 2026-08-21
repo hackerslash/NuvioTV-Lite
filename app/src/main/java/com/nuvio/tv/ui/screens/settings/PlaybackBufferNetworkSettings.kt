@@ -491,7 +491,7 @@ internal fun LazyListScope.bufferAndNetworkSettingsItems(
                     value = playerSettings.parallelConnectionCount,
                     valueText = playerSettings.parallelConnectionCount.toString(),
                     minValue = MemoryBudget.MIN_CONNECTIONS,
-                    maxValue = if (playerSettings.nuvioPerformanceModeEnabled) 16 else MemoryBudget.MAX_CONNECTIONS,
+                    maxValue = if (playerSettings.nuvioPerformanceModeEnabled && !MemoryBudget.isLowRamTier) 16 else MemoryBudget.MAX_CONNECTIONS,
                     step = 1,
                     onValueChange = onSetParallelConnectionCount
                 )
@@ -499,7 +499,7 @@ internal fun LazyListScope.bufferAndNetworkSettingsItems(
 
             item(key = "buffer_net_parallel_chunk_size") {
                 val effectiveBufferMb = MemoryBudget.effectiveBufferMb(playerSettings.bufferSettings.targetBufferSizeMb)
-                val maxChunkSizeMb = if (playerSettings.nuvioPerformanceModeEnabled) {
+                val maxChunkSizeMb = if (playerSettings.nuvioPerformanceModeEnabled && !MemoryBudget.isLowRamTier) {
                     MemoryBudget.MAX_CHUNK_MB
                 } else {
                     MemoryBudget.maxChunkMb(effectiveBufferMb, playerSettings.parallelConnectionCount)

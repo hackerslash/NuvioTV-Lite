@@ -578,9 +578,16 @@ internal fun PlayerRuntimeController.initializePlayer(
             }
 
             if (playerSettings.parallelNetworkEnabled) {
+                // Clamped here because this is the one place these reach the allocator.
+                val (parallelConnections, parallelChunkKb) = MemoryBudget.clampParallel(
+                    connectionCount = playerSettings.parallelConnectionCount,
+                    chunkKb = playerSettings.parallelChunkSizeKb,
+                    bufferMb = MemoryBudget.effectiveBufferMb(playerSettings.bufferSettings.targetBufferSizeMb),
+                    isLowRamTier = MemoryBudget.isLowRamTier
+                )
                 mediaSourceFactory.useParallelConnections = playerSettings.useParallelConnections
-                mediaSourceFactory.parallelConnectionCount = playerSettings.parallelConnectionCount
-                mediaSourceFactory.parallelChunkSizeKb = playerSettings.parallelChunkSizeKb
+                mediaSourceFactory.parallelConnectionCount = parallelConnections
+                mediaSourceFactory.parallelChunkSizeKb = parallelChunkKb
                 mediaSourceFactory.nuvioPerformanceModeEnabled = playerSettings.nuvioPerformanceModeEnabled
             } else {
                 // Reset each playback so the factory doesn't keep last stream's state.

@@ -104,6 +104,21 @@ object MemoryBudget {
     }
 
     /**
+     * Perf mode lets the UI store 16 connections x 128MB chunks; those are direct buffers, so
+     * low-RAM devices keep the budget-aware caps. Returns (connectionCount, chunkKb).
+     */
+    fun clampParallel(
+        connectionCount: Int,
+        chunkKb: Int,
+        bufferMb: Int,
+        isLowRamTier: Boolean
+    ): Pair<Int, Int> {
+        if (!isLowRamTier) return connectionCount to chunkKb
+        val connections = connectionCount.coerceAtMost(MAX_CONNECTIONS)
+        return connections to chunkKb.coerceAtMost(maxChunkMb(bufferMb, connections) * 1024)
+    }
+
+    /**
      * Enforce budget: reduce chunk first, then buffer as last resort.
      * Returns (adjustedBufferMb, adjustedChunkMb).
      */
