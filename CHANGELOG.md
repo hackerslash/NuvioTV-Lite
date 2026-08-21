@@ -43,8 +43,13 @@ full releases — the updater ignores prereleases and drafts.
   @skoruppa
 - [upstream] Removing an addon now asks for confirmation. @tapframe
 - [upstream] Brazilian Portuguese translations updated. @danilopagotto82
-- Upstream's anime-film lookup rescanned the whole Simkl library per playback session; now
-  resolved once per sync.
+- [upstream] Garbled subtitles are repaired: mojibake is sanitized, legacy codepages are
+  detected from the track language, and double-encoded UTF-8 is fixed. @Rasimsson
+- [upstream] Addon subtitles now route to a sidecar and are transcoded for mpv and external
+  players. @Rasimsson
+- Two upstream hot paths trimmed: the anime-film lookup rescanned the whole Simkl library
+  per playback session, and subtitle normalisation re-encoded every ASS line. Both avoid
+  that work now.
 
 ## v1.2.1-lite — 2026-08-21
 
