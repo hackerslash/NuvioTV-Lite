@@ -56,8 +56,6 @@ full releases — the updater ignores prereleases and drafts.
 - Upstream's new anime-film lookup rescanned the whole Simkl library once per playback
   session and rebuilt the same id set inside that loop. On this edition it is resolved once
   per sync, which matters on a box with a large anime library.
-- Does not apply to Lite: the same upstream change routes anime films to Trakt as series
-  rather than films. Trakt remains gated in this edition.
 
 ## v1.2.1-lite — 2026-08-21
 
