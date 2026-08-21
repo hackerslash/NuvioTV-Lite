@@ -11,56 +11,40 @@ full releases — the updater ignores prereleases and drafts.
 
 ## v1.3.0-lite — 2026-08-21
 
-### Memory ceilings now actually hold
-- Performance mode raised the parallel-connection ceiling to 16 and stopped applying the
-  chunk-size cap, so a 2GB box could be asked for roughly 2.1GB of download buffers on top
-  of its playback buffer. Low-RAM devices now keep the budget-aware caps; boxes with the
-  headroom keep the raised ceilings. The clamp is applied where the buffers are actually
-  allocated, so a setting saved by an older build is bounded too.
-- Subtitle search fanned out one request per installed addon at once, holding every
-  response and parsed list in memory together. It now runs at most 3 at a time on low-RAM
-  hardware and 8 elsewhere, the same limit stream search already used.
-- Artwork lookups for large film collections (a 30-part franchise fired 30 at once) are
-  capped the same way.
+### Memory ceilings now hold
+- Performance mode could ask a 2GB box for ~2.1GB of download buffers. Low-RAM devices keep
+  the budget caps; roomier boxes keep the raised ceilings.
+- Subtitle search no longer fires one request per addon at once: 3 at a time on low-RAM, 8
+  elsewhere.
+- Artwork lookups for large film collections are capped the same way.
 
 ### Low-RAM hardware is classified correctly
-- The memory tier could answer "not low RAM" before it had been read, and a box that
-  reported its own size as 0 was treated as high-end. Both now count as low-RAM, so an
-  uncertain answer errs toward the smaller budgets instead of the larger ones.
-- Physical RAM is read once in one place, with a `/proc/meminfo` fallback for boxes whose
-  system service reports nothing.
+- An unread or unreported memory tier used to read as high-end. It now errs low.
+- Physical RAM is read in one place, with a /proc/meminfo fallback.
 
-### Memory cuts follow the hardware, not the edition
-- Six limits keyed only on "is this the Lite build" — animated poster decoding, poster
-  cache share, decode parallelism, the poster revalidation pass and its per-poster
-  watcher, and the 48MB playback buffer — now also apply on any low-RAM device. A standard
-  NuvioTV build on a 2GB box finally gets the same treatment Lite has had.
-- Nothing changes for Lite. Standard builds between 2 and 2.5GB get a smaller poster cache
-  than before; that is deliberate, since those are the boxes being killed for memory.
+### Memory cuts follow the hardware
+- Six limits that keyed on "is this Lite" now apply to any low-RAM device, so a standard
+  build on a 2GB box gets them too.
+- Nothing changes for Lite. Standard builds on 2-2.5GB get a smaller poster cache.
 
 ### Less work in the background
-- Release builds ran a frame-timing callback on every frame whose only result was a log
-  line nothing reads. It is now debug-only.
-- Lite did crash-reporter bookkeeping on every network request despite never starting the
-  crash reporter.
+- Release builds no longer run a per-frame callback that only logged.
+- Lite no longer does crash-reporter bookkeeping on every request.
 
-### Trakt now points somewhere useful
-- The Trakt screen used to say only that the maintainer has no license. It now names the
-  missing Trakt API key and links the Sync Bridge web tool at nuvio.wiki/tools#sync-bridge,
-  so you can get your Trakt data into Nuvio instead of hitting a dead end.
+### Trakt points somewhere useful
+- The notice names the missing Trakt API key and links the Sync Bridge at
+  nuvio.wiki/tools#sync-bridge.
 
 ### Launcher artwork
 - Refreshed the Lite Android TV banner.
 
 ### Synced with upstream NuvioTV (0.8.7-beta)
-- [upstream] Simkl: anime films are recognised as films, so their progress is tracked
-  against the film itself instead of being held back for an episode number. @skoruppa
-- [upstream] Removing an addon now asks for confirmation first, instead of deleting on the
-  first press. @tapframe
+- [upstream] Simkl: anime films are tracked as films, not held back for an episode number.
+  @skoruppa
+- [upstream] Removing an addon now asks for confirmation. @tapframe
 - [upstream] Brazilian Portuguese translations updated. @danilopagotto82
-- Upstream's new anime-film lookup rescanned the whole Simkl library once per playback
-  session and rebuilt the same id set inside that loop. On this edition it is resolved once
-  per sync, which matters on a box with a large anime library.
+- Upstream's anime-film lookup rescanned the whole Simkl library per playback session; now
+  resolved once per sync.
 
 ## v1.2.1-lite — 2026-08-21
 
