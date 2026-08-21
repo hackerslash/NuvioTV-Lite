@@ -9,6 +9,44 @@ build itself. The in-app updater compares the release tag against the installed
 `versionName`, so tags must stay version-shaped and releases must be published as
 full releases — the updater ignores prereleases and drafts.
 
+## v1.3.0-lite — 2026-08-21
+
+### Memory ceilings now actually hold
+- Performance mode raised the parallel-connection ceiling to 16 and stopped applying the
+  chunk-size cap, so a 2GB box could be asked for roughly 2.1GB of download buffers on top
+  of its playback buffer. Low-RAM devices now keep the budget-aware caps; boxes with the
+  headroom keep the raised ceilings. The clamp is applied where the buffers are actually
+  allocated, so a setting saved by an older build is bounded too.
+- Subtitle search fanned out one request per installed addon at once, holding every
+  response and parsed list in memory together. It now runs at most 3 at a time on low-RAM
+  hardware and 8 elsewhere, the same limit stream search already used.
+- Artwork lookups for large film collections (a 30-part franchise fired 30 at once) are
+  capped the same way.
+
+### Low-RAM hardware is classified correctly
+- The memory tier could answer "not low RAM" before it had been read, and a box that
+  reported its own size as 0 was treated as high-end. Both now count as low-RAM, so an
+  uncertain answer errs toward the smaller budgets instead of the larger ones.
+- Physical RAM is read once in one place, with a `/proc/meminfo` fallback for boxes whose
+  system service reports nothing.
+
+### Memory cuts follow the hardware, not the edition
+- Six limits keyed only on "is this the Lite build" — animated poster decoding, poster
+  cache share, decode parallelism, the poster revalidation pass and its per-poster
+  watcher, and the 48MB playback buffer — now also apply on any low-RAM device. A standard
+  NuvioTV build on a 2GB box finally gets the same treatment Lite has had.
+- Nothing changes for Lite. Standard builds between 2 and 2.5GB get a smaller poster cache
+  than before; that is deliberate, since those are the boxes being killed for memory.
+
+### Less work in the background
+- Release builds ran a frame-timing callback on every frame whose only result was a log
+  line nothing reads. It is now debug-only.
+- Lite did crash-reporter bookkeeping on every network request despite never starting the
+  crash reporter.
+
+### Launcher artwork
+- Refreshed the Lite Android TV banner.
+
 ## v1.2.1-lite — 2026-08-21
 
 ### Simkl runs on this edition's own keys
