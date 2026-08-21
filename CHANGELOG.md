@@ -44,6 +44,11 @@ full releases — the updater ignores prereleases and drafts.
 - Lite did crash-reporter bookkeeping on every network request despite never starting the
   crash reporter.
 
+### Trakt now points somewhere useful
+- The Trakt screen used to say only that the maintainer has no license. It now names the
+  missing Trakt API key and links the Sync Bridge web tool at nuvio.wiki/tools#sync-bridge,
+  so you can get your Trakt data into Nuvio instead of hitting a dead end.
+
 ### Launcher artwork
 - Refreshed the Lite Android TV banner.
 
