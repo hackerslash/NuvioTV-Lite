@@ -70,11 +70,14 @@ fun SimklSyncSnapshot.toSimklWatchedProjection(): SimklWatchedProjection {
     )
 }
 
-fun SimklSyncSnapshot.toSimklProgressEntries(): List<WatchProgress> = playback
-    .mapNotNull { session -> session.toWatchProgress(entries) }
-    .groupBy(::simklProgressKey)
-    .mapNotNull { (_, candidates) -> candidates.maxByOrNull(WatchProgress::lastWatched) }
-    .sortedByDescending(WatchProgress::lastWatched)
+fun SimklSyncSnapshot.toSimklProgressEntries(): List<WatchProgress> {
+    val animeMovieIds = entries.simklAnimeMovieIds()
+    return playback
+        .mapNotNull { session -> session.toWatchProgress(animeMovieIds) }
+        .groupBy(::simklProgressKey)
+        .mapNotNull { (_, candidates) -> candidates.maxByOrNull(WatchProgress::lastWatched) }
+        .sortedByDescending(WatchProgress::lastWatched)
+}
 
 fun SimklSyncSnapshot.mediaReference(
     contentId: String,
@@ -237,16 +240,21 @@ private fun SimklLibraryEntry.toWatchedItem(
     trackingSourceUrl = buildSimklSourceUrl(mediaType, media)
 )
 
+/**
+ * Anime entries Simkl classifies as movies. Resolved once per snapshot: only these can match a
+ * playback session, so the alternative is rescanning the whole library for every session.
+ */
+internal fun List<SimklLibraryEntry>.simklAnimeMovieIds(): List<TrackingExternalIds> =
+    filter { entry -> entry.mediaType == SimklMediaType.ANIME && entry.animeType == "movie" }
+        .mapNotNull { entry -> entry.media?.toTrackingExternalIds() }
+
 internal fun SimklPlaybackSession.toWatchProgress(
-    libraryEntries: List<SimklLibraryEntry> = emptyList()
+    animeMovieIds: List<TrackingExternalIds> = emptyList()
 ): WatchProgress? {
     val media = media ?: return null
     val parentId = media.canonicalContentId() ?: return null
-    val isAnimeMovie = mediaType == SimklMediaType.ANIME && libraryEntries.any { entry ->
-        entry.mediaType == SimklMediaType.ANIME &&
-            entry.animeType == "movie" &&
-            entry.media?.toTrackingExternalIds()?.sharesIdentityWith(media.toTrackingExternalIds()) == true
-    }
+    val isAnimeMovie = mediaType == SimklMediaType.ANIME && animeMovieIds.isNotEmpty() &&
+        media.toTrackingExternalIds().let { ids -> animeMovieIds.any { it.sharesIdentityWith(ids) } }
     val isMovie = mediaType == SimklMediaType.MOVIES ||
         (mediaType == SimklMediaType.ANIME && episode == null) ||
         isAnimeMovie

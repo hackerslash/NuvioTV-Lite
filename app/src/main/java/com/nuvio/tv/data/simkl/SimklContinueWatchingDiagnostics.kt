@@ -126,8 +126,9 @@ internal fun buildSimklSeedDiagnosticReport(
         .filter { item -> item.season != null && item.episode != null }
         .groupBy { item -> item.contentId.diagnosticKey() }
     val seedsByContent = seeds.associateBy { progress -> progress.contentId.diagnosticKey() }
+    val animeMovieIds = snapshot.entries.simklAnimeMovieIds()
     val playbackByContent = snapshot.playback
-        .mapNotNull { session -> session.toWatchProgress(snapshot.entries) }
+        .mapNotNull { session -> session.toWatchProgress(animeMovieIds) }
         .groupBy { progress -> progress.contentId.diagnosticKey() }
     val seedOrder = seeds.withIndex().associate { (index, seed) ->
         seed.contentId.diagnosticKey() to index

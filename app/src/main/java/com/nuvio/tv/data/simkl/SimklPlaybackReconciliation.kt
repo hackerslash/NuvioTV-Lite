@@ -6,8 +6,9 @@ import com.nuvio.tv.domain.model.WatchedItem
 internal fun SimklSyncSnapshot.reconcileWatchedPlayback(): SimklSyncSnapshot {
     if (playback.isEmpty()) return this
     val watchedItems = toSimklWatchedProjection().items
+    val animeMovieIds = entries.simklAnimeMovieIds()
     val retainedPlayback = playback.filterNot { session ->
-        session.toWatchProgress(entries)?.let { progress ->
+        session.toWatchProgress(animeMovieIds)?.let { progress ->
             entries.any { entry -> entry.hidesPlayback(progress) } ||
                 watchedItems.any { watched -> watched.supersedes(progress) }
         } == true
