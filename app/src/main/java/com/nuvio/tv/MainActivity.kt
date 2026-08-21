@@ -953,12 +953,15 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        jankStats = JankStats.createAndTrack(window) { frameData ->
-            if (frameData.isJank) {
-                Log.w(
-                    "JankStats",
-                    "JANK: ${frameData.frameDurationUiNanos / 1_000_000}ms | states: ${frameData.states}"
-                )
+        // The listener runs every frame, so keep it out of release builds; it only logs.
+        if (BuildConfig.IS_DEBUG_BUILD) {
+            jankStats = JankStats.createAndTrack(window) { frameData ->
+                if (frameData.isJank) {
+                    Log.w(
+                        "JankStats",
+                        "JANK: ${frameData.frameDurationUiNanos / 1_000_000}ms | states: ${frameData.states}"
+                    )
+                }
             }
         }
     }
