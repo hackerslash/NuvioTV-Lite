@@ -9,6 +9,11 @@ build itself. The in-app updater compares the release tag against the installed
 `versionName`, so tags must stay version-shaped and releases must be published as
 full releases — the updater ignores prereleases and drafts.
 
+## v1.2.1-lite — 2026-08-21
+
+- Unlicensed providers (Trakt, Simkl) are gated in the UI with a clear notice.
+- Update APKs are verified against the installed signing certificate before installing.
+
 ## v1.2.0-lite — 2026-08-21
 
 ### Auto frame rate is back, as a choice
