@@ -9,6 +9,21 @@ build itself. The in-app updater compares the release tag against the installed
 `versionName`, so tags must stay version-shaped and releases must be published as
 full releases — the updater ignores prereleases and drafts.
 
+## v1.2.0-lite — 2026-08-21
+
+### Auto frame rate is back, as a choice
+- The auto-frame-rate section returns to Playback settings. v1.1.1 hid it because the
+  probe was stripped from the build; the probe now ships and is simply off by default.
+- Leaving it off costs nothing. Turning it on runs a native FFmpeg probe before playback
+  starts, so enable it only if your box has the headroom.
+
+### Synced with upstream NuvioTV (0.8.7-beta)
+- Subtitle delay overlay: fixed D-pad navigation and the delay sign reordering on
+  right-to-left layouts.
+- Hungarian translations brought back to parity with the base strings.
+- Upstream's Continue Watching launcher deeplinks landed but do not apply to Lite, which
+  does not ship launcher-channel sync.
+
 ## v1.1.1-lite — 2026-08-20
 
 ### Settings match what the edition ships
