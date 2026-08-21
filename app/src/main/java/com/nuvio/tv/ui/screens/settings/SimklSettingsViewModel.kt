@@ -103,7 +103,7 @@ class SimklSettingsViewModel @Inject constructor(
             _uiState.update {
                 it.copy(
                     credentialsConfigured = false,
-                    errorMessage = context.getString(R.string.feature_unlicensed)
+                    errorMessage = context.getString(R.string.simkl_missing_credentials)
                 )
             }
             return
@@ -244,7 +244,7 @@ class SimklSettingsViewModel @Inject constructor(
     }
 
     private fun SimklAuthError.message(): String = when (this) {
-        SimklAuthError.MISSING_CLIENT_ID -> context.getString(R.string.feature_unlicensed)
+        SimklAuthError.MISSING_CLIENT_ID -> context.getString(R.string.simkl_missing_credentials)
         SimklAuthError.PIN_EXPIRED,
         SimklAuthError.PIN_INVALIDATED -> context.getString(R.string.simkl_error_code_expired)
         SimklAuthError.AUTHORIZATION_REVOKED -> context.getString(R.string.simkl_error_authorization_revoked)

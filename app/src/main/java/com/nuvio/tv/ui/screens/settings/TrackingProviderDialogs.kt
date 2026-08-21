@@ -256,7 +256,7 @@ internal fun SimklAccountDialog(
                 credentialsConfigured = state.credentialsConfigured,
                 statusMessage = state.statusMessage,
                 errorMessage = state.errorMessage,
-                missingCredentialsMessage = stringResource(R.string.feature_unlicensed),
+                missingCredentialsMessage = stringResource(R.string.simkl_missing_credentials),
                 onStartConnection = onStartConnection,
                 onRetryPolling = onRetryPolling,
                 onDismiss = onDismiss
