@@ -70,6 +70,30 @@ fetch the matching APK automatically.
 
 The `-lite` APKs are the Lite Edition; the standard APKs are the full build.
 
+### Speed up cold start after sideloading
+
+A sideloaded APK is installed at compilation filter `verify` — no AOT compilation — so
+cold start is 2-3x slower than the same build from the Play Store until Android's
+background dexopt gets around to it (it waits for idle + charging, often a day or more).
+Forcing that compilation now is a one-off:
+
+```bash
+scripts/adb-optimize.sh com.nuvio.tv.lite
+```
+
+It finds the device (USB, or a sweep of the local subnet for adb on 5555), checks the
+app hasn't already been compiled, measures the median cold start before and after, and
+prints the speedup. Use `com.nuvio.tv` for the full build.
+
+If adb is already connected and you just want the one command:
+
+```bash
+adb shell cmd package compile -m speed-profile -f com.nuvio.tv.lite
+```
+
+Undo with `adb shell cmd package compile --reset com.nuvio.tv.lite`. Both need
+ADB/USB debugging enabled in the TV's Developer options.
+
 ## Build from source
 
 ```bash
