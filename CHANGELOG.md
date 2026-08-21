@@ -47,6 +47,17 @@ full releases — the updater ignores prereleases and drafts.
 ### Launcher artwork
 - Refreshed the Lite Android TV banner.
 
+### Synced with upstream NuvioTV (0.8.7-beta)
+- Simkl: anime films are recognised as films, so their progress is tracked against the film
+  itself instead of being held back for an episode number.
+- Removing an addon now asks for confirmation first, instead of deleting on the first press.
+- Brazilian Portuguese translations updated.
+- Upstream's new anime-film lookup rescanned the whole Simkl library once per playback
+  session and rebuilt the same id set inside that loop. On this edition it is resolved once
+  per sync, which matters on a box with a large anime library.
+- Does not apply to Lite: the same upstream change routes anime films to Trakt as series
+  rather than films. Trakt remains gated in this edition.
+
 ## v1.2.1-lite — 2026-08-21
 
 ### Simkl runs on this edition's own keys
