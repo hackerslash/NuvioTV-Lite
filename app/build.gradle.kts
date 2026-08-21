@@ -182,8 +182,8 @@ android {
             // Kept well above every previously side-loaded CI build (max 1046) because
             // Android's installer requires a higher versionCode to update, not just a
             // higher versionName. Bump by 1 per release.
-            versionCode = 10006
-            versionName = "1.2.1"
+            versionCode = 10007
+            versionName = "1.3.0"
             versionNameSuffix = "-lite"
             buildConfigField("boolean", "FEATURE_IN_APP_UPDATES_ENABLED", "true")
             buildConfigField("boolean", "FEATURE_EXTERNAL_TRAILERS_ENABLED", "false")
