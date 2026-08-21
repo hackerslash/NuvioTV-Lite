@@ -78,8 +78,22 @@ object SubtitleCharsetDetector {
         length: Int = bytes.size - offset,
         languageHint: String? = null
     ): ByteArray {
-        val decoded = decode(bytes, offset, length, languageHint)
-        return decoded.toByteArray(StandardCharsets.UTF_8)
+        if (length <= 0) return ByteArray(0)
+        // Called per ASS dialogue line, so keep the common case allocation-free: already-valid
+        // UTF-8 with nothing to repair hands back the input instead of re-encoding it.
+        if (isFastValidUtf8(bytes, offset, length)) {
+            val utf8 = String(bytes, offset, length, StandardCharsets.UTF_8)
+            val repaired = repairDoubleEncodedUtf8IfNeeded(utf8, languageHint)
+            if (repaired === utf8) {
+                return if (offset == 0 && length == bytes.size) {
+                    bytes
+                } else {
+                    bytes.copyOfRange(offset, offset + length)
+                }
+            }
+            return repaired.toByteArray(StandardCharsets.UTF_8)
+        }
+        return decode(bytes, offset, length, languageHint).toByteArray(StandardCharsets.UTF_8)
     }
 
     fun repairDoubleEncodedUtf8IfNeeded(text: String, languageHint: String? = null): String {
