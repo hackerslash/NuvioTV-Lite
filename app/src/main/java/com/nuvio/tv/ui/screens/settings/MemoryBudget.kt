@@ -3,7 +3,6 @@ package com.nuvio.tv.ui.screens.settings
 import androidx.media3.common.util.UnstableApi
 import com.nuvio.tv.core.device.DeviceMemoryTier
 import com.nuvio.tv.data.local.BufferSettings
-import com.nuvio.tv.data.local.PlayerSettings
 
 /**
  * Shared memory budget constants and helpers for buffer + parallel connection settings.
@@ -90,18 +89,6 @@ object MemoryBudget {
     fun maxBufferMb(parallelOverheadMb: Int): Int =
         ((budgetMb - parallelOverheadMb) / BUFFER_STEP_MB * BUFFER_STEP_MB)
             .coerceIn(MIN_BUFFER_MB, MAX_BUFFER_MB)
-
-    /** Slider max for target buffer, optionally raised to 2GB when override is on. */
-    fun maxBufferMbWithOverride(parallelOverheadMb: Int, allowLargeTargetBuffer: Boolean): Int {
-        val safeMax = maxBufferMb(parallelOverheadMb)
-        return if (allowLargeTargetBuffer) {
-            PlayerSettings.LARGE_TARGET_BUFFER_MAX_MB
-                .coerceAtMost(MAX_BUFFER_MB)
-                .coerceAtLeast(safeMax)
-        } else {
-            safeMax
-        }
-    }
 
     /**
      * Perf mode lets the UI store 16 connections x 128MB chunks; those are direct buffers, so
