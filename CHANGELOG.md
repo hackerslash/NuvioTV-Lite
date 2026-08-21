@@ -48,10 +48,11 @@ full releases — the updater ignores prereleases and drafts.
 - Refreshed the Lite Android TV banner.
 
 ### Synced with upstream NuvioTV (0.8.7-beta)
-- Simkl: anime films are recognised as films, so their progress is tracked against the film
-  itself instead of being held back for an episode number.
-- Removing an addon now asks for confirmation first, instead of deleting on the first press.
-- Brazilian Portuguese translations updated.
+- [upstream] Simkl: anime films are recognised as films, so their progress is tracked
+  against the film itself instead of being held back for an episode number. @skoruppa
+- [upstream] Removing an addon now asks for confirmation first, instead of deleting on the
+  first press. @tapframe
+- [upstream] Brazilian Portuguese translations updated. @danilopagotto82
 - Upstream's new anime-film lookup rescanned the whole Simkl library once per playback
   session and rebuilt the same id set inside that loop. On this edition it is resolved once
   per sync, which matters on a box with a large anime library.
