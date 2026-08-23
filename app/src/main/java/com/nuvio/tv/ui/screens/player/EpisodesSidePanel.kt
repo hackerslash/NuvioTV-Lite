@@ -463,7 +463,7 @@ private fun EpisodeItem(
     requestInitialFocus: Boolean,
     onClick: () -> Unit
 ) {
-    val shouldBlur = blurUnwatched && !isWatched && !isCurrent
+    val shouldBlur = blurUnwatched && !isWatched
     val context = LocalContext.current
     val episodeTitle = episode.title.localizeEpisodeTitle(context).ifBlank { context.getString(R.string.episodes_episode) }
     val formattedDate = remember(episode.released) {

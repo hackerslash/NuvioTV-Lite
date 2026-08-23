@@ -75,6 +75,7 @@ fun VideoDto.toDomain(episodeLabel: String = "Episode"): Video {
         episode = episode ?: number,
         overview = overview ?: description,
         runtime = parseEpisodeRuntimeMinutes(runtime),
+        rating = rating?.trim()?.toDoubleOrNull()?.takeIf { it > 0.0 },
         available = available
     )
 }

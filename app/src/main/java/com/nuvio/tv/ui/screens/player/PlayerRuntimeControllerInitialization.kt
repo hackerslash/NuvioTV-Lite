@@ -1058,7 +1058,7 @@ internal fun PlayerRuntimeController.initializePlayer(
                             "playbackState=$playbackState playWhenReady=$playWhenReady isPlaying=$isPlaying " +
                                 "userPaused=$userPausedManually"
                         )
-                        if (playbackState == Player.STATE_BUFFERING || playbackState == Player.STATE_READY) {
+                        if (playbackState == Player.STATE_READY) {
                             mediaSourceFactory.unlockStartupPrefetch()
                         }
                         val playerDuration = duration

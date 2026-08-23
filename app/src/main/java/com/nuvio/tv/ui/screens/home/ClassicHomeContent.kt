@@ -4,6 +4,7 @@ import com.nuvio.tv.ui.theme.NuvioTheme
 
 import com.nuvio.tv.LocalContentFocusRequester
 import androidx.compose.animation.core.AnimationSpec
+import androidx.compose.foundation.background
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.BringIntoViewSpec
 import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
@@ -34,10 +35,12 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalDensity
 import com.nuvio.tv.ui.util.dpadVerticalFastScroll
 import com.nuvio.tv.ui.util.asStable
@@ -57,6 +60,7 @@ import com.nuvio.tv.ui.components.CollectionRowSection
 import com.nuvio.tv.ui.components.ContinueWatchingSection
 import com.nuvio.tv.domain.model.ContinueWatchingCardStyle
 import com.nuvio.tv.ui.components.HeroCarousel
+import com.nuvio.tv.ui.components.HeroCarouselBackdrop
 import com.nuvio.tv.ui.components.LoadingIndicator
 import com.nuvio.tv.ui.components.PosterCardStyle
 import androidx.compose.ui.res.stringResource
@@ -72,6 +76,7 @@ private class FocusSnapshot(
 private const val CLASSIC_CATALOG_POSTER_SCALE = 1.35f
 private const val CLASSIC_SECONDARY_ROW_POSTER_SCALE = 1.2f
 private val CLASSIC_ROW_HEADER_FOCUS_INSET = 85.dp
+private val CLASSIC_IMMERSIVE_FADE_DISTANCE = 180.dp
 
 @OptIn(ExperimentalTvMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -100,20 +105,6 @@ fun ClassicHomeContent(
 ) {
     val defaultBringIntoViewSpec = LocalBringIntoViewSpec.current
     val density = LocalDensity.current
-    val verticalBringIntoViewSpec = remember(density, defaultBringIntoViewSpec) {
-        val topInsetPx = with(density) { CLASSIC_ROW_HEADER_FOCUS_INSET.toPx() }
-        @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
-        object : BringIntoViewSpec {
-            override val scrollAnimationSpec: AnimationSpec<Float> =
-                defaultBringIntoViewSpec.scrollAnimationSpec
-
-            override fun calculateScrollDistance(
-                offset: Float,
-                size: Float,
-                containerSize: Float
-            ): Float = offset - topInsetPx
-        }
-    }
     val classicCatalogPosterCardStyle = remember(posterCardStyle) {
         posterCardStyle.copy(
             width = posterCardStyle.width * CLASSIC_CATALOG_POSTER_SCALE,
@@ -158,6 +149,25 @@ fun ClassicHomeContent(
         initialFirstVisibleItemScrollOffset = focusState.verticalScrollOffset,
         prefetchStrategy = nestedPrefetchStrategy
     )
+    val verticalBringIntoViewSpec = remember(density, defaultBringIntoViewSpec, columnListState) {
+        val topInsetPx = with(density) { CLASSIC_ROW_HEADER_FOCUS_INSET.toPx() }
+        @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
+        object : BringIntoViewSpec {
+            override val scrollAnimationSpec: AnimationSpec<Float> =
+                defaultBringIntoViewSpec.scrollAnimationSpec
+
+            override fun calculateScrollDistance(
+                offset: Float,
+                size: Float,
+                containerSize: Float
+            ): Float {
+                val distance = offset - topInsetPx
+                if (kotlin.math.abs(distance) < 1f) return 0f
+                if (distance < 0f && !columnListState.canScrollBackward) return 0f
+                return distance
+            }
+        }
+    }
 
     // Scroll to top when triggered from sidebar Home button.
     LaunchedEffect(scrollToTopTrigger) {
@@ -185,16 +195,15 @@ fun ClassicHomeContent(
     val currentFocusSnapshot = remember {
         FocusSnapshot(
             rowIndex = focusState.focusedRowIndex,
-            itemIndex = focusState.focusedItemIndex
+            itemIndex = focusState.focusedItemIndex,
+            rowKey = focusState.focusedRowKey
         )
     }
 
     // Store scroll state for each row to persist position during recycling
     val rowStates = remember { mutableMapOf<String, LazyListState>() }
     val rowFocusRequesters = remember { mutableMapOf<String, FocusRequester>() }
-    val rowEntryFocusRequesters = remember { mutableMapOf<String, FocusRequester>() }
     val rowFocusedItemIndex = remember { mutableMapOf<String, Int>() }
-    val upcomingSectionFocusRequester = remember { FocusRequester() }
     val cwItemFocusRequesters = remember { mutableMapOf<Int, FocusRequester>() }
     val upcomingItemFocusRequesters = remember { mutableMapOf<Int, FocusRequester>() }
     val lastFocusedUpcomingIndex = remember { mutableIntStateOf(-1) }
@@ -226,7 +235,6 @@ fun ClassicHomeContent(
     LaunchedEffect(visibleRowKeys) {
         rowStates.keys.retainAll(visibleRowKeys)
         rowFocusRequesters.keys.retainAll(visibleRowKeys)
-        rowEntryFocusRequesters.keys.retainAll(visibleRowKeys)
     }
 
     DisposableEffect(Unit) {
@@ -280,6 +288,9 @@ fun ClassicHomeContent(
     val stableTrailerPreviewAudioUrls = remember { androidx.compose.runtime.mutableStateOf(trailerPreviewAudioUrls) }
         .apply { value = trailerPreviewAudioUrls }
     var focusedArtwork by remember { mutableStateOf<ClassicFocusArtwork?>(null) }
+    var activeHeroItem by remember(uiState.heroItems.firstOrNull()?.id) {
+        mutableStateOf(uiState.heroItems.firstOrNull())
+    }
     val latestOnItemFocus by rememberUpdatedState(onItemFocus)
     val latestOnRequestTrailerPreview by rememberUpdatedState(onRequestTrailerPreview)
 
@@ -370,15 +381,68 @@ fun ClassicHomeContent(
     val isVerticalScrollingState = remember(columnListState) {
         derivedStateOf { columnListState.isScrollInProgress }
     }
+    val immersiveFadeDistancePx = remember(density) {
+        with(density) { CLASSIC_IMMERSIVE_FADE_DISTANCE.toPx() }
+    }
+    val immersiveBackdropAlpha = remember(columnListState, immersiveFadeDistancePx) {
+        derivedStateOf {
+            if (columnListState.firstVisibleItemIndex > 0) {
+                0f
+            } else {
+                1f - (columnListState.firstVisibleItemScrollOffset / immersiveFadeDistancePx)
+                    .coerceIn(0f, 1f)
+            }
+        }
+    }
+    val catalogFocusBackdropVisible = remember(immersiveBackdropAlpha) {
+        derivedStateOf { immersiveBackdropAlpha.value <= 0f }
+    }
+    val immersiveBackdropVisible = remember(immersiveBackdropAlpha) {
+        derivedStateOf { immersiveBackdropAlpha.value > 0f }
+    }
+    val backgroundColor = NuvioTheme.colors.Background
     CompositionLocalProvider(
         LocalBringIntoViewSpec provides verticalBringIntoViewSpec,
         LocalFastScrollActive provides isFastScrollingState,
         LocalVerticalRowsScrolling provides isVerticalScrollingState
     ) {
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(backgroundColor)
+    ) {
+    activeHeroItem?.let { item ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .drawWithContent {
+                    if (immersiveBackdropVisible.value) {
+                        drawContent()
+                    }
+                }
+        ) {
+            HeroCarouselBackdrop(
+                item = item,
+                fullPage = true,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+    }
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .drawBehind {
+                val coverAlpha = 1f - immersiveBackdropAlpha.value
+                if (coverAlpha > 0f && coverAlpha < 1f) {
+                    drawRect(color = backgroundColor, alpha = coverAlpha)
+                }
+            }
+    )
     ClassicFocusGradientBackdrop(
         artworkProvider = { focusedArtwork },
         enabled = uiState.classicFocusGradientEnabled,
+        visibleProvider = { catalogFocusBackdropVisible.value },
+        updatesPausedProvider = { isVerticalScrollingState.value },
         modifier = Modifier.fillMaxSize()
     )
     LazyColumn(
@@ -394,7 +458,7 @@ fun ClassicHomeContent(
                     // Pick the item currently occupying the leading edge of
                     // the viewport, then map its LazyColumn key back to the
                     // matching FocusRequester. Hero has its own requester;
-                    // row items carry requesters in [rowEntryFocusRequesters].
+                    // row items carry requesters in [rowFocusRequesters].
                     // Continue Watching is a full-width section with no direct
                     // requester, so if it ends up at the edge we fall through
                     // to the nearest requester-bearing neighbour instead of
@@ -422,10 +486,10 @@ fun ClassicHomeContent(
                     fun requesterForKey(k: String?): FocusRequester? = when {
                         k == null -> null
                         k == "hero_carousel" -> heroFocusRequester
-                        rowEntryFocusRequesters.containsKey(k) -> rowEntryFocusRequesters[k]
+                        rowFocusRequesters.containsKey(k) -> rowFocusRequesters[k]
                         else -> {
                             val baseKey = k.substringBeforeLast('_')
-                            rowEntryFocusRequesters[baseKey]
+                            rowFocusRequesters[baseKey]
                         }
                     }
                     val requester = if (target == null) null
@@ -435,7 +499,7 @@ fun ClassicHomeContent(
                     requester?.let { req ->
                         scope.launch {
                             repeat(6) {
-                                val ok = runCatching { req.requestFocus(); true }
+                                val ok = runCatching { req.requestFocus(FocusDirection.Enter) }
                                     .getOrDefault(false)
                                 if (ok) return@launch
                                 withFrameNanos { }
@@ -454,11 +518,8 @@ fun ClassicHomeContent(
                     items = uiState.heroItems.asStable(),
                     focusRequester = if (shouldRequestInitialFocus) heroFocusRequester else null,
                     showImdbRatings = uiState.homeImdbRatingsVisibility.showRatings,
-                    modifier = Modifier.onFocusChanged {
-                        if (it.hasFocus && uiState.classicFocusGradientEnabled) {
-                            focusedArtwork = null
-                        }
-                    },
+                    onActiveItemChanged = { activeHeroItem = it },
+                    showBackdrop = false,
                     onItemFocus = handleHeroFocus,
                     onItemClick = { item ->
                         onNavigateToDetail(
@@ -473,16 +534,6 @@ fun ClassicHomeContent(
 
         if (uiState.continueWatchingEnabled && uiState.continueWatchingItems.isNotEmpty()) {
             item(key = "continue_watching", contentType = "continue_watching") {
-                val firstRowKey = visibleHomeRows.firstOrNull()?.let { row ->
-                    when (row) {
-                        is HomeRow.Catalog -> row.row.stableKey()
-                        is HomeRow.CollectionRow -> "collection_${row.collection.id}"
-                        is HomeRow.PlaceholderCatalog -> row.stableCatalogKey
-                    }
-                }
-                val firstAddonRowRequester = firstRowKey?.let { rowEntryFocusRequesters.getOrPut(it) { FocusRequester() } }
-                // When upcoming section is visible, CW should navigate down to it; otherwise go to first addon row
-                val cwDownRequester = if (uiState.upcomingItems.isNotEmpty()) upcomingSectionFocusRequester else firstAddonRowRequester
                 ContinueWatchingSection(
                     items = uiState.continueWatchingItems,
                     onItemClick = { item ->
@@ -528,6 +579,7 @@ fun ClassicHomeContent(
                     onItemFocused = { itemIndex ->
                         currentFocusSnapshot.rowIndex = -1
                         currentFocusSnapshot.itemIndex = itemIndex
+                        currentFocusSnapshot.rowKey = "continue_watching"
                         if (uiState.classicFocusGradientEnabled) {
                             focusedArtwork = uiState.continueWatchingItems.getOrNull(itemIndex)
                                 ?.toClassicFocusArtwork(uiState.focusedPosterBackdropExpandEnabled)
@@ -535,7 +587,6 @@ fun ClassicHomeContent(
                     },
                     blurUnwatchedEpisodes = uiState.blurUnwatchedEpisodes,
                     useEpisodeThumbnails = uiState.useEpisodeThumbnailsInCw,
-                    downFocusRequester = cwDownRequester,
                     focusRequesters = cwItemFocusRequesters,
                     cardWidth = classicContinueWatchingCardWidth,
                     imageHeight = classicContinueWatchingImageHeight,
@@ -548,14 +599,6 @@ fun ClassicHomeContent(
 
         if (uiState.continueWatchingEnabled && uiState.upcomingItems.isNotEmpty()) {
             item(key = "upcoming_section", contentType = "upcoming_section") {
-                val firstRowKey = visibleHomeRows.firstOrNull()?.let { row ->
-                    when (row) {
-                        is HomeRow.Catalog -> row.row.stableKey()
-                        is HomeRow.CollectionRow -> "collection_${row.collection.id}"
-                        is HomeRow.PlaceholderCatalog -> row.stableCatalogKey
-                    }
-                }
-                val upcomingDownRequester = firstRowKey?.let { rowEntryFocusRequesters.getOrPut(it) { FocusRequester() } }
                 ContinueWatchingSection(
                     items = uiState.upcomingItems,
                     title = stringResource(R.string.upcoming_section_title),
@@ -596,8 +639,6 @@ fun ClassicHomeContent(
                     },
                     blurUnwatchedEpisodes = uiState.blurUnwatchedEpisodes,
                     useEpisodeThumbnails = uiState.useEpisodeThumbnailsInCw,
-                    entryFocusRequester = upcomingSectionFocusRequester,
-                    downFocusRequester = upcomingDownRequester,
                     focusRequesters = upcomingItemFocusRequesters,
                     lastFocusedIndexState = lastFocusedUpcomingIndex,
                     cardWidth = classicContinueWatchingCardWidth,
@@ -680,17 +721,18 @@ fun ClassicHomeContent(
                             )
                         },
                         rowFocusRequester = rowFocusRequester,
-                        entryFocusRequester = rowEntryFocusRequesters.getOrPut(catalogKey) { FocusRequester() },
                         listState = listState,
                         enableRowFocusRestorer = true,
                         focusedItemIndex = focusedItemIndex,
-                        restorerFocusedIndex = rowFocusedItemIndex[catalogKey] ?: -1,
+                        restorerFocusedIndex = rowFocusedItemIndex[catalogKey] ?: focusedItemIndex,
                         onItemFocused = { itemIndex ->
-                            if (restoringFocus) restoringFocus = false
-                            currentFocusSnapshot.rowIndex = index
-                            currentFocusSnapshot.itemIndex = itemIndex
-                            currentFocusSnapshot.rowKey = catalogKey
-                            rowFocusedItemIndex[catalogKey] = itemIndex
+                            if (!shouldRestoreFocus || itemIndex == focusedItemIndex) {
+                                if (restoringFocus) restoringFocus = false
+                                currentFocusSnapshot.rowIndex = index
+                                currentFocusSnapshot.itemIndex = itemIndex
+                                currentFocusSnapshot.rowKey = catalogKey
+                                rowFocusedItemIndex[catalogKey] = itemIndex
+                            }
                         }
                     )
                 }
@@ -717,7 +759,7 @@ fun ClassicHomeContent(
                         listState = listState,
                         posterCardStyle = classicSecondaryPosterCardStyle,
                         focusedItemIndex = collectionFocusedItemIndex,
-                        entryFocusRequester = rowEntryFocusRequesters.getOrPut(collectionKey) { FocusRequester() },
+                        rowFocusRequester = rowFocusRequesters.getOrPut(collectionKey) { FocusRequester() },
                         onItemFocused = { itemIndex ->
                             if (restoringFocus) restoringFocus = false
                             currentFocusSnapshot.rowIndex = index

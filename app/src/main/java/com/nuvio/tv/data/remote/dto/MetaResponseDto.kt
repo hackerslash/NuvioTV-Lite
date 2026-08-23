@@ -87,6 +87,7 @@ data class VideoDto(
     @Json(name = "overview") val overview: String? = null,
     @Json(name = "description") val description: String? = null,
     @Json(name = "runtime") val runtime: String? = null,
+    @Json(name = "rating") val rating: String? = null,
     @Json(name = "available") val available: Boolean? = null
 )
 

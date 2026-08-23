@@ -978,6 +978,7 @@ fun PlayerScreen(
                     !uiState.showMoreDialog
             },
             controlsVisible = uiState.showControls,
+            blurUnwatchedEpisodes = uiState.blurUnwatchedEpisodes,
             nextEpisodeFocusRequester = nextEpisodeFocusRequester,
             progressBarFocusRequester = if (uiState.showControls) progressBarFocusRequester else null,
             leftFocusRequester = if (skipButtonActuallyVisible) skipIntroFocusRequester else null,
