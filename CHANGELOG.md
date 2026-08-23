@@ -9,6 +9,37 @@ build itself. The in-app updater compares the release tag against the installed
 `versionName`, so tags must stay version-shaped and releases must be published as
 full releases — the updater ignores prereleases and drafts.
 
+## Unreleased
+
+### Synced with upstream NuvioTV (post-0.8.7-beta)
+- [upstream] MP4s with the moov atom at the end now play on the default path instead of
+  failing: the session owns its chunks, the playhead and tail chunks survive scatter seeks,
+  and prefetch waits for the current chunk before fanning out the next ones. @halibiram
+- [upstream] Hosts that answer 429 or 503 are backed off adaptively instead of being
+  hammered, and parallel depth recovers on its own once they stop rate-limiting.
+- [upstream] Parallel chunk size is hard-capped at 16 MB on low-RAM devices, performance
+  mode included.
+- [upstream] Classic home: an immersive hero backdrop, less jank moving between rows, focus
+  that lands where it should, a normalised backdrop colour space, and no gradient work when
+  the gradient is switched off. @tapframe
+- [upstream] Episode options overlay shows the episode still behind it, blurred for
+  unwatched episodes, and no longer stutters as it opens. @halibiram @skoruppa
+- [upstream] Unwatched episode thumbnails blur consistently wherever they appear. @tapframe
+- [upstream] Per-episode ratings are read from addon metadata, and addon ratings survive a
+  ratings-repository failure instead of vanishing. @6ip
+- [upstream] Addon types: `tv` is treated as `series`, and addons that cannot serve the
+  requested type are no longer picked. @ieno
+- [upstream] Right-to-left fixes: overall layout, focus landing on the first episode in the
+  Ratings tab grid, left-to-right subtitle preview lines in the Sync Line dialog, and
+  tidied Hebrew strings. @haveAnIssue
+- [upstream] Albanian is now available. Rinor Ajeti
+- [upstream] Spanish and Spanish (LatAm) translations updated. @Omavel
+- [upstream] The player's loading overlay sits where StreamScreen's does. @halibiram
+- Upstream's new 16 MB chunk cap and per-session chunk ceiling read this edition's
+  physical-RAM tier, so they bind on 2GB boxes that report a full-size heap. Performance
+  mode on those devices keeps the budget-aware chunk limit, which is the tighter of the two.
+- Lite keeps its own launcher name on Albanian devices.
+
 ## v1.3.0-lite — 2026-08-21
 
 ### Memory ceilings now hold
