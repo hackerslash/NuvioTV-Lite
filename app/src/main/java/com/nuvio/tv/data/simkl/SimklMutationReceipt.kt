@@ -114,9 +114,13 @@ internal fun SimklApiResponse.toHistoryMutationReceipt(
     return SimklMutationReceipt(
         result = result,
         mutation = SimklCommittedMutation.AddToHistory(accepted),
+        // A resolved episode-level add carries everything the snapshot needs (status,
+        // classification, season/episode, watchedAt), so it needs no follow-up fetch.
+        // A show-level add does: the server expands it into episodes we never saw.
         requiresReconciliation = accepted.any { resolved ->
             resolved.status == null ||
-                resolved.request.media.kind != TrackingMediaKind.MOVIE
+                (resolved.request.media.kind != TrackingMediaKind.MOVIE &&
+                    resolved.request.media.episode == null)
         }
     )
 }
