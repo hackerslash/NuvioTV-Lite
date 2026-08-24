@@ -3,43 +3,54 @@ package com.nuvio.tv.ui.screens.detail
 import android.content.Context
 import android.view.KeyEvent as AndroidKeyEvent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.tv.material3.Button
@@ -57,6 +68,7 @@ import com.nuvio.tv.ui.components.ImdbRatingSourceLabel
 import com.nuvio.tv.ui.theme.NuvioTheme
 import com.nuvio.tv.ui.util.BlurTransformation
 import com.nuvio.tv.ui.util.localizeEpisodeTitle
+import kotlinx.coroutines.launch
 import java.util.Locale
 
 private data class EpisodeOverlayAction(
@@ -94,8 +106,18 @@ internal fun EpisodeOptionsOverlay(
     val overlayColor = Color(0xFF050505)
     val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     val primaryFocusRequester = remember { FocusRequester() }
+    val detailsFocusRequester = remember { FocusRequester() }
+    val detailsScrollState = rememberScrollState()
+    val coroutineScope = rememberCoroutineScope()
     val title = episode.title.localizeEpisodeTitle(context)
     val description = episode.overview?.trim().orEmpty()
+    val titleStyle = episodeOverlayTitleStyle(title.length)
+    val descriptionStyle = episodeOverlayDescriptionStyle(description.length)
+    val isCompactLayout = configuration.screenWidthDp < 1200 || configuration.screenHeightDp < 700
+    val horizontalPadding = if (isCompactLayout) 32.dp else 64.dp
+    val verticalPadding = if (isCompactLayout) 24.dp else 48.dp
+    val contentSpacing = if (isCompactLayout) 40.dp else 72.dp
+    val actionsWidth = if (isCompactLayout) 320.dp else 360.dp
     val blurUnwatchedBackdrop = blurUnwatchedEpisodes && !isWatched
     val thumbnailUrl = remember(episode.thumbnail, blurUnwatchedBackdrop) {
         if (blurUnwatchedBackdrop) {
@@ -267,15 +289,50 @@ internal fun EpisodeOptionsOverlay(
             Row(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 64.dp, vertical = 48.dp),
-                horizontalArrangement = Arrangement.spacedBy(72.dp),
+                    .padding(horizontal = horizontalPadding, vertical = verticalPadding),
+                horizontalArrangement = Arrangement.spacedBy(contentSpacing),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(
                     modifier = Modifier
                         .weight(1f)
-                        .padding(end = 24.dp),
-                    verticalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.lg)
+                        .fillMaxHeight()
+                        .verticalScroll(detailsScrollState)
+                        .focusRequester(detailsFocusRequester)
+                        .focusProperties {
+                            if (isRtl) {
+                                left = primaryFocusRequester
+                            } else {
+                                right = primaryFocusRequester
+                            }
+                        }
+                        .focusable()
+                        .onPreviewKeyEvent { event ->
+                            when {
+                                event.type != KeyEventType.KeyDown -> false
+                                event.key == Key.DirectionDown && detailsScrollState.value < detailsScrollState.maxValue -> {
+                                    coroutineScope.launch {
+                                        detailsScrollState.animateScrollTo(
+                                            (detailsScrollState.value + 260).coerceAtMost(detailsScrollState.maxValue)
+                                        )
+                                    }
+                                    true
+                                }
+                                event.key == Key.DirectionUp && detailsScrollState.value > 0 -> {
+                                    coroutineScope.launch {
+                                        detailsScrollState.animateScrollTo(
+                                            (detailsScrollState.value - 260).coerceAtLeast(0)
+                                        )
+                                    }
+                                    true
+                                }
+                                else -> false
+                            }
+                        },
+                    verticalArrangement = Arrangement.spacedBy(
+                        NuvioTheme.spacing.lg,
+                        Alignment.CenterVertically
+                    )
                 ) {
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.xl),
@@ -308,26 +365,22 @@ internal fun EpisodeOptionsOverlay(
 
                     Text(
                         text = title,
-                        style = MaterialTheme.typography.displayLarge,
-                        color = Color.White,
-                        maxLines = 3,
-                        overflow = TextOverflow.Ellipsis
+                        style = titleStyle,
+                        color = Color.White
                     )
 
                     if (description.isNotBlank()) {
                         Text(
                             text = description,
-                            style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Normal),
-                            color = Color.White.copy(alpha = 0.72f),
-                            maxLines = 8,
-                            overflow = TextOverflow.Ellipsis
+                            style = descriptionStyle,
+                            color = Color.White.copy(alpha = 0.72f)
                         )
                     }
                 }
 
                 Column(
                     modifier = Modifier
-                        .width(360.dp)
+                        .width(actionsWidth)
                         .focusGroup(),
                     verticalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.md)
                 ) {
@@ -337,6 +390,13 @@ internal fun EpisodeOptionsOverlay(
                             enabled = action.enabled,
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .focusProperties {
+                                    if (isRtl) {
+                                        right = detailsFocusRequester
+                                    } else {
+                                        left = detailsFocusRequester
+                                    }
+                                }
                                 .then(
                                     if (index == initialActionIndex) {
                                         Modifier.focusRequester(primaryFocusRequester)
@@ -355,6 +415,35 @@ internal fun EpisodeOptionsOverlay(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun episodeOverlayTitleStyle(length: Int): TextStyle {
+    val typography = MaterialTheme.typography
+    return when {
+        length <= 40 -> typography.displayLarge
+        length <= 75 -> typography.displayMedium
+        length <= 120 -> typography.headlineLarge
+        else -> typography.headlineMedium
+    }
+}
+
+@Composable
+private fun episodeOverlayDescriptionStyle(length: Int): TextStyle {
+    val typography = MaterialTheme.typography
+    return when {
+        length <= 240 -> typography.headlineMedium.copy(fontWeight = FontWeight.Normal)
+        length <= 420 -> typography.titleLarge.copy(fontWeight = FontWeight.Normal)
+        length <= 700 -> typography.titleMedium.copy(
+            fontWeight = FontWeight.Normal,
+            fontSize = 18.sp,
+            lineHeight = 24.sp
+        )
+        else -> typography.bodyLarge.copy(
+            fontSize = 16.sp,
+            lineHeight = 22.sp
+        )
     }
 }
 
