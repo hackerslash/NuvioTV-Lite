@@ -92,16 +92,26 @@ class TelegramStreamProxy @Inject constructor(
     /**
      * Starts TDLib download and blocks until local.path is available AND
      * some initial bytes are downloaded (up to 30s).
+     *
+     * Cleans up old TDLib caches and caps the download to available disk space
+     * to prevent SIGABRT from binlog write failures on low-storage devices.
      */
     private fun blockingStartDownload(fileId: Int): String? {
-        // Kick off the download
+        val usableBytes = runCatching { context.filesDir.usableSpace }.getOrDefault(0L)
+        val safetyMargin = 100L * 1024 * 1024 // 100 MB safety margin
+        val maxDownload = (usableBytes - safetyMargin).coerceAtLeast(0L)
+        Log.i(TAG, "usable=${usableBytes / 1048576}MB maxDownload=${maxDownload / 1048576}MB")
+
+        // Kick off the download with a disk-space-aware limit
         scope.launch {
             try {
+                // Clean old cached files first to free space
+                cleanStaleTdlibFiles()
                 val dl = TdApi.DownloadFile()
                 dl.fileId = fileId
                 dl.priority = DOWNLOAD_PRIORITY
                 dl.offset = 0
-                dl.limit = 0
+                dl.limit = maxDownload
                 dl.synchronous = false
                 clientManager.sendRequest(dl)
             } catch (_: Exception) { }
@@ -440,5 +450,32 @@ class TelegramStreamProxy @Inject constructor(
         } catch (e: CancellationException) {
             throw e
         }
+    }
+
+    /**
+     * Scans TDLib's temp directory and removes stale download files older than
+     * 10 minutes. Called before each new download to keep disk usage bounded on
+     * the 8GB eMMC.
+     */
+    private fun cleanStaleTdlibFiles() {
+        try {
+            val tempDir = File(context.filesDir, "tdlib_files/temp")
+            if (!tempDir.exists() || !tempDir.isDirectory) return
+            val cutoff = System.currentTimeMillis() - 10 * 60 * 1000L
+            var freedBytes = 0L
+            var count = 0
+            tempDir.listFiles()?.forEach { f ->
+                if (f.isFile && f.lastModified() < cutoff) {
+                    val sz = f.length()
+                    if (f.delete()) {
+                        freedBytes += sz
+                        count++
+                    }
+                }
+            }
+            if (count > 0) {
+                Log.i(TAG, "cleaned $count stale files, freed ${freedBytes / 1048576}MB")
+            }
+        } catch (_: Exception) { }
     }
 }
