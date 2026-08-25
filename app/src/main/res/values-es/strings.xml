@@ -1068,4 +1068,24 @@
     <string name="watchlist_removed">Eliminado de lista de deseos</string>
     <string name="playback_player_auto">Automático (Mejor para el contenido)</string>
     <string name="playback_player_auto_desc">ExoPlayer para Películas y Series · MPV para Anime</string>
+    <string name="action_continue">Continuar</string>
+
+    <!-- Telegram -->
+    <string name="telegram_settings_title">Cuenta de Telegram</string>
+    <string name="telegram_settings_subtitle">Vincula tu cuenta de Telegram para buscar películas y series en tus canales</string>
+    <string name="telegram_status_initializing">Conectando con Telegram…</string>
+    <string name="telegram_error_unavailable">TDLib no está disponible en este dispositivo</string>
+    <string name="telegram_error_missing_credentials">Faltan las credenciales de Telegram en esta compilación</string>
+    <string name="telegram_error_generic">Error: %1$s</string>
+    <string name="telegram_qr_content_description">Código QR</string>
+    <string name="telegram_qr_instructions">Abre Telegram en tu móvil: Ajustes → Dispositivos → Vincular dispositivo, y escanea este código</string>
+    <string name="telegram_linked">Cuenta vinculada</string>
+    <string name="telegram_linked_with_name">Vinculada como %1$s</string>
+    <string name="telegram_unbind">Desvincular cuenta</string>
+    <string name="telegram_phone_prompt">Introduce tu número de teléfono (con prefijo de país)</string>
+    <string name="telegram_phone_placeholder">+34 600 000 000</string>
+    <string name="telegram_code_prompt">Introduce el código de verificación (%1$d dígitos)</string>
+    <string name="telegram_code_placeholder">Código</string>
+    <string name="telegram_password_prompt">Introduce tu contraseña de verificación en dos pasos</string>
+    <string name="telegram_password_placeholder">Contraseña</string>
 </resources>

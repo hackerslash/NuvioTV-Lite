@@ -7,6 +7,7 @@ import com.nuvio.tv.data.repository.MetaRepositoryImpl
 import com.nuvio.tv.data.repository.StreamRepositoryImpl
 import com.nuvio.tv.data.repository.SubtitleRepositoryImpl
 import com.nuvio.tv.data.repository.SyncRepositoryImpl
+import com.nuvio.tv.data.repository.TelegramRepositoryImpl
 import com.nuvio.tv.data.repository.WatchProgressRepositoryImpl
 import com.nuvio.tv.domain.repository.AddonRepository
 import com.nuvio.tv.domain.repository.CatalogRepository
@@ -15,6 +16,7 @@ import com.nuvio.tv.domain.repository.MetaRepository
 import com.nuvio.tv.domain.repository.StreamRepository
 import com.nuvio.tv.domain.repository.SubtitleRepository
 import com.nuvio.tv.domain.repository.SyncRepository
+import com.nuvio.tv.domain.repository.TelegramRepository
 import com.nuvio.tv.domain.repository.WatchProgressRepository
 import dagger.Binds
 import dagger.Module
@@ -53,6 +55,10 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindSyncRepository(impl: SyncRepositoryImpl): SyncRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindTelegramRepository(impl: TelegramRepositoryImpl): TelegramRepository
 
     @Binds
     @Singleton

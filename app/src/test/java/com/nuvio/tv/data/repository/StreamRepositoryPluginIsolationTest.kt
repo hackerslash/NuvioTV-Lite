@@ -6,9 +6,11 @@ import com.nuvio.tv.core.debrid.LocalDebridAvailabilityService
 import com.nuvio.tv.core.network.NetworkResult
 import com.nuvio.tv.core.plugin.PluginManager
 import com.nuvio.tv.core.profile.ProfileManager
+import com.nuvio.tv.core.telegram.TelegramStreamProxy
 import com.nuvio.tv.core.tmdb.TmdbService
 import com.nuvio.tv.data.local.DebridSettingsDataStore
 import com.nuvio.tv.data.remote.api.AddonApi
+import com.nuvio.tv.data.remote.api.TmdbApi
 import com.nuvio.tv.data.remote.dto.StreamDto
 import com.nuvio.tv.data.remote.dto.StreamResponseDto
 import com.nuvio.tv.domain.model.Addon
@@ -18,6 +20,8 @@ import com.nuvio.tv.domain.model.DebridSettings
 import com.nuvio.tv.domain.model.RepositoryType
 import com.nuvio.tv.domain.model.ScraperInfo
 import com.nuvio.tv.domain.repository.AddonRepository
+import com.nuvio.tv.domain.repository.MetaRepository
+import com.nuvio.tv.domain.repository.TelegramRepository
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -121,6 +125,11 @@ class StreamRepositoryPluginIsolationTest {
             firstArg<List<AddonStreams>>()
         }
 
+        val telegramRepository = mockk<TelegramRepository>()
+        every { telegramRepository.isAvailable() } returns false
+        val metaRepository = mockk<MetaRepository>(relaxed = true)
+        val tmdbApi = mockk<TmdbApi>(relaxed = true)
+
         return Harness(
             repository = StreamRepositoryImpl(
                 context = mockk<Context>(relaxed = true),
@@ -131,7 +140,11 @@ class StreamRepositoryPluginIsolationTest {
                 debridSettingsDataStore = debridSettingsDataStore,
                 tmdbService = tmdbService,
                 debridStreamPresentation = presentation,
-                localDebridAvailabilityService = availability
+                localDebridAvailabilityService = availability,
+                telegramRepository = telegramRepository,
+                telegramStreamProxy = mockk<TelegramStreamProxy>(relaxed = true),
+                metaRepository = metaRepository,
+                tmdbApi = tmdbApi
             ),
             api = api,
             tmdbService = tmdbService

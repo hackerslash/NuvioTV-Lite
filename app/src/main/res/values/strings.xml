@@ -591,6 +591,26 @@
     <string name="sub_opacity">Opacity</string>
     <string name="action_none">None</string>
     <string name="action_back">Back</string>
+    <string name="action_continue">Continue</string>
+
+    <!-- Telegram -->
+    <string name="telegram_settings_title">Cuenta de Telegram</string>
+    <string name="telegram_settings_subtitle">Link your Telegram account to find movies and series in your channels</string>
+    <string name="telegram_status_initializing">Connecting to Telegram…</string>
+    <string name="telegram_error_unavailable">TDLib is not available on this device</string>
+    <string name="telegram_error_missing_credentials">Telegram credentials are missing in this build</string>
+    <string name="telegram_error_generic">Error: %1$s</string>
+    <string name="telegram_qr_content_description">QR code</string>
+    <string name="telegram_qr_instructions">Open Telegram on your phone: Settings → Devices → Link Device, and scan this code</string>
+    <string name="telegram_linked">Account linked</string>
+    <string name="telegram_linked_with_name">Linked as %1$s</string>
+    <string name="telegram_unbind">Unlink account</string>
+    <string name="telegram_phone_prompt">Enter your phone number (with country code)</string>
+    <string name="telegram_phone_placeholder">+34 600 000 000</string>
+    <string name="telegram_code_prompt">Enter the verification code (%1$d digits)</string>
+    <string name="telegram_code_placeholder">Code</string>
+    <string name="telegram_password_prompt">Enter your two-step verification password</string>
+    <string name="telegram_password_placeholder">Password</string>
     <string name="action_close">Close</string>
 
     <string name="supporters_contributors_title">Support Nuvio</string>

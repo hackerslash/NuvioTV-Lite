@@ -11,10 +11,12 @@ import com.nuvio.tv.core.debrid.LocalDebridAvailabilityService
 import com.nuvio.tv.core.plugin.PluginManager
 import com.nuvio.tv.core.plugin.resolvePluginSeasonEpisode
 import com.nuvio.tv.core.profile.ProfileManager
+import com.nuvio.tv.core.telegram.TelegramStreamProxy
 import com.nuvio.tv.core.tmdb.TmdbService
 import com.nuvio.tv.data.local.DebridSettingsDataStore
 import com.nuvio.tv.data.mapper.toDomain
 import com.nuvio.tv.data.remote.api.AddonApi
+import com.nuvio.tv.data.remote.api.TmdbApi
 import com.nuvio.tv.domain.model.Addon
 import com.nuvio.tv.domain.model.AddonStreams
 import com.nuvio.tv.domain.model.DebridSettings
@@ -26,7 +28,10 @@ import com.nuvio.tv.domain.model.Stream
 import com.nuvio.tv.domain.model.StreamBehaviorHints
 import com.nuvio.tv.domain.model.enabledAddons
 import com.nuvio.tv.domain.repository.AddonRepository
+import com.nuvio.tv.domain.repository.MetaRepository
 import com.nuvio.tv.domain.repository.StreamRepository
+import com.nuvio.tv.domain.repository.TelegramRepository
+import com.nuvio.tv.domain.repository.TelegramStreamResult
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
@@ -46,6 +51,7 @@ import java.security.MessageDigest
 import javax.inject.Inject
 
 private const val TAG = "StreamRepositoryImpl"
+private const val TELEGRAM_ADDON_NAME = "Telegram"
 
 class StreamRepositoryImpl @Inject constructor(
     @ApplicationContext private val context: Context,
@@ -56,7 +62,11 @@ class StreamRepositoryImpl @Inject constructor(
     private val debridSettingsDataStore: DebridSettingsDataStore,
     private val tmdbService: TmdbService,
     private val debridStreamPresentation: DebridStreamPresentation,
-    private val localDebridAvailabilityService: LocalDebridAvailabilityService
+    private val localDebridAvailabilityService: LocalDebridAvailabilityService,
+    private val telegramRepository: TelegramRepository,
+    private val telegramStreamProxy: TelegramStreamProxy,
+    private val metaRepository: MetaRepository,
+    private val tmdbApi: TmdbApi
 ) : StreamRepository {
     private val streamSearchSessions = StreamSearchSessionCache()
     private val localPluginSearchPaused = MutableStateFlow(false)
@@ -186,7 +196,7 @@ class StreamRepositoryImpl @Inject constructor(
                 val resultChannel = Channel<AddonStreams>(Channel.UNLIMITED)
                 
                 // Track number of pending jobs
-                val totalJobs = streamAddons.size + 1
+                val totalJobs = streamAddons.size + 2 // addons + plugins + telegram
                 val completedJobs = java.util.concurrent.atomic.AtomicInteger(0)
 
                 // Launch addon jobs, bounded so a large addon list can't hold every
@@ -282,6 +292,46 @@ class StreamRepositoryImpl @Inject constructor(
                     } catch (e: Exception) {
                         if (e is CancellationException) throw e
                         Log.e(TAG, "Plugin execution failed: ${e.message}")
+                    } finally {
+                        if (completedJobs.incrementAndGet() >= totalJobs) {
+                            resultChannel.close()
+                        }
+                    }
+                }
+
+                launch {
+                    try {
+                        if (!telegramRepository.isAvailable()) {
+                            Log.i(TAG, "TELEGRAM_GATE: skip, TDLib not Ready")
+                            return@launch
+                        }
+
+                        val resolvedTitles = resolveTmdbTitles(type, videoId)
+                        if (resolvedTitles == null) {
+                            Log.i(TAG, "TELEGRAM_GATE: no TMDB titles for $videoId ($type)")
+                            return@launch
+                        }
+                        val (titles, releaseYear) = resolvedTitles
+                        Log.i(
+                            TAG,
+                            "TELEGRAM_GATE: searching \"${titles.first()}\" " +
+                                "year=$releaseYear S=$season E=$episode"
+                        )
+                        val telegramResults = telegramRepository.searchStreams(
+                            type = type,
+                            titles = titles,
+                            releaseYear = releaseYear,
+                            season = season,
+                            episode = episode
+                        )
+                        if (telegramResults.isNotEmpty()) {
+                            resultChannel.send(buildTelegramAddonStreams(telegramResults))
+                        } else {
+                            Log.i(TAG, "TELEGRAM_GATE: 0 results for \"${titles.first()}\"")
+                        }
+                    } catch (e: Exception) {
+                        if (e is CancellationException) throw e
+                        Log.e(TAG, "TELEGRAM_GATE: search failed", e)
                     } finally {
                         if (completedJobs.incrementAndGet() >= totalJobs) {
                             resultChannel.close()
@@ -551,6 +601,93 @@ class StreamRepositoryImpl @Inject constructor(
         result.size?.let { parts.add(it) }
         result.language?.let { parts.add(it) }
         return if (parts.isNotEmpty()) parts.joinToString(" • ") else null
+    }
+
+    /**
+     * Resolves candidate titles and release year for a video id.
+     * Cascade: TMDB details → cached meta (detail screen already fetched it)
+     * → primary addon meta. TMDB imdb→tmdb mapping misses brand-new ids, so
+     * the meta fallbacks are essential.
+     */
+    private suspend fun resolveTmdbTitles(
+        type: String,
+        videoId: String
+    ): Pair<List<String>, Int?>? {
+        val tmdbId = tmdbService.ensureTmdbId(videoId, type)?.toIntOrNull()
+        if (tmdbId != null) {
+            val apiKey = tmdbService.apiKey()
+            val fromTmdb = runCatching {
+                if (type.equals("series", ignoreCase = true)) {
+                    val body = tmdbApi.getTvDetails(tmdbId, apiKey).body()
+                    val titles = listOfNotNull(body?.name, body?.originalName)
+                        .filter { it.isNotBlank() }
+                        .distinct()
+                    titles to body?.firstAirDate?.take(4)?.toIntOrNull()
+                } else {
+                    val body = tmdbApi.getMovieDetails(tmdbId, apiKey).body()
+                    val titles = listOfNotNull(body?.title, body?.originalTitle)
+                        .filter { it.isNotBlank() }
+                        .distinct()
+                    titles to body?.releaseDate?.take(4)?.toIntOrNull()
+                }
+            }.getOrNull()?.takeIf { it.first.isNotEmpty() }
+            if (fromTmdb != null) return fromTmdb
+        }
+
+        metaRepository.getCachedMeta(type, videoId)?.let { cached ->
+            titlesFromMeta(cached.name, cached.releaseInfo)?.let { return it }
+        }
+
+        return runCatching {
+            when (val result = metaRepository.getMetaFromPrimaryAddon(type, videoId).first()) {
+                is NetworkResult.Success -> titlesFromMeta(result.data.name, result.data.releaseInfo)
+                else -> null
+            }
+        }.getOrNull()?.takeIf { it.first.isNotEmpty() }
+    }
+
+    private fun titlesFromMeta(name: String?, releaseInfo: String?): Pair<List<String>, Int?>? {
+        val cleanName = name?.trim().orEmpty()
+        if (cleanName.isEmpty()) return null
+        val year = releaseInfo?.trim()?.take(4)?.toIntOrNull()
+            ?.takeIf { it in 1900..2100 }
+        return listOf(cleanName) to year
+    }
+
+    private suspend fun buildTelegramAddonStreams(
+        results: List<TelegramStreamResult>
+    ): AddonStreams = AddonStreams(
+        addonName = TELEGRAM_ADDON_NAME,
+        addonLogo = null,
+        streams = results.map { result ->
+            val chatTitle = runCatching {
+                telegramRepository.chatTitle(result.chatId)
+            }.getOrNull()
+            Stream(
+                name = TELEGRAM_ADDON_NAME,
+                title = result.fileName,
+                description = listOfNotNull(chatTitle, formatBytesShort(result.sizeBytes))
+                    .joinToString(" • "),
+                url = telegramStreamProxy.buildStreamUrl(
+                    result.chatId, result.messageId, result.fileId
+                ),
+                ytId = null,
+                infoHash = null,
+                fileIdx = null,
+                externalUrl = null,
+                behaviorHints = null,
+                addonName = TELEGRAM_ADDON_NAME,
+                addonLogo = null,
+                quality = result.quality,
+                qualityValue = parseQualityValue(result.quality)
+            )
+        }
+    )
+
+    private fun formatBytesShort(bytes: Long): String = when {
+        bytes >= 1L shl 30 -> String.format(java.util.Locale.US, "%.1f GB", bytes / 1e9)
+        bytes >= 1L shl 20 -> String.format(java.util.Locale.US, "%.0f MB", bytes / 1e6)
+        else -> "$bytes B"
     }
 
     private fun parseQualityValue(quality: String?): Int {

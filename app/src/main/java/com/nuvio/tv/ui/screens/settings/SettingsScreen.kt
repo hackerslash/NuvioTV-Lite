@@ -45,6 +45,7 @@ import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.runtime.Composable
@@ -99,6 +100,7 @@ internal enum class SettingsCategory {
     LAYOUT,
     CONTENT_DISCOVERY,
     INTEGRATION,
+    TELEGRAM,
     PLAYBACK,
     ADVANCED,
     TRACKING,
@@ -190,6 +192,13 @@ private fun rememberSettingsSectionSpecs() = listOf(
         destination = SettingsSectionDestination.Inline
     ),
     SettingsSectionSpec(
+        category = SettingsCategory.TELEGRAM,
+        title = stringResource(R.string.telegram_settings_title),
+        icon = Icons.Default.Send,
+        subtitle = stringResource(R.string.telegram_settings_subtitle),
+        destination = SettingsSectionDestination.External
+    ),
+    SettingsSectionSpec(
         category = SettingsCategory.PLAYBACK,
         title = stringResource(R.string.settings_playback),
         icon = Icons.Rounded.PlayArrow,
@@ -233,6 +242,7 @@ fun SettingsScreen(
     onNavigateToAddons: () -> Unit = {},
     onNavigateToPlugins: () -> Unit = {},
     onNavigateToAuthQrSignIn: () -> Unit = {},
+    onNavigateToTelegram: () -> Unit = {},
     onNavigateToManageProfiles: () -> Unit = {},
     onNavigateToSupportersContributors: () -> Unit = {},
     onNavigateToLicensesAttributions: () -> Unit = {},
@@ -360,6 +370,7 @@ fun SettingsScreen(
                     when (section.category) {
                         SettingsCategory.ACCOUNT -> onNavigateToAuthQrSignIn()
                         SettingsCategory.TRACKING -> onNavigateToTracking()
+                        SettingsCategory.TELEGRAM -> onNavigateToTelegram()
                         else -> Unit
                     }
                 } else {
@@ -830,6 +841,7 @@ private fun SettingsDetailPane(
             }
         )
         SettingsCategory.DEBUG -> DebugSettingsContent()
+        SettingsCategory.TELEGRAM -> Unit
         SettingsCategory.TRACKING -> Unit
     }
 }

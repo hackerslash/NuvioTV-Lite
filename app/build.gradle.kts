@@ -261,6 +261,8 @@ android {
             buildConfigField("String", "PLAYBACK_REPORTS_BASE_URL", buildConfigString(resolveProperty(devProperties, localProperties, "PLAYBACK_REPORTS_BASE_URL")))
             buildConfigField("String", "PREMIUMIZE_CLIENT_ID", "\"${devProperties.getProperty("PREMIUMIZE_CLIENT_ID", localProperties.getProperty("PREMIUMIZE_CLIENT_ID", ""))}\"")
             buildConfigField("String", "SPONSOR_NAMES", buildConfigString(sponsorNames))
+            buildConfigField("int", "TELEGRAM_API_ID", "${localProperties.getProperty("TELEGRAM_API_ID", "0")}")
+            buildConfigField("String", "TELEGRAM_API_HASH", "\"${localProperties.getProperty("TELEGRAM_API_HASH", "")}\"")
         }
         release {
             isMinifyEnabled = true
@@ -295,6 +297,8 @@ android {
             buildConfigField("String", "PLAYBACK_REPORTS_BASE_URL", buildConfigString(localProperties.getProperty("PLAYBACK_REPORTS_BASE_URL", "")))
             buildConfigField("String", "PREMIUMIZE_CLIENT_ID", "\"${localProperties.getProperty("PREMIUMIZE_CLIENT_ID", "")}\"")
             buildConfigField("String", "SPONSOR_NAMES", buildConfigString(sponsorNames))
+            buildConfigField("int", "TELEGRAM_API_ID", "${localProperties.getProperty("TELEGRAM_API_ID", "0")}")
+            buildConfigField("String", "TELEGRAM_API_HASH", "\"${localProperties.getProperty("TELEGRAM_API_HASH", "")}\"")
         }
         create("benchmark") {
             initWith(buildTypes.getByName("release"))
