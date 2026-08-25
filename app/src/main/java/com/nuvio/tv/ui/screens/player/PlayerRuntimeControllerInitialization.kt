@@ -533,21 +533,32 @@ internal fun PlayerRuntimeController.initializePlayer(
                     allocator = allocator
                 ).also { currentBitrateAwareLoadControl = it }
             } else if (com.nuvio.tv.core.build.AppFeaturePolicy.liteMode || MemoryBudget.isLowRamTier) {
-                // Lite and low-RAM: aggressive, heap-capped defaults on the stock path.
-                // A hard 48MB byte cap (prioritizeTimeOverSize=false) with 20s max / 5s
-                // back buffer bounds out-of-box playback heap on 2GB devices.
+                val isTelegramLocalhost = url.safeHost() == "127.0.0.1"
                 effectiveBackBufferDurationMs = 5_000
                 currentBitrateAwareLoadControl = null
-                Log.i(
-                    PlayerRuntimeController.TAG,
-                    "BUFFER_GATE: engine=exo-lite; DefaultLoadControl (48MB/20s/5s back) host=${url.safeHost()}"
-                )
-                DefaultLoadControl.Builder()
-                    .setTargetBufferBytes(48 * 1024 * 1024)
-                    .setBufferDurationsMs(10_000, 20_000, 2_500, 5_000)
-                    .setPrioritizeTimeOverSizeThresholds(false)
-                    .setBackBuffer(5_000, /* retainBackBufferFromKeyframe = */ true)
-                    .build()
+                if (isTelegramLocalhost) {
+                    Log.i(
+                        PlayerRuntimeController.TAG,
+                        "BUFFER_GATE: engine=exo-telegram; DefaultLoadControl (32MB/90s/2s back) host=${url.safeHost()}"
+                    )
+                    DefaultLoadControl.Builder()
+                        .setTargetBufferBytes(32 * 1024 * 1024)
+                        .setBufferDurationsMs(15_000, 90_000, 2_000, 3_000)
+                        .setPrioritizeTimeOverSizeThresholds(true)
+                        .setBackBuffer(2_000, /* retainBackBufferFromKeyframe = */ true)
+                        .build()
+                } else {
+                    Log.i(
+                        PlayerRuntimeController.TAG,
+                        "BUFFER_GATE: engine=exo-lite; DefaultLoadControl (48MB/20s/5s back) host=${url.safeHost()}"
+                    )
+                    DefaultLoadControl.Builder()
+                        .setTargetBufferBytes(48 * 1024 * 1024)
+                        .setBufferDurationsMs(10_000, 20_000, 2_500, 5_000)
+                        .setPrioritizeTimeOverSizeThresholds(false)
+                        .setBackBuffer(5_000, /* retainBackBufferFromKeyframe = */ true)
+                        .build()
+                }
             } else {
                 // Stock LoadControl: DefaultLoadControl configured with 1.5s back buffer so 1s rewind doesn't clear buffer.
                 effectiveBackBufferDurationMs = 1_500
