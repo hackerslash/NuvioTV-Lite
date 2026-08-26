@@ -348,10 +348,8 @@ fun CatalogRowSection(
                 val onFocusStable = remember(index) {
                     { focusedItem: MetaPreview ->
                         latestOnItemFocus(focusedItem)
-                        if (lastFocusedItemIndex.intValue != index) {
-                            lastFocusedItemIndex.intValue = index
-                            latestOnItemFocused(index)
-                        }
+                        lastFocusedItemIndex.intValue = index
+                        latestOnItemFocused(index)
                     }
                 }
 

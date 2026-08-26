@@ -91,9 +91,8 @@ internal fun PlayerRuntimeController.updateEpisodeDescription() {
         video.season == currentSeason && video.episode == currentEpisode
     }?.overview
 
-    if (!overview.isNullOrBlank()) {
-        _uiState.update { it.copy(description = overview) }
-    }
+    // Always update description when switching episodes - clear stale description
+    _uiState.update { it.copy(description = overview) }
 
     // Push episode metadata to the MediaSession so Google Home shows the new episode.
     updateMediaSessionMetadata()
@@ -316,6 +315,7 @@ internal fun PlayerRuntimeController.resetPostPlayOverlayState(clearEpisode: Boo
 }
 
 internal fun PlayerRuntimeController.evaluatePostPlayOverlayVisibility(positionMs: Long, durationMs: Long) {
+    if (_playbackTimeline.value.isLive) return
     if (!hasRenderedFirstFrame) return
     // Short debrid/error clips must never arm next-episode auto-play (see #2819).
     val effectiveDurationEarly = durationMs.takeIf { it > 0L } ?: lastKnownDuration

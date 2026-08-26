@@ -470,6 +470,10 @@ fun NuvioNavHost(
             )
         ) { backStackEntry ->
             val streamArgs = backStackEntry.arguments
+            val streamSavedState = backStackEntry.savedStateHandle
+            val restoreSourceSelection by streamSavedState.getStateFlow(
+                SOURCE_SELECTION_RESTORE_STATE_KEY, false
+            ).collectAsState()
             val returnToDetailOnBack = streamArgs
                 ?.getString("returnToDetailOnBack")
                 ?.toBooleanStrictOrNull() == true
@@ -481,6 +485,10 @@ fun NuvioNavHost(
                 ?.toBooleanStrictOrNull() == true
             StreamScreen(
                 startFromBeginning = startFromBeginning,
+                restoreSourceSelection = restoreSourceSelection,
+                onSourceSelectionRestoreHandled = {
+                    streamSavedState[SOURCE_SELECTION_RESTORE_STATE_KEY] = false
+                },
                 onBackPress = {
                     val streamContentType = streamArgs?.getString("contentType").orEmpty()
                     val streamContentId = streamArgs?.getString("contentId").orEmpty()
@@ -739,6 +747,23 @@ fun NuvioNavHost(
                 }
             )
         ) { backStackEntry ->
+            fun popBackToStream(): Boolean {
+                val autoPlayNavigation = backStackEntry.arguments
+                    ?.getString("autoPlayNav")
+                    ?.toBooleanStrictOrNull() == true
+                val restoreEntry = navController.previousBackStackEntry?.takeIf { previousEntry ->
+                    shouldArmSourceSelectionRestore(
+                        autoPlayNavigation = autoPlayNavigation,
+                        previousRoute = previousEntry.destination.route
+                    )
+                }
+                val returnedToStream = navController.popBackStack(Screen.Stream.route, inclusive = false)
+                if (returnedToStream && restoreEntry != null) {
+                    restoreEntry.savedStateHandle[SOURCE_SELECTION_RESTORE_STATE_KEY] = true
+                }
+                return returnedToStream
+            }
+
             PlayerScreen(
                 onBackPress = { currentVideoId, currentSeason, currentEpisode, autoPlayEnabled, playbackCompleted ->
                     val args = backStackEntry.arguments
@@ -829,7 +854,7 @@ fun NuvioNavHost(
                             if (skipStreamScreen) {
                                 returnToDetail()
                             } else {
-                                val returnedToStream = navController.popBackStack(Screen.Stream.route, inclusive = false)
+                                val returnedToStream = popBackToStream()
                                 if (!returnedToStream) {
                                     if (returnToDetailOnBack && contentType.equals("series", ignoreCase = true) && contentId.isNotBlank()) {
                                         returnToDetail()
@@ -952,7 +977,7 @@ fun NuvioNavHost(
                     }
                 },
                 onPlaybackErrorBack = {
-                    val returnedToStream = navController.popBackStack(Screen.Stream.route, inclusive = false)
+                    val returnedToStream = popBackToStream()
                     if (!returnedToStream) {
                         val args = backStackEntry.arguments
                         val videoId = args?.getString("videoId").orEmpty()
