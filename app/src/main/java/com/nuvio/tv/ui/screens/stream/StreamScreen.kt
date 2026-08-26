@@ -419,6 +419,7 @@ fun StreamScreen(
                     availableAddons = uiState.availableAddons,
                     sourceChips = uiState.sourceChips,
                     selectedAddonFilter = uiState.selectedAddonFilter,
+                    preferredResumeStreamUrl = uiState.preferredResumeStreamUrl,
                     showFileSizeBadges = streamBadgeSettings.showFileSizeBadges,
                     showAddonLogo = streamBadgeSettings.showAddonLogo,
                     badgePlacement = streamBadgeSettings.badgePlacement,
@@ -706,6 +707,7 @@ private fun RightStreamSection(
     availableAddons: List<String>,
     sourceChips: List<SourceChipItem>,
     selectedAddonFilter: String?,
+    preferredResumeStreamUrl: String?,
     showFileSizeBadges: Boolean,
     showAddonLogo: Boolean,
     badgePlacement: StreamBadgePlacement,
@@ -870,6 +872,7 @@ private fun RightStreamSection(
                             firstStreamFocusRequestId = firstStreamFocusRequestId,
                             availableAddons = availableAddons,
                             selectedAddonFilter = selectedAddonFilter,
+                            preferredResumeStreamUrl = preferredResumeStreamUrl,
                             showFileSizeBadges = showFileSizeBadges,
                             showAddonLogo = showAddonLogo,
                             badgePlacement = badgePlacement,
@@ -1197,6 +1200,7 @@ private fun StreamsList(
     firstStreamFocusRequestId: Int = 0,
     availableAddons: List<String> = emptyList(),
     selectedAddonFilter: String? = null,
+    preferredResumeStreamUrl: String? = null,
     showFileSizeBadges: Boolean = true,
     showAddonLogo: Boolean = true,
     badgePlacement: StreamBadgePlacement = StreamBadgePlacement.BOTTOM,
@@ -1304,6 +1308,8 @@ private fun StreamsList(
             Box(modifier = Modifier.padding(vertical = NuvioTheme.spacing.xs)) {
                 StreamCard(
                     stream = stream,
+                    isPreferredResumeStream =
+                        preferredResumeStreamUrl != null && stream.getStreamUrl() == preferredResumeStreamUrl,
                     showFileSizeBadges = showFileSizeBadges,
                     showAddonLogo = showAddonLogo,
                     badgePlacement = badgePlacement,
@@ -1333,6 +1339,7 @@ private fun StreamsList(
 @Composable
 private fun StreamCard(
     stream: Stream,
+    isPreferredResumeStream: Boolean,
     showFileSizeBadges: Boolean,
     showAddonLogo: Boolean,
     badgePlacement: StreamBadgePlacement,
@@ -1347,6 +1354,10 @@ private fun StreamCard(
     val unknownStreamLabel = stringResource(R.string.stream_unknown)
     val streamName = remember(stream, unknownStreamLabel) { stream.getDisplayNameOrNull() ?: unknownStreamLabel }
     val streamDescription = remember(stream) { stream.getDisplayDescription() }
+    val preferredPrefix = stringResource(R.string.cw_resume)
+    val effectiveStreamName = remember(streamName, isPreferredResumeStream, preferredPrefix) {
+        if (isPreferredResumeStream) "$preferredPrefix • $streamName" else streamName
+    }
     val hasBadges = stream.badges.isNotEmpty() || (showFileSizeBadges && stream.behaviorHints?.videoSize != null) || reserveBadgeSpace
 
     var isFocused by remember { mutableStateOf(false) }
@@ -1420,7 +1431,7 @@ private fun StreamCard(
                 }
 
                 Text(
-                    text = streamName,
+                    text = effectiveStreamName,
                     style = MaterialTheme.typography.titleMedium,
                     color = NuvioTheme.colors.TextPrimary
                 )

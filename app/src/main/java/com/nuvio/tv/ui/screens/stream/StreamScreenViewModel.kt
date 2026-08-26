@@ -64,6 +64,7 @@ import javax.inject.Inject
 
 private const val TAG = "StreamScreenViewModel"
 private const val DIRECT_AUTOPLAY_HARD_TIMEOUT_MS = 60_000L
+private const val PREFERRED_STREAM_CACHE_FALLBACK_MS = 30L * 24L * 60L * 60L * 1000L
 
 @HiltViewModel
 class StreamScreenViewModel @Inject constructor(
@@ -125,6 +126,9 @@ class StreamScreenViewModel @Inject constructor(
     private val contentId: String? = savedStateHandle.getOptionalString("contentId")
     private val contentName: String? = savedStateHandle.getOptionalString("contentName")
     private val contentLanguage: String? = savedStateHandle.getOptionalString("contentLanguage")
+    private val startFromBeginning: Boolean = savedStateHandle.get<String>("startFromBeginning")
+        ?.toBooleanStrictOrNull()
+        ?: false
     private val manualSelection: Boolean = savedStateHandle.get<String>("manualSelection")
         ?.toBooleanStrictOrNull()
         ?: false
@@ -168,6 +172,18 @@ class StreamScreenViewModel @Inject constructor(
         }
     }
 
+    private fun prioritizePreferredStream(
+        streams: List<Stream>,
+        preferredUrl: String?
+    ): List<Stream> {
+        if (preferredUrl.isNullOrBlank()) return streams
+        val preferred = streams.filter { it.getStreamUrl() == preferredUrl }
+        if (preferred.isEmpty()) return streams
+        return preferred + streams.filterNot { candidate ->
+            preferred.any { it.stableKey() == candidate.stableKey() }
+        }
+    }
+
     private fun scheduleStreamBadgePresentation(groups: List<AddonStreams>) {
         // Only process addon groups that haven't been badged yet
         val newGroups = groups.filter { it.addonName !in badgedAddonNames }
@@ -197,7 +213,10 @@ class StreamScreenViewModel @Inject constructor(
                                 }
                             )
                         }
-                        val updatedAllStreams = updatedAddonStreams.flatMap { it.streams }
+                        val updatedAllStreams = prioritizePreferredStream(
+                            streams = updatedAddonStreams.flatMap { it.streams },
+                            preferredUrl = state.preferredResumeStreamUrl
+                        )
                         val currentFilter = state.selectedAddonFilter
                         val filteredStreams = if (currentFilter == null) {
                             updatedAllStreams
@@ -339,6 +358,7 @@ class StreamScreenViewModel @Inject constructor(
         streamLoadScope = newScope
         streamLoadJob = newScope.launch {
             streamLoadCompleted = false
+            val preferredResumeStreamUrl = resolvePreferredResumeStreamUrl()
             val playerSettings = playerSettingsDataStore.playerSettings.first()
             if (manualSelection) {
                 directAutoPlayModeInitializedForSession = true
@@ -380,6 +400,7 @@ class StreamScreenViewModel @Inject constructor(
                         isDirectAutoPlayFlow = true,
                         showDirectAutoPlayOverlay = true,
                         autoPlayDecided = true,
+                        preferredResumeStreamUrl = preferredResumeStreamUrl,
                         directAutoPlayMessage = if (playerSettings.showPlayerLoadingStatus) {
                             context.getString(R.string.stream_finding_source)
                         } else {
@@ -389,7 +410,10 @@ class StreamScreenViewModel @Inject constructor(
                 }
             } else {
                 updateUiStateIfChanged {
-                    it.copy(autoPlayDecided = true)
+                    it.copy(
+                        autoPlayDecided = true,
+                        preferredResumeStreamUrl = preferredResumeStreamUrl
+                    )
                 }
             }
 
@@ -487,6 +511,15 @@ class StreamScreenViewModel @Inject constructor(
                 }
 
                 val allStreams = mergedAddonStreams.flatMap { it.streams }
+                val preferredStreams = allStreams.filter { it.getStreamUrl() == preferredResumeStreamUrl }
+                if (preferredResumeStreamUrl != null) {
+                    val sample = allStreams.take(6).mapNotNull { it.getStreamUrl() }
+                    Log.d(
+                        TAG,
+                        "Preferred resume match: target=$preferredResumeStreamUrl matches=${preferredStreams.size} sample=$sample"
+                    )
+                }
+                val orderedStreams = prioritizePreferredStream(allStreams, preferredResumeStreamUrl)
                 val availableAddons = mergedAddonStreams.map { it.addonName }
                 // Auto-select only after all addons have responded or the
                 // configured timeout has elapsed. This gives slower addons a
@@ -497,7 +530,7 @@ class StreamScreenViewModel @Inject constructor(
                     null
                 } else {
                     StreamAutoPlaySelector.selectAutoPlayStream(
-                        streams = allStreams,
+                        streams = orderedStreams,
                         mode = playerSettings.streamAutoPlayMode,
                         regexPattern = playerSettings.streamAutoPlayRegex,
                         source = playerSettings.streamAutoPlaySource,
@@ -514,16 +547,16 @@ class StreamScreenViewModel @Inject constructor(
 
                 val currentFilter = _uiState.value.selectedAddonFilter
                 val filteredStreams = if (currentFilter == null) {
-                    allStreams
+                    orderedStreams
                 } else {
-                    allStreams.filter { it.addonName == currentFilter }
+                    orderedStreams.filter { it.addonName == currentFilter }
                 }
 
                 updateUiStateIfChanged {
                     it.copy(
                         isLoading = false,
                         addonStreams = mergedAddonStreams,
-                        allStreams = allStreams,
+                        allStreams = orderedStreams,
                         filteredStreams = filteredStreams,
                         availableAddons = availableAddons,
                         sourceChips = mergeSourceChipStatuses(
@@ -611,15 +644,19 @@ class StreamScreenViewModel @Inject constructor(
                                 val updatedAllStreams = updatedGroups.flatMap { addonStreams ->
                                     addonStreams.streams
                                 }
+                                val orderedStreams = prioritizePreferredStream(
+                                    streams = updatedAllStreams,
+                                    preferredUrl = state.preferredResumeStreamUrl
+                                )
                                 val currentFilter = state.selectedAddonFilter
                                 val filteredStreams = if (currentFilter == null) {
-                                    updatedAllStreams
+                                    orderedStreams
                                 } else {
-                                    updatedAllStreams.filter { it.addonName == currentFilter }
+                                    orderedStreams.filter { it.addonName == currentFilter }
                                 }
                                 state.copy(
                                     addonStreams = updatedGroups,
-                                    allStreams = updatedAllStreams,
+                                    allStreams = orderedStreams,
                                     filteredStreams = filteredStreams
                                 )
                             }
@@ -1111,6 +1148,35 @@ class StreamScreenViewModel @Inject constructor(
                 )
             }
         }
+    }
+
+    private suspend fun resolvePreferredResumeStreamUrl(): String? {
+        if (startFromBeginning) return null
+
+        val progressContentId = contentId
+        if (!progressContentId.isNullOrBlank()) {
+            val progress = if (season != null && episode != null) {
+                watchProgressRepository.getEpisodeProgress(progressContentId, season, episode).first()
+            } else {
+                watchProgressRepository.getProgress(progressContentId).first()
+            }
+            val progressUrl = progress
+                ?.takeIf { it.isInProgress() }
+                ?.addonBaseUrl
+                ?.takeIf { it.isNotBlank() }
+            if (progressUrl != null) {
+                Log.d(TAG, "Preferred resume source from progress: $progressUrl")
+                return progressUrl
+            }
+        }
+
+        val cache = streamLinkCacheDataStore.getValid(
+            contentKey = streamCacheKey,
+            maxAgeMs = PREFERRED_STREAM_CACHE_FALLBACK_MS
+        )
+        val cacheUrl = cache?.url?.takeIf { it.isNotBlank() }
+        Log.d(TAG, "Preferred resume source from cache: ${cacheUrl ?: "<none>"}")
+        return cacheUrl
     }
 
     suspend fun resolveStreamForPlayback(stream: Stream): StreamPlaybackInfo? {

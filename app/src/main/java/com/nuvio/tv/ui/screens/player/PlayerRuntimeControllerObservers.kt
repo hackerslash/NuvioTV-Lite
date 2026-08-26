@@ -610,8 +610,10 @@ internal fun PlayerRuntimeController.fetchSkipIntervals(id: String?, season: Int
 internal fun PlayerRuntimeController.tryApplyPendingResumeProgress(player: Player) {
     val saved = pendingResumeProgress ?: return
     if (!player.isCurrentMediaItemSeekable) {
-        pendingResumeProgress = null
-        _uiState.update { it.copy(pendingSeekPosition = null) }
+        Log.d(
+            PlayerRuntimeController.TAG,
+            "tryApplyPendingResumeProgress: media item not seekable yet, keeping pending resume"
+        )
         return
     }
     val duration = player.duration

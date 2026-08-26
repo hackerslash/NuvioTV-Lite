@@ -33,6 +33,7 @@ data class StreamScreenUiState(
     val filteredStreams: List<Stream> = emptyList(),
     val availableAddons: List<String> = emptyList(),
     val sourceChips: List<SourceChipItem> = emptyList(),
+    val preferredResumeStreamUrl: String? = null,
     val autoPlayStream: Stream? = null,
     val autoPlayPlaybackInfo: StreamPlaybackInfo? = null,
     val error: String? = null,
