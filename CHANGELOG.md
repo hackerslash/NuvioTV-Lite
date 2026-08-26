@@ -9,6 +9,52 @@ build itself. The in-app updater compares the release tag against the installed
 `versionName`, so tags must stay version-shaped and releases must be published as
 full releases — the updater ignores prereleases and drafts.
 
+## v1.4.1-lite — 2026-08-27
+
+### Synced with upstream NuvioTV (0.8.9-beta)
+- [upstream] Live channels are timed as a watch clock instead of a VOD timeline, the
+  next-episode overlay no longer arms on them, and a Media3 buffered-percentage overflow no
+  longer crashes live IPTV playback. @halibiram
+- [upstream] The selected source is restored after playback instead of resetting. @liongalahad
+- [upstream] Subtitles no longer crash on duplicate cue keys, and charset detection is fixed for
+  Western European and legacy single-byte subtitles. @halibiram @Rasimsson
+- [upstream] Chinese subtitles pick Traditional or Simplified from the language tag rather than
+  guessing when the tag says which. @Rasimsson
+- [upstream] Playback speed is remembered per show. Phantom
+- [upstream] The episode description always updates when switching episodes instead of keeping a
+  stale one. @skoruppa
+- [upstream] Hiding the parental guide no longer counts as user interaction, so the controls
+  don't stay up. @uHleaf
+- [upstream] Episode options overlay: appearance options, and less gradient banding.
+  @tapframe @skoruppa
+- [upstream] Long cast biographies expand from the portrait. @tapframe
+- [upstream] TMDB falls back to English/Romaji cast and crew names when it returns native script,
+  including filmography and network browse titles. @halibiram
+- [upstream] Library: focus returns to the selected mode, search no longer jitters or traps
+  focus, catalogs are translated when adding titles, and anime type is respected when adding to
+  Simkl. @liongalahad @YLaskco @skoruppa
+- [upstream] Search: the discover catalog selection persists, live search no longer wipes the
+  keyboard suggestion strip, and the keyboard hides when it should. @tapframe @ieno @uHleaf
+- [upstream] Discovery respects landscape posters, and poster corner radius is respected
+  everywhere. @skoruppa
+- [upstream] The launcher's Continue Watching card opens the right title when the app resumes
+  from background, and content language is forwarded from Continue Watching. @skoruppa
+- [upstream] Scrolling titles rest and scroll from their own script's side rather than the UI
+  locale's, so focusing a card no longer makes the title jump. @haveAnIssue
+- [upstream] System font scale is clamped so large-text devices don't break layouts. @uHleaf
+- [upstream] Settings pill offsets are absolute, so an RTL locale doesn't mirror them. @uHleaf
+- [upstream] 304 and redirect responses are no longer marked no-store, so the HTTP cache works as
+  intended. @Telkaoss
+- [upstream] Translations updated: Hebrew, Spanish (LatAm), Greek parity, Vietnamese, Portuguese
+  QR wording, and missing genre strings. @haveAnIssue @Omavel @nosvasedis @blueocean2308
+  Diogo Santos
+- Upstream turned RGB565 poster decoding off for image quality; this edition keeps it on for
+  low-RAM devices only, where halved poster bytes still matter, and takes the quality win
+  everywhere else.
+- Upstream's new subtitle mojibake heuristic ran a regex compile and two list allocations per
+  dialogue line on this edition's fast path. It now bails before that on any line that can't
+  contain the mojibake it looks for.
+
 ## v1.4.0-lite — 2026-08-25
 
 ### Synced with upstream NuvioTV (post-0.8.7-beta)
