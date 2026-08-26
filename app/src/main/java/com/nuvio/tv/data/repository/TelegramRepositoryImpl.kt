@@ -1,6 +1,7 @@
 package com.nuvio.tv.data.repository
 
 import android.util.Log
+import dagger.hilt.android.qualifiers.ApplicationContext
 import com.nuvio.tv.core.telegram.TelegramClientManager
 import com.nuvio.tv.core.telegram.TelegramAuthState
 import com.nuvio.tv.core.telegram.TelegramMediaParser
@@ -8,15 +9,18 @@ import com.nuvio.tv.core.telegram.TelegramTitleMatcher
 import com.nuvio.tv.core.telegram.TelegramStreamProxy
 import com.nuvio.tv.domain.repository.TelegramRepository
 import com.nuvio.tv.domain.repository.TelegramStreamResult
+import android.content.Context
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.drinkless.tdlib.TdApi
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.math.abs
+import java.util.Locale
 
 @Singleton
 class TelegramRepositoryImpl @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val clientManager: TelegramClientManager,
     private val streamProxy: TelegramStreamProxy
 ) : TelegramRepository {
@@ -27,8 +31,15 @@ class TelegramRepositoryImpl @Inject constructor(
         private const val SEARCH_TIMEOUT_MS = 20_000L
         private const val MIN_FILE_SIZE_BYTES = 50L * 1024 * 1024
         private const val MATCH_THRESHOLD = 0.75
-        private const val MAX_TITLES_QUERIED = 2
+        private const val MAX_TITLES_QUERIED = 4
         private const val MAX_RESULTS = 40
+
+        private val VIDEO_EXTENSIONS = setOf(
+            "mkv", "mp4", "avi", "mov", "wmv", "flv", "webm", "m4v", "mpg", "mpeg", "m2ts", "ts", "3gp"
+        )
+        private val EXCLUDED_NON_VIDEO_EXTENSIONS = setOf(
+            "cbz", "cbr", "cb7", "pdf", "epub", "mobi", "azw", "azw3", "djvu"
+        )
     }
 
     private val chatTitleCache = HashMap<Long, String?>()
@@ -46,7 +57,7 @@ class TelegramRepositoryImpl @Inject constructor(
     ): List<TelegramStreamResult> {
         if (!isAvailable()) return emptyList()
 
-        val candidateTitles = titles
+        val candidateTitles = buildCandidateTitles(titles)
             .filter { it.isNotBlank() }
             .distinctBy { TelegramMediaParser.normalizeForMatch(it) }
             .take(MAX_TITLES_QUERIED)
@@ -93,13 +104,38 @@ class TelegramRepositoryImpl @Inject constructor(
             }
         }
 
+        val preferredLanguage = preferredUiLanguageCode()
         Log.i(
             TAG,
             "Telegram search \"${candidateTitles.first()}\" S=${season ?: '-'} E=${episode ?: '-'}: " +
                 "found=$totalFound accepted=${results.size} " +
                 "(size=$rejectedSize title=$rejectedTitle se=$rejectedSeasonEpisode dup=$duplicates)"
         )
-        return results.sortedByDescending { it.sizeBytes }
+        return results
+            .sortedWith(
+                compareByDescending<TelegramStreamResult> { it.matchScore }
+                    .thenByDescending { languagePriorityScore(it.fileName, preferredLanguage) }
+                    .thenByDescending { qualityRank(it.quality) }
+                    .thenByDescending { it.sizeBytes }
+            )
+    }
+
+    private fun buildCandidateTitles(titles: List<String>): List<String> {
+        val base = titles.filter { it.isNotBlank() }
+        val translated = base.flatMap { title ->
+            val normalized = TelegramMediaParser.normalizeForMatch(title)
+            val variants = mutableListOf<String>()
+            if (normalized.contains("masters of the universe")) {
+                variants += "Masters del universo"
+                variants += "Maestros del universo"
+            }
+            if (normalized.contains("spider man")) {
+                variants += "El hombre arana"
+                variants += "Hombre arana"
+            }
+            variants
+        }
+        return (base + translated).distinctBy { TelegramMediaParser.normalizeForMatch(it) }
     }
 
     private enum class MatchOutcome { ACCEPTED, DUPLICATE, REJECTED_SIZE, REJECTED_TITLE, REJECTED_SEASON_EPISODE }
@@ -150,11 +186,14 @@ class TelegramRepositoryImpl @Inject constructor(
     private fun extractFile(message: TdApi.Message): TelegramStreamResult? {
         val fileName: String
         val file: TdApi.File
+        var mimeType: String? = null
         when (val content = message.content) {
             is TdApi.MessageDocument -> {
                 val document = content.document ?: return null
                 fileName = document.fileName.orEmpty()
                 file = document.document ?: return null
+                mimeType = document.mimeType
+                if (!isPlayableVideoDocument(fileName, mimeType, message.id)) return null
             }
             is TdApi.MessageVideo -> {
                 val video = content.video ?: return null
@@ -179,6 +218,80 @@ class TelegramRepositoryImpl @Inject constructor(
             matchScore = 0.0,
             chatTitle = null
         )
+    }
+
+    private fun isPlayableVideoDocument(fileName: String, mimeType: String?, messageId: Long): Boolean {
+        val ext = fileName.substringAfterLast('.', "").lowercase()
+        if (ext.isNotEmpty()) {
+            if (ext in EXCLUDED_NON_VIDEO_EXTENSIONS) {
+                Log.d(TAG, "Reject non-video document: ext=$ext file=$fileName messageId=$messageId")
+                return false
+            }
+            if (ext in VIDEO_EXTENSIONS) return true
+        }
+        val mime = mimeType?.lowercase().orEmpty()
+        if (mime.startsWith("video/")) return true
+        if (mime.startsWith("application/")) {
+            val accepted = ext in VIDEO_EXTENSIONS
+            if (!accepted) {
+                Log.d(TAG, "Reject application document: mime=$mime ext=$ext file=$fileName messageId=$messageId")
+            }
+            return accepted
+        }
+        return false
+    }
+
+    private fun preferredUiLanguageCode(): String {
+        val locale = context.resources.configuration.locales.get(0)
+        return locale?.language?.lowercase(Locale.US).orEmpty()
+    }
+
+    private fun languagePriorityScore(fileName: String, preferredLanguageCode: String): Int {
+        val normalized = TelegramMediaParser.normalizeForMatch(fileName)
+        val hasSpanish = containsAny(normalized, listOf("castellano", "espanol", "spanish", "latino"))
+        val hasCastilian = containsAny(normalized, listOf("castellano", "espana", "espanol espana"))
+        val hasLatam = containsAny(normalized, listOf("latino", "latam"))
+        val hasEnglish = containsAny(normalized, listOf("english", "ingles"))
+        val isDual = containsAny(normalized, listOf("dual", "multi audio", "multiaudio"))
+
+        return when (preferredLanguageCode) {
+            "es" -> when {
+                hasCastilian -> 40
+                hasSpanish -> 34
+                hasLatam -> 30
+                isDual && (hasSpanish || hasEnglish) -> 26
+                isDual -> 22
+                hasEnglish -> 10
+                else -> 0
+            }
+            "en" -> when {
+                hasEnglish -> 40
+                isDual && hasEnglish -> 30
+                isDual -> 20
+                hasSpanish -> 8
+                else -> 0
+            }
+            else -> when {
+                isDual -> 24
+                hasEnglish || hasSpanish -> 16
+                else -> 0
+            }
+        }
+    }
+
+    private fun containsAny(normalizedText: String, terms: List<String>): Boolean =
+        terms.any { term -> normalizedText.contains(term) }
+
+    private fun qualityRank(quality: String?): Int {
+        val q = quality?.lowercase() ?: return -1
+        return when {
+            q.contains("4k") || q.contains("2160") -> 2160
+            q.contains("1080") -> 1080
+            q.contains("720") -> 720
+            q.contains("480") -> 480
+            q.contains("360") -> 360
+            else -> -1
+        }
     }
 
     /** Resolves and caches a human-readable chat name; never throws. */

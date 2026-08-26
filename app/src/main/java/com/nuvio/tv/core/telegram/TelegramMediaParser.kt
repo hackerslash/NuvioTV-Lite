@@ -50,7 +50,10 @@ object TelegramMediaParser {
         "60fps", "hq", "vip", "mkv", "mp4", "avi", "dl", "dd", "ma", "hdrplus"
     )
 
-    private val ARTICLES = setOf("el", "la", "los", "las", "un", "una", "unos", "unas", "the", "a", "an")
+    private val ARTICLES = setOf(
+        "el", "la", "los", "las", "un", "una", "unos", "unas",
+        "the", "a", "an", "de", "del", "al", "of", "and", "y"
+    )
 
     /** Parses a document/file name into structured media info. */
     fun parse(rawName: String): Parsed {

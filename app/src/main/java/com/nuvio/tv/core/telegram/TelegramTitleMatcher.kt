@@ -12,6 +12,18 @@ object TelegramTitleMatcher {
 
     private const val CONTAINMENT_WEIGHT = 1.0
     private const val LEVENSHTEIN_WEIGHT = 0.9
+    private val SPANISH_SYNONYMS: Map<String, Set<String>> = mapOf(
+        "master" to setOf("maestro", "masters"),
+        "masters" to setOf("master", "maestros"),
+        "universe" to setOf("universo"),
+        "universo" to setOf("universe"),
+        "man" to setOf("hombre"),
+        "woman" to setOf("mujer"),
+        "day" to setOf("dia"),
+        "night" to setOf("noche"),
+        "death" to setOf("muerte"),
+        "truth" to setOf("verdad")
+    )
 
     fun score(expectedTitle: String, candidateCleanTitle: String): Double {
         val expectedTokens = TelegramMediaParser.matchTokens(expectedTitle)
@@ -21,21 +33,27 @@ object TelegramTitleMatcher {
 
         val expectedSet = expectedTokens.toSet()
         val candidateSet = candidateTokens.toSet()
-        val intersection = expectedSet.intersect(candidateSet).size
-
-        val containment = intersection.toDouble() / expectedSet.size
+        val overlap = tokenOverlapScore(expectedSet, candidateSet)
 
         val normalizedExpected = expectedTokens.joinToString(" ")
         val normalizedCandidate = candidateTokens.joinToString(" ")
         val levenshtein = levenshteinRatio(normalizedExpected, normalizedCandidate)
 
-        val base = max(containment * CONTAINMENT_WEIGHT, levenshtein * LEVENSHTEIN_WEIGHT)
+        val base = max(overlap * CONTAINMENT_WEIGHT, levenshtein * LEVENSHTEIN_WEIGHT)
 
         // Penalize candidates that add a lot of unrelated content (e.g. saga/episode titles).
         val extraTokens = (candidateSet - expectedSet).size
         val penalty = sqrt(expectedSet.size.toDouble() / (expectedSet.size + extraTokens))
 
         return (base * penalty).coerceIn(0.0, 1.0)
+    }
+
+    private fun tokenOverlapScore(expected: Set<String>, candidate: Set<String>): Double {
+        if (expected.isEmpty()) return 0.0
+        val matched = expected.count { token ->
+            token in candidate || SPANISH_SYNONYMS[token]?.any { it in candidate } == true
+        }
+        return matched.toDouble() / expected.size.toDouble()
     }
 
     /** Best score across several accepted titles (localized + original). */
