@@ -48,10 +48,12 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import java.net.URLEncoder
 import java.security.MessageDigest
+import java.util.Locale
 import javax.inject.Inject
 
 private const val TAG = "StreamRepositoryImpl"
 private const val TELEGRAM_ADDON_NAME = "Telegram"
+private const val MAX_ALT_TITLES = 8
 
 class StreamRepositoryImpl @Inject constructor(
     @ApplicationContext private val context: Context,
@@ -94,6 +96,12 @@ class StreamRepositoryImpl @Inject constructor(
         val groupPluginsByRepository: Boolean,
         val pluginRepositories: List<PluginRepository>,
         val debridSettings: DebridSettings
+    )
+
+    private data class TelegramSearchSeed(
+        val titles: List<String>,
+        val releaseYear: Int?,
+        val imdbId: String?
     )
 
     override fun getStreamsFromAllAddons(
@@ -306,21 +314,23 @@ class StreamRepositoryImpl @Inject constructor(
                             return@launch
                         }
 
-                        val resolvedTitles = resolveTmdbTitles(type, videoId)
-                        if (resolvedTitles == null) {
+                        val searchSeed = resolveTmdbTitles(type, videoId)
+                        if (searchSeed == null) {
                             Log.i(TAG, "TELEGRAM_GATE: no TMDB titles for $videoId ($type)")
                             return@launch
                         }
-                        val (titles, releaseYear) = resolvedTitles
+                        val titles = searchSeed.titles
+                        val releaseYear = searchSeed.releaseYear
                         Log.i(
                             TAG,
                             "TELEGRAM_GATE: searching \"${titles.first()}\" " +
-                                "year=$releaseYear S=$season E=$episode"
+                                "year=$releaseYear imdb=${searchSeed.imdbId ?: '-'} S=$season E=$episode"
                         )
                         val telegramResults = telegramRepository.searchStreams(
                             type = type,
                             titles = titles,
                             releaseYear = releaseYear,
+                            imdbId = searchSeed.imdbId,
                             season = season,
                             episode = episode
                         )
@@ -612,46 +622,202 @@ class StreamRepositoryImpl @Inject constructor(
     private suspend fun resolveTmdbTitles(
         type: String,
         videoId: String
-    ): Pair<List<String>, Int?>? {
+    ): TelegramSearchSeed? {
+        val apiKey = tmdbService.apiKey()
+        val imdbIdFromVideoId = extractImdbId(videoId)
+        val mergedTitles = LinkedHashSet<String>()
+        var mergedYear: Int? = null
+        var mergedImdbId: String? = imdbIdFromVideoId
+
         val tmdbId = tmdbService.ensureTmdbId(videoId, type)?.toIntOrNull()
         if (tmdbId != null) {
-            val apiKey = tmdbService.apiKey()
-            val fromTmdb = runCatching {
+            val fromTmdb = resolveTmdbSeed(type, tmdbId, apiKey)
+            if (fromTmdb != null) {
+                mergedTitles += fromTmdb.titles
+                if (mergedYear == null) mergedYear = fromTmdb.releaseYear
+                if (mergedImdbId == null) mergedImdbId = fromTmdb.imdbId
+            }
+        }
+
+        if (imdbIdFromVideoId != null) {
+            val tmdbIdFromImdb = runCatching {
+                val body = tmdbApi.findByExternalId(imdbIdFromVideoId, apiKey).body()
                 if (type.equals("series", ignoreCase = true)) {
-                    val body = tmdbApi.getTvDetails(tmdbId, apiKey).body()
-                    val titles = listOfNotNull(body?.name, body?.originalName)
-                        .filter { it.isNotBlank() }
-                        .distinct()
-                    titles to body?.firstAirDate?.take(4)?.toIntOrNull()
+                    body?.tvResults?.firstOrNull()?.id
                 } else {
-                    val body = tmdbApi.getMovieDetails(tmdbId, apiKey).body()
-                    val titles = listOfNotNull(body?.title, body?.originalTitle)
-                        .filter { it.isNotBlank() }
-                        .distinct()
-                    titles to body?.releaseDate?.take(4)?.toIntOrNull()
+                    body?.movieResults?.firstOrNull()?.id
                 }
-            }.getOrNull()?.takeIf { it.first.isNotEmpty() }
-            if (fromTmdb != null) return fromTmdb
+            }.getOrNull()
+            if (tmdbIdFromImdb != null) {
+                val fromTmdbViaImdb = resolveTmdbSeed(type, tmdbIdFromImdb, apiKey)
+                if (fromTmdbViaImdb != null) {
+                    mergedTitles += fromTmdbViaImdb.titles
+                    if (mergedYear == null) mergedYear = fromTmdbViaImdb.releaseYear
+                    mergedImdbId = imdbIdFromVideoId
+                }
+            }
         }
 
         metaRepository.getCachedMeta(type, videoId)?.let { cached ->
-            titlesFromMeta(cached.name, cached.releaseInfo)?.let { return it }
+            titlesFromMeta(cached.name, cached.releaseInfo, imdbIdFromVideoId)?.let { fromMeta ->
+                mergedTitles += fromMeta.titles
+                if (mergedYear == null) mergedYear = fromMeta.releaseYear
+                if (mergedImdbId == null) mergedImdbId = fromMeta.imdbId
+            }
         }
 
-        return runCatching {
+        val fromPrimary = runCatching {
             when (val result = metaRepository.getMetaFromPrimaryAddon(type, videoId).first()) {
-                is NetworkResult.Success -> titlesFromMeta(result.data.name, result.data.releaseInfo)
+                is NetworkResult.Success -> titlesFromMeta(
+                    name = result.data.name,
+                    releaseInfo = result.data.releaseInfo,
+                    imdbId = imdbIdFromVideoId
+                )
                 else -> null
             }
-        }.getOrNull()?.takeIf { it.first.isNotEmpty() }
+        }.getOrNull()
+        if (fromPrimary != null) {
+            mergedTitles += fromPrimary.titles
+            if (mergedYear == null) mergedYear = fromPrimary.releaseYear
+            if (mergedImdbId == null) mergedImdbId = fromPrimary.imdbId
+        }
+
+        val finalTitles = mergedTitles
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .distinctBy { it.lowercase(Locale.US) }
+
+        if (finalTitles.isEmpty()) return null
+
+        return TelegramSearchSeed(
+            titles = finalTitles,
+            releaseYear = mergedYear,
+            imdbId = mergedImdbId
+        )
     }
 
-    private fun titlesFromMeta(name: String?, releaseInfo: String?): Pair<List<String>, Int?>? {
+    private suspend fun resolveTmdbSeed(type: String, tmdbId: Int, apiKey: String): TelegramSearchSeed? {
+        val preferredLanguage = preferredTmdbLanguageTag()
+        val preferredCountry = preferredTmdbCountryCode()
+        val languageOrder = listOfNotNull(
+            preferredLanguage,
+            "en-US".takeIf { !preferredLanguage.equals("en-US", ignoreCase = true) },
+            null
+        )
+
+        val titles = LinkedHashSet<String>()
+        var releaseYear: Int? = null
+        for (language in languageOrder) {
+            val body = runCatching {
+                if (type.equals("series", ignoreCase = true)) {
+                    tmdbApi.getTvDetails(tmdbId, apiKey, language).body()
+                } else {
+                    tmdbApi.getMovieDetails(tmdbId, apiKey, language).body()
+                }
+            }.getOrNull() ?: continue
+
+            val detailTitles = if (type.equals("series", ignoreCase = true)) {
+                listOfNotNull(body.name, body.originalName)
+            } else {
+                listOfNotNull(body.title, body.originalTitle)
+            }
+            detailTitles
+                .map { it.trim() }
+                .filter { it.isNotBlank() }
+                .forEach { titles += it }
+
+            if (releaseYear == null) {
+                releaseYear = if (type.equals("series", ignoreCase = true)) {
+                    body.firstAirDate?.take(4)?.toIntOrNull()
+                } else {
+                    body.releaseDate?.take(4)?.toIntOrNull()
+                }
+            }
+        }
+
+        if (titles.isEmpty()) return null
+
+        val alternativeTitles = runCatching {
+            val response = if (type.equals("series", ignoreCase = true)) {
+                tmdbApi.getTvAlternativeTitles(tmdbId, apiKey).body()
+            } else {
+                tmdbApi.getMovieAlternativeTitles(tmdbId, apiKey).body()
+            }
+            val all = (response?.movieTitles ?: emptyList()) + (response?.tvTitles ?: emptyList())
+            val countryPriority = listOfNotNull(
+                preferredCountry,
+                "US".takeIf { preferredCountry != "US" },
+                "GB".takeIf { preferredCountry != "GB" },
+                "ES".takeIf { preferredCountry != "ES" },
+                "MX".takeIf { preferredCountry != "MX" }
+            )
+            all.asSequence()
+                .mapNotNull { alt ->
+                    val title = alt.title?.trim().orEmpty()
+                    val country = alt.countryCode?.uppercase(Locale.US).orEmpty()
+                    if (title.isBlank()) return@mapNotNull null
+                    val priority = countryPriority.indexOf(country).let { idx -> if (idx >= 0) idx else Int.MAX_VALUE }
+                    Triple(title, country, priority)
+                }
+                .sortedWith(compareBy<Triple<String, String, Int>> { it.third }.thenBy { it.first.length })
+                .map { it.first }
+                .distinctBy { it.lowercase(Locale.US) }
+                .take(MAX_ALT_TITLES)
+                .toList()
+        }.getOrDefault(emptyList())
+
+        titles += alternativeTitles
+
+        val imdbId = runCatching {
+            if (type.equals("series", ignoreCase = true)) {
+                tmdbApi.getTvExternalIds(tmdbId, apiKey).body()?.imdbId
+            } else {
+                tmdbApi.getMovieExternalIds(tmdbId, apiKey).body()?.imdbId
+            }
+        }.getOrNull()?.trim()?.takeIf { it.startsWith("tt") }
+
+        return TelegramSearchSeed(
+            titles = titles.toList(),
+            releaseYear = releaseYear,
+            imdbId = imdbId
+        )
+    }
+
+    private fun titlesFromMeta(name: String?, releaseInfo: String?, imdbId: String?): TelegramSearchSeed? {
         val cleanName = name?.trim().orEmpty()
         if (cleanName.isEmpty()) return null
         val year = releaseInfo?.trim()?.take(4)?.toIntOrNull()
             ?.takeIf { it in 1900..2100 }
-        return listOf(cleanName) to year
+        return TelegramSearchSeed(
+            titles = listOf(cleanName),
+            releaseYear = year,
+            imdbId = imdbId
+        )
+    }
+
+    private fun extractImdbId(raw: String?): String? {
+        val value = raw?.trim().orEmpty()
+        if (value.isBlank()) return null
+        return Regex("""tt\d{7,9}""", RegexOption.IGNORE_CASE)
+            .find(value)
+            ?.value
+            ?.lowercase(Locale.US)
+    }
+
+    private fun preferredTmdbLanguageTag(): String {
+        val locale = context.resources.configuration.locales.get(0)
+        val language = locale?.language?.lowercase(Locale.US).orEmpty()
+        if (language.isBlank()) return "en-US"
+
+        val country = locale?.country?.uppercase(Locale.US).orEmpty()
+        return if (country.isNotBlank()) "$language-$country" else "$language-US"
+    }
+
+    private fun preferredTmdbCountryCode(): String? {
+        val locale = context.resources.configuration.locales.get(0)
+        return locale?.country
+            ?.uppercase(Locale.US)
+            ?.takeIf { it.length == 2 }
     }
 
     private suspend fun buildTelegramAddonStreams(

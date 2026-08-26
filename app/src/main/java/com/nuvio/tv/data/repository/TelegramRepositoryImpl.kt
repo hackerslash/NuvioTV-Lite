@@ -30,9 +30,13 @@ class TelegramRepositoryImpl @Inject constructor(
         private const val SEARCH_LIMIT = 100
         private const val SEARCH_TIMEOUT_MS = 20_000L
         private const val MIN_FILE_SIZE_BYTES = 50L * 1024 * 1024
-        private const val MATCH_THRESHOLD = 0.75
-        private const val MAX_TITLES_QUERIED = 4
+        private const val MATCH_THRESHOLD = 0.70
+        private const val MAX_TITLES_QUERIED = 6
         private const val MAX_RESULTS = 40
+        private val SEARCH_STOPWORDS = setOf(
+            "the", "a", "an", "of", "and", "to", "in", "on", "for", "with",
+            "el", "la", "los", "las", "un", "una", "de", "del", "y", "en"
+        )
 
         private val VIDEO_EXTENSIONS = setOf(
             "mkv", "mp4", "avi", "mov", "wmv", "flv", "webm", "m4v", "mpg", "mpeg", "m2ts", "ts", "3gp"
@@ -52,6 +56,7 @@ class TelegramRepositoryImpl @Inject constructor(
         type: String,
         titles: List<String>,
         releaseYear: Int?,
+        imdbId: String?,
         season: Int?,
         episode: Int?
     ): List<TelegramStreamResult> {
@@ -71,7 +76,10 @@ class TelegramRepositoryImpl @Inject constructor(
         var rejectedSeasonEpisode = 0
         var duplicates = 0
 
-        for (title in candidateTitles) {
+        val queryTerms = buildSearchQueries(candidateTitles, imdbId)
+        Log.d(TAG, "Query terms: ${queryTerms.take(8)}")
+
+        for (title in queryTerms) {
             for (filter in listOf(TdApi.SearchMessagesFilterDocument(), TdApi.SearchMessagesFilterVideo())) {
                 val request = TdApi.SearchMessages()
                 request.query = title
@@ -92,7 +100,7 @@ class TelegramRepositoryImpl @Inject constructor(
                     totalFound++
                     when (addToResultsIfMatch(
                         message, results, seenFileIds,
-                        type, candidateTitles, releaseYear, season, episode
+                        type, title, candidateTitles, releaseYear, imdbId, season, episode
                     )) {
                         MatchOutcome.ACCEPTED -> Unit
                         MatchOutcome.DUPLICATE -> duplicates++
@@ -121,21 +129,63 @@ class TelegramRepositoryImpl @Inject constructor(
     }
 
     private fun buildCandidateTitles(titles: List<String>): List<String> {
-        val base = titles.filter { it.isNotBlank() }
-        val translated = base.flatMap { title ->
-            val normalized = TelegramMediaParser.normalizeForMatch(title)
-            val variants = mutableListOf<String>()
-            if (normalized.contains("masters of the universe")) {
-                variants += "Masters del universo"
-                variants += "Maestros del universo"
-            }
-            if (normalized.contains("spider man")) {
-                variants += "El hombre arana"
-                variants += "Hombre arana"
-            }
-            variants
+        return titles
+            .filter { it.isNotBlank() }
+            .distinctBy { TelegramMediaParser.normalizeForMatch(it) }
+    }
+
+    private fun buildSearchQueries(candidateTitles: List<String>, imdbId: String?): List<String> {
+        val normalizedImdbId = imdbId
+            ?.trim()
+            ?.lowercase(Locale.US)
+            ?.takeIf { it.matches(Regex("""tt\d{7,9}""")) }
+
+        if (normalizedImdbId == null) {
+            return candidateTitles
+                .flatMap(::queryVariants)
+                .distinctBy { TelegramMediaParser.normalizeForMatch(it) }
         }
-        return (base + translated).distinctBy { TelegramMediaParser.normalizeForMatch(it) }
+
+        val queries = LinkedHashSet<String>()
+        for (title in candidateTitles) {
+            val variants = queryVariants(title)
+            for (variant in variants) {
+                queries += "$variant $normalizedImdbId"
+                queries += variant
+            }
+        }
+        queries += normalizedImdbId
+        return queries.toList()
+    }
+
+    private fun queryVariants(rawTitle: String): List<String> {
+        val base = rawTitle.trim()
+        if (base.isBlank()) return emptyList()
+
+        val variants = LinkedHashSet<String>()
+        variants += base
+
+        val withoutYear = base.replace(Regex("""\b(19|20)\d{2}\b"""), " ")
+            .replace(Regex("""\s+"""), " ")
+            .trim()
+        if (withoutYear.isNotBlank()) variants += withoutYear
+
+        val withoutSequelMarker = withoutYear.replace(
+            Regex("""\s+(?:part\s+)?(?:\d+|[ivxlcdm]{1,6})$""", RegexOption.IGNORE_CASE),
+            ""
+        ).trim()
+        if (withoutSequelMarker.isNotBlank()) variants += withoutSequelMarker
+
+        val normalizedTokens = TelegramMediaParser.normalizeForMatch(withoutSequelMarker)
+            .split(' ')
+            .filter { token -> token.isNotBlank() && token.length > 2 && token !in SEARCH_STOPWORDS }
+
+        if (normalizedTokens.size >= 2) {
+            variants += normalizedTokens.joinToString(" ")
+            variants += normalizedTokens.takeLast(2).joinToString(" ")
+        }
+
+        return variants.toList()
     }
 
     private enum class MatchOutcome { ACCEPTED, DUPLICATE, REJECTED_SIZE, REJECTED_TITLE, REJECTED_SEASON_EPISODE }
@@ -145,8 +195,10 @@ class TelegramRepositoryImpl @Inject constructor(
         results: MutableList<TelegramStreamResult>,
         seenFileIds: MutableSet<Int>,
         type: String,
+        queryTerm: String,
         titles: List<String>,
         releaseYear: Int?,
+        imdbId: String?,
         season: Int?,
         episode: Int?
     ): MatchOutcome {
@@ -155,9 +207,17 @@ class TelegramRepositoryImpl @Inject constructor(
         if (!seenFileIds.add(extracted.fileId)) return MatchOutcome.DUPLICATE
 
         val parsed = TelegramMediaParser.parse(extracted.fileName)
+        val normalizedImdbId = imdbId
+            ?.trim()
+            ?.lowercase(Locale.US)
+            ?.takeIf { it.matches(Regex("""tt\d{7,9}""")) }
+        val normalizedQueryTerm = TelegramMediaParser.normalizeForMatch(queryTerm)
+        val isImdbOnlyQuery = normalizedImdbId != null && normalizedQueryTerm == normalizedImdbId
+        val normalizedFileName = TelegramMediaParser.normalizeForMatch(extracted.fileName)
+        val hasImdbTag = normalizedImdbId != null && normalizedFileName.contains(normalizedImdbId)
 
         val score = TelegramTitleMatcher.bestScore(titles, parsed.cleanTitle)
-        if (score < MATCH_THRESHOLD) return MatchOutcome.REJECTED_TITLE
+        if (!isImdbOnlyQuery && !hasImdbTag && score < MATCH_THRESHOLD) return MatchOutcome.REJECTED_TITLE
 
         when (type.lowercase()) {
             "series" -> {
@@ -179,7 +239,14 @@ class TelegramRepositoryImpl @Inject constructor(
             }
         }
 
-        results += extracted.copy(matchScore = score, quality = parsed.quality)
+        results += extracted.copy(
+            matchScore = when {
+                hasImdbTag -> maxOf(score, 0.95)
+                isImdbOnlyQuery -> maxOf(score, 0.85)
+                else -> score
+            },
+            quality = parsed.quality
+        )
         return MatchOutcome.ACCEPTED
     }
 

@@ -23,11 +23,13 @@ interface TelegramRepository {
      * @param type "movie" or "series"
      * @param titles Candidate titles (localized + original), best first
      * @param releaseYear Release/first-air year, when known
+     * @param imdbId IMDb id (ttxxxxxxx), when known
      */
     suspend fun searchStreams(
         type: String,
         titles: List<String>,
         releaseYear: Int?,
+        imdbId: String?,
         season: Int?,
         episode: Int?
     ): List<TelegramStreamResult>

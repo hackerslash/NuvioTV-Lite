@@ -614,3 +614,50 @@ Buscar específicamente en logs:
 - Ya existe commit previo de CW/TG:
   - `bb2a52e37` — `fix(cw): restore tg resume source and ordering`
 - Los cambios de filtro/ranking Telegram de esta sección quedan listos para validar y luego commitear.
+
+---
+
+## 20. Memoria persistente — estado real al apagar (26 ago 2026, cierre de sesión)
+
+### 20.1 Qué SI está hecho
+
+- Streaming TG_DIRECT estable (sin NanoHTTPD) y fixes de seek/retry ya aplicados.
+- Continue Watching TG funcional y priorización de fuente de reanudación validada.
+- Búsqueda Telegram migrada a enfoque profesional sin hardcodes de títulos manuales:
+  - semillas multi-idioma desde TMDB (`locale UI`, `en-US`, fallback original),
+  - títulos alternativos oficiales TMDB,
+  - resolución de `imdbId` (`ttxxxxxxx`) por `external_ids`,
+  - queries expandida con `"titulo tt..."`, `"titulo"` y `"tt..."`.
+- Validación técnica local: compilación y assemble OK, APK instalada en el proyector.
+
+### 20.2 Qué NO está resuelto aún
+
+- Persisten casos donde el usuario reporta "no encuentra resultados" en búsqueda TG:
+  - ejemplo: `El diablo viste de padra 2`
+  - ejemplo: `El dia de la revelacion`
+- Sin trazas no se puede confirmar si el fallo es:
+  - baja recuperación (query no encuentra),
+  - rechazo por matcher (`title/year`),
+  - o falta real de archivo en los canales.
+
+### 20.3 Decisión operativa para retomar
+
+- El usuario no puede exportar logs manualmente.
+- La continuación será en modo acompañamiento en vivo:
+  1. reconectar `adb`,
+  2. limpiar `logcat`,
+  3. usuario lanza búsquedas desde la app,
+  4. el agente monitoriza logs en tiempo real y ajusta algoritmo por evidencia.
+
+### 20.4 Comandos exactos para el arranque de la próxima sesión
+
+```bash
+$HOME/Library/Android/sdk/platform-tools/adb connect 192.168.5.171:5555
+$HOME/Library/Android/sdk/platform-tools/adb -s 192.168.5.171:5555 logcat -c
+$HOME/Library/Android/sdk/platform-tools/adb -s 192.168.5.171:5555 logcat -s StreamRepositoryImpl TelegramRepo TgDataSource PlayerMediaSrc TelegramProxy
+```
+
+### 20.5 Próxima acción única
+
+- No tocar más heurísticas "a ciegas".
+- Primero capturar una ejecución real de 3-5 títulos fallidos y, con eso, aplicar un ajuste único al matcher/queries.
