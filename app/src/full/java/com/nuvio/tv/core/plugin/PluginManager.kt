@@ -304,6 +304,11 @@ class PluginManager @Inject constructor(
             }
 
             val sanitizedUrl = resolvedUrl.trimEnd('/')
+            val existingRepository = dataStore.repositories.first()
+                .find { normalizeUrl(it.url) == normalizeUrl(sanitizedUrl) }
+            if (existingRepository != null) {
+                return@withContext Result.success(existingRepository)
+            }
             val filename = sanitizedUrl.substringAfterLast("/")
             val isExplicitJsonFile = filename.endsWith(".json", ignoreCase = true)
                     && !filename.equals("manifest.json", ignoreCase = true)

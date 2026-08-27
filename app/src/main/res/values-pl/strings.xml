@@ -3074,4 +3074,64 @@
     <string name="update_no_release_notes">Nie podano informacji o wydaniu.</string>
     <string name="update_preparing_download">Przygotowywanie pobierania</string>
     <string name="update_release_notes">Informacje o wydaniu</string>
+
+    <string name="theme_color_gold">Złoty</string>
+    <string name="theme_color_jade">Jadeit</string>
+    <string name="theme_color_rose_gold">Różowe złoto</string>
+    <string name="theme_color_arctic_blue">Arktyczny błękit</string>
+    <string name="theme_color_graphite">Grafit</string>
+
+    <string name="addon_delete_confirm_title">Usunąć dodatek?</string>
+    <string name="addon_delete_confirm_message">Czy na pewno chcesz go usunąć?</string>
+    <string name="addon_delete_no">Nie</string>
+    <string name="addon_delete_yes">Tak</string>
+
+    <string name="layout_overall_ratings">Ogólne oceny</string>
+    <string name="layout_overall_ratings_sub_on">Standardowe oceny i TMDB są wyświetlane.</string>
+    <string name="layout_overall_ratings_sub_off">Standardowe oceny i TMDB są ukryte. Ustawienia MDBList mają priorytet na stronach szczegółów.</string>
+    <string name="layout_episode_ratings">Oceny odcinków</string>
+    <string name="layout_episode_ratings_sub">Wybierz, które oceny odcinków mają być widoczne.</string>
+    <string name="layout_ratings_show">Pokaż</string>
+    <string name="layout_ratings_hide">Ukryj</string>
+    <string name="layout_ratings_hide_unwatched">Ukryj nieobejrzane</string>
+
+    <string name="profile_editor_tab_avatar">Awatar</string>
+    <string name="profile_editor_tab_background">Tło</string>
+    <string name="profile_choose_background">Wybierz tło profilu</string>
+    <string name="profile_background_member_note">Niestandardowe adresy URL tła można skonfigurować z panelu Nuvio.</string>
+    <string name="profile_background_normal">Normalne</string>
+    <string name="profile_background_custom">Niestandardowe</string>
+    <string name="profile_avatar_category_supporter">Supporter</string>
+
+    <string name="support_nuvio_name">Wesprzyj Nuvio</string>
+    <string name="supporter_membership_title">Członkostwo Nuvio Supporter</string>
+    <string name="supporter_membership_description">Wsparcie Nuvio pokrywa koszty infrastruktury i rozwoju, jednocześnie zachowując podstawowe funkcje bezpłatnie dla wszystkich.</string>
+    <string name="supporter_membership_view">Zobacz członkostwo</string>
+    <string name="supporter_membership_manage">Zarządzaj członkostwem</string>
+    <string name="supporter_membership_refresh">Odśwież</string>
+    <string name="supporter_membership_refreshing">Odświeżanie</string>
+    <string name="supporter_membership_loading">Ładowanie członkostwa…</string>
+    <string name="supporter_membership_unable_load">Nie udało się załadować statusu członkostwa. Spróbuj ponownie.</string>
+    <string name="supporter_membership_you_are">Jesteś</string>
+    <string name="supporter_membership_thank_you">Dziękujemy.</string>
+    <string name="supporter_membership_supporter_since">Supporter od %1$s.</string>
+    <string name="supporter_membership_tier_supporter">Supporter</string>
+    <string name="supporter_membership_tier_supporter_plus">Supporter Plus</string>
+    <string name="supporter_membership_connected_title">Patreon jest połączony</string>
+    <string name="supporter_membership_connected_description">Nie znaleziono aktywnego poziomu Nuvio na tym koncie Patreon. Zobacz dostępne opcje lub odśwież po zmianie członkostwa.</string>
+    <string name="supporter_membership_scan_support">Zeskanuj, aby zobaczyć członkostwo</string>
+    <string name="supporter_membership_scan_support_description">Otwórz stronę członkostwa Supporter na telefonie.</string>
+    <string name="supporter_membership_scan_manage">Zeskanuj, aby zarządzać członkostwem</string>
+    <string name="supporter_membership_scan_manage_description">Otwórz ustawienia członkostwa Patreon na telefonie.</string>
+    <string name="cd_membership_qr">Kod QR strony członkostwa</string>
+    <string name="supporters_level_supporter">Supporter</string>
+    <string name="supporters_level_supporter_plus">Supporter+</string>
+    <string name="supporters_since">Wspiera Nuvio od %1$s</string>
+    <string name="supporters_since_unknown">Z dumą wspiera Nuvio</string>
+
+    <string name="debug_member_tier_title">Symuluj poziom Supportera</string>
+    <string name="debug_member_tier_subtitle">Wybierz zweryfikowany poziom supportera zwracany w tym buildzie debug</string>
+    <string name="debug_member_tier_none">Brak</string>
+    <string name="debug_member_tier_one">Supporter</string>
+    <string name="debug_member_tier_two">Supporter+</string>
 </resources>

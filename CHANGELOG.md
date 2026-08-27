@@ -9,7 +9,7 @@ build itself. The in-app updater compares the release tag against the installed
 `versionName`, so tags must stay version-shaped and releases must be published as
 full releases — the updater ignores prereleases and drafts.
 
-## Unreleased
+## v1.4.0-lite — 2026-08-25
 
 ### Synced with upstream NuvioTV (post-0.8.7-beta)
 - [upstream] MP4s with the moov atom at the end now play on the default path instead of
@@ -39,6 +39,36 @@ full releases — the updater ignores prereleases and drafts.
   physical-RAM tier, so they bind on 2GB boxes that report a full-size heap. Performance
   mode on those devices keeps the budget-aware chunk limit, which is the tighter of the two.
 - Lite keeps its own launcher name on Albanian devices.
+
+### Synced with upstream NuvioTV (0.8.8-beta)
+- [upstream] Backend requests now honor server backpressure: 429/503 responses are retried
+  once with the server's Retry-After delay (idempotent reads only), and a shared coordinator
+  serialises the cooldown. @tapframe
+- [upstream] Sync traffic cut across the board — unchanged addon/plugin writes are skipped,
+  duplicate profile pulls suppressed, avatar-catalog refreshes throttled, terminal progress
+  writes deduplicated, provider credentials seeded only when missing remotely, legacy catalog
+  reads dropped, and foreground polling reduced. @tapframe
+- [upstream] Member assets now restore from cache instantly instead of blanking on open.
+  @tapframe
+- [upstream] TMDB id lookups are cached per media type, so a movie and a series sharing an
+  IMDB id no longer collide (#3057). @skoruppa
+- [upstream] Stream-sources panel focus overhauled: chip filters and the stream list share
+  one focus model, chips stay mounted while fetching, and focus no longer escapes the modal
+  on tab switch or gets trapped on the refresh button. @Rasimsson @skoruppa
+- [upstream] Playback and pause state survive a Bluetooth audio-route change. @halibiram
+- [upstream] Next Up no longer offers unaired or unavailable episodes. Ramon
+- [upstream] Anime films are classified as movies more reliably on the single-addon meta and
+  playback paths. @skoruppa @ieno
+- [upstream] Trailers follow the TMDB language setting and default audio track.
+- [upstream] Assorted fixes: genre metadata no longer overflows the details view (YLaskco),
+  the home-hero rating divider shows again (liongalahad), the pause overlay stays hidden
+  while adjusting subtitles, and search returns focus to the sidebar (#3095, @skoruppa).
+- [upstream] Localization: 467 Arabic strings (Basem), missing Turkish (@halibiram) and
+  Polish (@skoruppa) strings, Indonesian no longer mislabelled Melayu, and missing Trakt
+  genre labels localized (#2509, supergera13).
+- Both TMDB caches kept the fork's 128-entry LRU bound rather than growing unbounded, and
+  the Supabase client keeps the fork's non-blocking startup while gaining upstream's retry
+  plumbing. The Simkl anime-movie check keeps resolving ids once per snapshot.
 
 ## v1.3.0-lite — 2026-08-21
 
