@@ -480,6 +480,7 @@ fun NuvioNavHost(
                 ?.getString("startFromBeginning")
                 ?.toBooleanStrictOrNull() == true
             StreamScreen(
+                startFromBeginning = startFromBeginning,
                 onBackPress = {
                     val streamContentType = streamArgs?.getString("contentType").orEmpty()
                     val streamContentId = streamArgs?.getString("contentId").orEmpty()

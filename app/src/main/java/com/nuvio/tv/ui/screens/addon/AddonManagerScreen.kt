@@ -47,6 +47,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -69,11 +70,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
@@ -321,6 +324,7 @@ fun AddonManagerScreen(
                                     scale = ClickableSurfaceDefaults.scale(focusedScale = 1f)
                                 ) {
                                     Box(modifier = Modifier.padding(NuvioTheme.spacing.md)) {
+                                        CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
                                         BasicTextField(
                                             value = uiState.installUrl,
                                             onValueChange = viewModel::onInstallUrlChange,
@@ -361,6 +365,7 @@ fun AddonManagerScreen(
                                                 innerTextField()
                                             }
                                         )
+                                        }
                                     }
                                 }
 

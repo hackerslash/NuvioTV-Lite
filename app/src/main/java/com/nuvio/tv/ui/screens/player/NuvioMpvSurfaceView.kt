@@ -266,6 +266,7 @@ class NuvioMpvSurfaceView @JvmOverloads constructor(
      */
     fun applyBluetoothAudioRoute(isBluetooth: Boolean, reloadOutput: Boolean = false) {
         if (!initialized) return
+        val wasPaused = !isPlayingNow()
         runCatching {
             mpv.setPropertyString("audio-channels", MpvBluetoothAudioPolicy.audioChannels(isBluetooth))
             if (MpvBluetoothAudioPolicy.shouldClearAudioSpdif(isBluetooth)) {
@@ -273,6 +274,9 @@ class NuvioMpvSurfaceView @JvmOverloads constructor(
             }
             if (reloadOutput) {
                 reloadAudioOutput()
+                if (wasPaused) {
+                    mpv.setPropertyBoolean("pause", true)
+                }
             }
         }.onFailure {
             Log.w(TAG, "Failed to apply bluetooth audio route on mpv (bt=$isBluetooth): ${it.message}")

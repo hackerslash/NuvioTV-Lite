@@ -414,6 +414,14 @@ private fun AudioControlsContent(
         canIncreaseCenterMix -> centerPlusFocusRequester
         else -> persistFocusRequester
     }
+    val persistUpFocusRequester = when {
+        canDecreaseCenterMix -> centerMinusFocusRequester
+        canIncreaseCenterMix -> centerPlusFocusRequester
+        canDecreaseAmp -> ampMinusFocusRequester
+        canIncreaseAmp -> ampPlusFocusRequester
+        canDecreaseDelay -> delayMinusFocusRequester
+        else -> delayPlusFocusRequester
+    }
     val delayPlusLeftFocusRequester = if (canDecreaseDelay) {
         delayMinusFocusRequester
     } else {
@@ -571,7 +579,7 @@ private fun AudioControlsContent(
                     .focusRequester(persistFocusRequester)
                     .focusProperties {
                         left = persistLeftFocusRequester
-                        up = firstCenterFocusRequester
+                        up = persistUpFocusRequester
                     },
                 colors = CardDefaults.colors(
                     containerColor = if (persistAmplification) NuvioTheme.colors.Secondary else Color.Transparent,

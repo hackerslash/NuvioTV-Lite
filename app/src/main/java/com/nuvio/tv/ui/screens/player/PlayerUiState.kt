@@ -144,6 +144,7 @@ data class PlayerUiState(
     val episodeSelectedAddonFilter: String? = null, // null means "All"
     val episodeFilteredStreams: List<Stream> = emptyList(),
     val episodeAvailableAddons: List<String> = emptyList(),
+    val episodeSourceChips: List<SourceChipItem> = emptyList(),
     val episodeStreamsForVideoId: String? = null,
     val episodeStreamsSeason: Int? = null,
     val episodeStreamsEpisode: Int? = null,
