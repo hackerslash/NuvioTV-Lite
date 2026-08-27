@@ -1,6 +1,7 @@
 package com.nuvio.tv.ui.screens.player
 
 import com.nuvio.tv.core.build.AppFeaturePolicy
+import com.nuvio.tv.core.device.DeviceMemoryTier
 import com.nuvio.tv.core.network.NetworkResult
 import com.nuvio.tv.core.player.TrailerPlayerPool
 import com.nuvio.tv.core.tmdb.TmdbMetadataService
@@ -105,6 +106,7 @@ internal class PostPlayRecommendationController(
     private val recommendationCache = mutableMapOf<Int, PostPlayRecommendation>()
     private var recommendationLoadAttempted = false
     private val postPlayTrailerPlaybackEnabled = AppFeaturePolicy.inAppTrailerPlaybackEnabled
+    private val isLowRamTier = DeviceMemoryTier.isLowRam
     private var autoPlayTrailerEnabled = postPlayTrailerPlaybackEnabled
     private var lastSnapshot: PlaybackSnapshot? = null
     private var lastPlaybackIdentity: PlaybackIdentity? = null
@@ -336,7 +338,7 @@ internal class PostPlayRecommendationController(
             autoPlayTrailerEnabled = postPlayTrailerPlaybackEnabled && runCatching {
                 trailerSettingsDataStore.settings.first().enabled
             }.getOrDefault(true)
-            candidates.indices.forEach(::startCandidateResolution)
+            postPlayPrefetchIndices(candidates.size, 0, isLowRamTier).forEach(::startCandidateResolution)
             val resolvedCandidate = awaitCandidateResolution(0)
             if (resolvedCandidate == null) {
                 clearRecommendationPipeline()
@@ -363,7 +365,11 @@ internal class PostPlayRecommendationController(
     private fun prefetchRecommendationDetails(preferences: RatingPreferences) {
         recommendationPrefetchJob?.cancel()
         recommendationPrefetchJob = scope.launch {
-            recommendationCandidates.indices.forEach { index ->
+            postPlayPrefetchIndices(
+                count = recommendationCandidates.size,
+                currentIndex = _uiState.value.recommendationIndex,
+                isLowRam = isLowRamTier
+            ).forEach { index ->
                 launch {
                     val resolvedCandidate = awaitCandidateResolution(index) ?: return@launch
                     cacheRecommendation(index, resolvedCandidate, preferences)

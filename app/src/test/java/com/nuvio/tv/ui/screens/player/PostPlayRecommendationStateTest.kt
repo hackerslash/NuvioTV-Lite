@@ -14,6 +14,15 @@ import org.junit.Test
 
 class PostPlayRecommendationStateTest {
     @Test
+    fun `low-ram tier prefetches only the card on screen`() {
+        assertEquals(0..3, postPlayPrefetchIndices(count = 4, currentIndex = 0, isLowRam = false))
+        assertEquals(0..0, postPlayPrefetchIndices(count = 4, currentIndex = 0, isLowRam = true))
+        assertEquals(2..2, postPlayPrefetchIndices(count = 4, currentIndex = 2, isLowRam = true))
+        assertEquals(IntRange.EMPTY, postPlayPrefetchIndices(count = 0, currentIndex = 0, isLowRam = false))
+        assertEquals(IntRange.EMPTY, postPlayPrefetchIndices(count = 4, currentIndex = 9, isLowRam = true))
+    }
+
+    @Test
     fun `prefetches in final ten minutes`() {
         assertTrue(
             shouldPrefetchPostPlayRecommendation(

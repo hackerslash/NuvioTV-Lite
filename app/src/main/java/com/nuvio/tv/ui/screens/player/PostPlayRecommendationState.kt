@@ -87,6 +87,20 @@ internal fun PlayerUiState.blocksPostPlayRecommendation(): Boolean {
         showMoreDialog
 }
 
+/**
+ * Candidate indices whose details are resolved up front. Each one costs an addon meta fetch, a
+ * TMDB id lookup, an enrichment call, ratings and a trailer lookup, and they all land while the
+ * video pipeline is still up — so a low-RAM device resolves only the card on screen and pages
+ * the rest in on demand.
+ */
+internal fun postPlayPrefetchIndices(count: Int, currentIndex: Int, isLowRam: Boolean): IntRange =
+    when {
+        count <= 0 -> IntRange.EMPTY
+        !isLowRam -> 0 until count
+        currentIndex in 0 until count -> currentIndex..currentIndex
+        else -> IntRange.EMPTY
+    }
+
 internal const val POST_PLAY_RECOMMENDATION_PREFETCH_PROGRESS = 0.9f
 internal const val POST_PLAY_RECOMMENDATION_PREFETCH_REMAINING_MS = 10 * 60_000L
 internal const val POST_PLAY_RECOMMENDATION_TRAILER_COUNTDOWN_SECONDS = 5
