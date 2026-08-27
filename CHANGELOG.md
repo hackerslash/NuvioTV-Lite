@@ -11,7 +11,23 @@ full releases — the updater ignores prereleases and drafts.
 
 ## v1.4.1-lite — 2026-08-27
 
-### Synced with upstream NuvioTV (0.8.9-beta)
+### Synced with upstream NuvioTV (0.8.10-beta)
+- [upstream] Post-play recommendations: when playback reaches the end, a full-screen card offers
+  the next movie or series with its ratings and artwork. Four candidates can be paged through,
+  already-watched titles are excluded, a series card routes to its details, and Back returns to
+  the full player. New toggle in Playback settings, on by default. @tapframe @skoruppa @halibiram
+- [upstream] The recommendation card no longer arms during a seek preview, keeps its focus while
+  playback continues, and restores the detail screen behind it without a flash. @tapframe
+  @halibiram
+- [upstream] Home catalogs are re-requested on the way back to Home when the last load is over 15
+  minutes old, and each result is merged into the row already on screen so a focused row never
+  moves under the D-pad. The addon refresh button refreshes the catalogs too. @Telkaoss
+- [upstream] The subtitle sync slider reaches 180 seconds. @uHleaf
+- [upstream] Simkl no longer treats a null `anime_type` as a non-null string. @skoruppa
+- [upstream] Detail screen internals split out: synopsis, the MDBList ratings row and the manual
+  play override dialog are their own components now. @tapframe
+- [upstream] Translations: Slovak typos and new entries, Polish and Vietnamese strings.
+  @mmsw91 @blueocean2308 @skoruppa
 - [upstream] Live channels are timed as a watch clock instead of a VOD timeline, the
   next-episode overlay no longer arms on them, and a Media3 buffered-percentage overflow no
   longer crashes live IPTV playback. @halibiram
@@ -54,6 +70,16 @@ full releases — the updater ignores prereleases and drafts.
 - Upstream's new subtitle mojibake heuristic ran a regex compile and two list allocations per
   dialogue line on this edition's fast path. It now bails before that on any line that can't
   contain the mojibake it looks for.
+- Post-play trailers stay off here, as every other in-app trailer does — the card shows its
+  artwork instead, and the trailer player is never created.
+- Upstream moved the hero runtime parser into a shared `parseRuntimeMinutes` and lost the hoisted
+  regexes on the way, recompiling two patterns per call on a path that runs per hero item and per
+  card recomposition. They are hoisted again.
+- Post-play resolved all four candidates up front — an addon meta fetch, a TMDB id lookup, an
+  enrichment call, ratings and a trailer lookup each — all landing while the video pipeline is
+  still up. Low-RAM devices now resolve only the card on screen and page the rest in on demand.
+  The home refresh above needed nothing: it already goes through this edition's low-RAM catalog
+  concurrency limit.
 
 ## v1.4.0-lite — 2026-08-25
 
