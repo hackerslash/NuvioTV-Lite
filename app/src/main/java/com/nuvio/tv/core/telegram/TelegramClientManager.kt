@@ -38,13 +38,15 @@ class TelegramApiException(
  */
 @Singleton
 class TelegramClientManager @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val storageManager: TelegramStorageManager
 ) {
     companion object {
         private const val TAG = "TelegramClient"
         private const val DEFAULT_TIMEOUT_MS = 10_000L
         private const val DATABASE_DIR = "tdlib"
         private const val FILES_DIR = "tdlib_files"
+        private const val MIN_FREE_BYTES_FOR_TDLIB = 128L * 1024L * 1024L
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -100,13 +102,29 @@ class TelegramClientManager @Inject constructor(
      */
     fun resumePersistedSession() {
         if (_authState.value != TelegramAuthState.Idle) return
+        storageManager.maybeTrim(reason = "app_start")
         val binlog = File(context.filesDir, "$DATABASE_DIR/td.binlog")
         if (!binlog.exists() || binlog.length() == 0L) {
             Log.d(TAG, "No persisted Telegram session; skipping resume")
             return
         }
+        if (!hasMinimumFreeSpace()) {
+            Log.w(TAG, "Low storage before TDLib resume; clearing Telegram download cache")
+            runCatching {
+                storageManager.clearAllDownloads()
+            }
+            if (!hasMinimumFreeSpace()) {
+                Log.w(TAG, "Skipping persisted Telegram resume: insufficient free storage")
+                return
+            }
+        }
         Log.i(TAG, "Resuming persisted Telegram session")
         initialize()
+    }
+
+    private fun hasMinimumFreeSpace(): Boolean {
+        val free = context.filesDir.usableSpace
+        return free >= MIN_FREE_BYTES_FOR_TDLIB
     }
 
     private fun checkLibrary(): Boolean {
