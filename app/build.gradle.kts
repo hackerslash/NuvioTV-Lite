@@ -192,7 +192,7 @@ android {
             // higher versionName. Bump by 1 per release.
             versionCode = 10008
             versionName = "1.4.0"
-            versionNameSuffix = "-lite"
+            versionNameSuffix = "-lite-TG"
             buildConfigField("boolean", "FEATURE_IN_APP_UPDATES_ENABLED", "true")
             buildConfigField("boolean", "FEATURE_EXTERNAL_TRAILERS_ENABLED", "false")
             buildConfigField("boolean", "FEATURE_EXTERNAL_PLAYBACK_KEEP_ALIVE_ENABLED", "false")
