@@ -36,7 +36,8 @@ import org.drinkless.tdlib.TdApi
  */
 @UnstableApi
 class TelegramDataSource private constructor(
-    private val clientManager: TelegramClientManager
+    private val clientManager: TelegramClientManager,
+    private val storageManager: TelegramStorageManager
 ) : DataSource {
 
     companion object {
@@ -137,7 +138,12 @@ class TelegramDataSource private constructor(
             "OPEN sid=$streamSessionId fileId=$fileId size=${totalSize / 1048576}MB pos=${dataSpec.position}"
         )
 
-        requestLinearDownload(force = false)
+        storageManager.maybeTrim(
+            reason = "open:$fileId",
+            protectedPath = fileInfo.localPath
+        )
+
+        requestLinearDownload(force = true)
 
         val filePath = waitForFile(fileId, fileInfo.localPath)
             ?: throw IOException("File not available on disk for fileId=$fileId")
@@ -436,7 +442,7 @@ class TelegramDataSource private constructor(
     private fun waitForFile(fileId: Int, localPath: String?): String? {
         if (localPath != null) {
             val f = File(localPath)
-            if (f.exists() && f.canRead() && f.length() > 0) return localPath
+            if (f.exists() && f.canRead()) return localPath
         }
 
         val deadline = System.currentTimeMillis() + FILE_APPEAR_TIMEOUT_MS
@@ -451,7 +457,7 @@ class TelegramDataSource private constructor(
             }
             if (path != null) {
                 val f = File(path)
-                if (f.exists() && f.canRead() && f.length() > 0) return path
+                if (f.exists() && f.canRead()) return path
             }
             Thread.sleep(500L)
         }
@@ -551,6 +557,7 @@ class TelegramDataSource private constructor(
     @InstallIn(SingletonComponent::class)
     interface TelegramClientEntryPoint {
         fun telegramClientManager(): TelegramClientManager
+        fun telegramStorageManager(): TelegramStorageManager
     }
 
     class Factory(private val context: Context) : DataSource.Factory {
@@ -559,7 +566,10 @@ class TelegramDataSource private constructor(
             val entryPoint = EntryPointAccessors.fromApplication(
                 appContext, TelegramClientEntryPoint::class.java
             )
-            return TelegramDataSource(entryPoint.telegramClientManager())
+            return TelegramDataSource(
+                clientManager = entryPoint.telegramClientManager(),
+                storageManager = entryPoint.telegramStorageManager()
+            )
         }
     }
 }

@@ -9,7 +9,7 @@ build itself. The in-app updater compares the release tag against the installed
 `versionName`, so tags must stay version-shaped and releases must be published as
 full releases — the updater ignores prereleases and drafts.
 
-## v1.4.0-lite — 2026-08-25
+## v1.4.0-lite-TG — 2026-08-25
 
 ### Synced with upstream NuvioTV (post-0.8.7-beta)
 - [upstream] MP4s with the moov atom at the end now play on the default path instead of
