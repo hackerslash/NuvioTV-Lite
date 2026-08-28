@@ -563,6 +563,9 @@
     <string name="advanced_clear_cw_cache">Limpiar caché de Seguir viendo</string>
     <string name="advanced_clear_cw_cache_subtitle">Elimina miniaturas, títulos y datos enriquecidos almacenados en caché para Seguir viendo</string>
     <string name="advanced_clear_cw_cache_done">Caché limpiada</string>
+    <string name="advanced_clear_safe_storage">Liberar almacenamiento de la app (mantener cuenta)</string>
+    <string name="advanced_clear_safe_storage_subtitle">Limpia la caché temporal y los archivos de descarga de Telegram, manteniendo addons, cuenta y sesión vinculada de Telegram</string>
+    <string name="advanced_clear_safe_storage_done">Almacenamiento liberado</string>
     <string name="advanced_remember_last_profile">Recordar último perfil</string>
     <string name="advanced_remember_last_profile_subtitle">Recordar el último perfil seleccionado al iniciar</string>
     <string name="settings_debug">Depuración</string>

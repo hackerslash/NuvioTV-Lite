@@ -86,6 +86,13 @@ private interface ClearCwCacheEntryPoint {
 
 @dagger.hilt.EntryPoint
 @dagger.hilt.InstallIn(dagger.hilt.components.SingletonComponent::class)
+private interface TelegramStorageCleanupEntryPoint {
+    fun telegramClientManager(): com.nuvio.tv.core.telegram.TelegramClientManager
+    fun telegramStorageManager(): com.nuvio.tv.core.telegram.TelegramStorageManager
+}
+
+@dagger.hilt.EntryPoint
+@dagger.hilt.InstallIn(dagger.hilt.components.SingletonComponent::class)
 private interface ProfileManagerEntryPoint {
     fun profileManager(): com.nuvio.tv.core.profile.ProfileManager
 }
@@ -717,6 +724,42 @@ fun AdvancedSettingsContent(
                                     )
                                 entryPoint.cwEnrichmentCache().clearAll()
                                 cleared = true
+                            }
+                        }
+                    }
+                )
+            }
+        }
+
+        item(key = "clear_safe_storage") {
+            SettingsGroupCard(modifier = Modifier.fillMaxWidth()) {
+                var cleared by remember { mutableStateOf(false) }
+                SettingsActionRow(
+                    title = stringResource(R.string.advanced_clear_safe_storage),
+                    subtitle = if (cleared) {
+                        stringResource(R.string.advanced_clear_safe_storage_done)
+                    } else {
+                        stringResource(R.string.advanced_clear_safe_storage_subtitle)
+                    },
+                    onClick = {
+                        if (!cleared) {
+                            scope.launch(Dispatchers.IO) {
+                                val appContext = context.applicationContext
+                                runCatching {
+                                    appContext.cacheDir.listFiles()?.forEach { file ->
+                                        file.deleteRecursively()
+                                    }
+                                    val tgEntryPoint = dagger.hilt.android.EntryPointAccessors
+                                        .fromApplication(
+                                            appContext,
+                                            TelegramStorageCleanupEntryPoint::class.java
+                                        )
+                                    tgEntryPoint.telegramStorageManager().clearAllDownloads()
+                                    tgEntryPoint.telegramClientManager().initialize()
+                                }
+                                withContext(Dispatchers.Main) {
+                                    cleared = true
+                                }
                             }
                         }
                     }

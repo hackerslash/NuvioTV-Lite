@@ -563,6 +563,9 @@
     <string name="advanced_clear_cw_cache">Clear Continue Watching Cache</string>
     <string name="advanced_clear_cw_cache_subtitle">Remove cached thumbnails, titles, and enrichment data for Continue Watching</string>
     <string name="advanced_clear_cw_cache_done">Cache cleared</string>
+    <string name="advanced_clear_safe_storage">Free App Storage (Keep Account)</string>
+    <string name="advanced_clear_safe_storage_subtitle">Clears temporary cache and Telegram download files while keeping addons, account, and Telegram linked session</string>
+    <string name="advanced_clear_safe_storage_done">Storage freed</string>
     <string name="advanced_remember_last_profile">Remember Last Profile</string>
     <string name="advanced_remember_last_profile_subtitle">Remember last selected profile at startup</string>
     <string name="settings_debug">Debug</string>
