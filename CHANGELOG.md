@@ -9,6 +9,67 @@ build itself. The in-app updater compares the release tag against the installed
 `versionName`, so tags must stay version-shaped and releases must be published as
 full releases — the updater ignores prereleases and drafts.
 
+## v1.4.2-lite — 2026-08-30
+
+### Synced with upstream NuvioTV (0.8.11-beta)
+- [upstream] A playback stats overlay: resolution, codecs, bitrates, dropped frames, buffer
+  ahead and an average network reading, behind a toggle in Advanced settings and reachable
+  from the stream info screen once it is on. The setting stays on the device rather than
+  syncing across them. @ram130
+- [upstream] The launcher icon and banner can be changed from Appearance settings — five
+  alternates beside the original. @tapframe
+- [upstream] Signing in accepts a six-character code as well as the QR, so a phone that
+  cannot scan the screen still works. @tapframe
+- [upstream] Movies get their own post-play threshold: the recommendation card is timed as a
+  percentage of the film rather than borrowing the next-episode rules, and it no longer arms
+  while an auto-play next episode is already queued. @tapframe @skoruppa
+- [upstream] Seasons can be switched from the episode card itself. @haveAnIssue
+- [upstream] Player accents follow member gradients. @tapframe
+- [upstream] Settings navigation reworked: Back returns to the category rail before leaving
+  settings, opening a category lands on its first option, entering a row of options starts on
+  the first one, the debrid options enter on a row that can take focus, the rail restores
+  focus to the item it was left on, and returning from a category's own screen comes back to
+  where settings was. @ieno
+- [upstream] Watch-progress sync: the push sync point is kept per profile, advancing it is
+  atomic and durable, and it no longer deletes progress that was saved while the push was in
+  flight. @ieno
+- [upstream] Home focus and scroll survive navigating away and back — continue watching keeps
+  both, the grid row restores to a card that is actually visible, the scroll-to-start trigger
+  is consumed after use, and focus is no longer lost when placeholders become real data.
+  @ieno @skoruppa
+- [upstream] Back navigation on home and collection screens: Back walks the row to its first
+  card before opening the sidebar, the player OSD closes on one press, the post-play trailer
+  keeps Back on the overlay, and a second Back at the top level closes the process.
+  @skoruppa @halibiram
+- [upstream] The home placeholder shimmer stops once the rows have loaded, and the focus
+  marquee comes to rest instead of scrolling forever. @kayochiaradia
+- [upstream] Gradient overlays composite offscreen, so a trailer playing behind one no longer
+  stutters. @skoruppa
+- [upstream] TMDB falls back to English when a detail or collection title comes back in CJK
+  script for a language that does not use it. @halibiram
+- [upstream] IPTV DASH streams send an Android User-Agent and stop coming back 403.
+  @halibiram
+- [upstream] Optical AC-3, HTTP/2 and the parallel chunk size stay device-local instead of
+  syncing to every device on the account. @halibiram
+- [upstream] Season tabs no longer stick after a visit to the ratings section, the fullscreen
+  trailer player closes properly, and the addon input field no longer traps input.
+  @skoruppa @haveAnIssue
+- [upstream] Stripping SDH also strips speaker-change markers. Phantom
+- [upstream] Translations: Hebrew added, Greek brought to parity, plus Slovak, Polish,
+  Brazilian Portuguese and Vietnamese updates. @haveAnIssue @nosvasedis @mmsw91 @skoruppa
+  @blueocean2308 @danilopagotto82
+- Upstream's shared row shimmer only stopped once every row in the list had loaded. Its new
+  gate — keyed on the rows actually on screen — is taken here instead of this edition's own,
+  so the animation stops while rows below the fold are still filling in.
+- Relocating the focused home card now compares payload identity instead of the composable
+  key, which means building a string for every item of every row. That happens during
+  composition rather than in an effect, so it ran on every recomposition of the home screen;
+  rows whose items have not changed now reuse the identities from the last pass.
+- Upstream's TMDB collection cache grew back into an unbounded map when its value type
+  changed. It stays capped at 48 entries here.
+- The playback stats overlay costs nothing while it is off: it is composed only when the
+  setting is on, and its one-second sampler lives inside it.
+
 ## v1.4.1-lite — 2026-08-27
 
 ### Synced with upstream NuvioTV (0.8.10-beta)
