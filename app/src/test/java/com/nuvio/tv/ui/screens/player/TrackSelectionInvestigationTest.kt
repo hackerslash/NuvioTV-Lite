@@ -515,6 +515,7 @@ class TrackSelectionInvestigationTest {
         every { controller.currentVideoBitrate } returns 4500000
         every { controller.currentVideoCodec } returns "HEVC"
         every { controller.currentInternalPlayerEngine } returns com.nuvio.tv.data.local.InternalPlayerEngine.EXOPLAYER
+        every { controller.playbackTimeline } returns MutableStateFlow(PlaybackTimelineState())
 
         val mockContext = mockk<Context>(relaxed = true)
         every { mockContext.getString(any()) } returns "mocked_string"
