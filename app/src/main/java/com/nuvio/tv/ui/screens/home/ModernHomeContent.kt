@@ -201,6 +201,9 @@ fun ModernHomeContent(
     // Item keys of each row as they were when its focused index was last recorded, so the index
     // can be relocated when an in-place refresh shifts the row instead of pointing at a new item.
     val previousItemKeysByRow = remember { mutableMapOf<String, List<String>>() }
+    // The identity list is rebuilt from string concatenation, so it is only worth paying for when
+    // the row's items actually changed instance; every other recomposition reuses the last one.
+    val previousItemSourceByRow = remember { mutableMapOf<String, List<ModernCarouselItem>>() }
     val stableFocusedItemByRow = remember { StableRef<MutableMap<String, Int>>(focusedItemByRow) }
     val stableRowListStates = remember { StableRef<MutableMap<String, LazyListState>>(rowListStates) }
     val stableLoadMoreRequestedTotals = remember { StableRef<MutableMap<String, Int>>(loadMoreRequestedTotals) }
@@ -364,10 +367,14 @@ fun ModernHomeContent(
     // so the row would briefly show focus on whatever sits at the old index. The write is
     // guarded by an inequality, so it settles after one extra pass.
     previousItemKeysByRow.keys.retainAll(activeRowKeys)
+    previousItemSourceByRow.keys.retainAll(activeRowKeys)
     carouselRows.list.forEach { row ->
+        val sourceItems = row.items.list
+        if (previousItemSourceByRow[row.key] === sourceItems) return@forEach
+        previousItemSourceByRow[row.key] = sourceItems
         // Use item identity (from payload) for relocation instead of composable key,
         // because composable keys are index-based for shimmer→real stability.
-        val currentIdentities = row.items.list.map { item ->
+        val currentIdentities = sourceItems.map { item ->
             when (val p = item.payload) {
                 is ModernPayload.Catalog -> "${p.itemType}:${p.itemId}"
                 is ModernPayload.CollectionFolder -> "folder:${p.folderId}"
