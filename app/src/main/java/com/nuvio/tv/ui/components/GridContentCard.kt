@@ -46,6 +46,7 @@ import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import com.nuvio.tv.domain.model.MetaPreview
+import com.nuvio.tv.domain.model.PosterShape
 import com.nuvio.tv.domain.model.CardDepthSurface
 import androidx.compose.ui.platform.LocalContext
 import com.nuvio.tv.ui.util.recompositionHighlighter
@@ -75,8 +76,17 @@ fun GridContentCard(
     val cardShape = remember(posterCardStyle.cornerRadius) { RoundedCornerShape(posterCardStyle.cornerRadius) }
     val cardDepthStyle = LocalCardDepthStyle.current
     val density = LocalDensity.current
+
+    // Derive card height from item's posterShape aspect ratio while keeping width from posterCardStyle.
+    // This ensures grids and rows display landscape/square shapes correctly.
+    val cardHeight = when (item.posterShape) {
+        PosterShape.POSTER -> posterCardStyle.height
+        PosterShape.LANDSCAPE -> posterCardStyle.width / PosterShape.LANDSCAPE.aspectRatio()
+        PosterShape.SQUARE -> posterCardStyle.width
+    }
+
     val requestWidthPx = remember(density, posterCardStyle.width) { with(density) { posterCardStyle.width.roundToPx() }.coerceAtLeast(1) }
-    val requestHeightPx = remember(density, posterCardStyle.height) { with(density) { posterCardStyle.height.roundToPx() }.coerceAtLeast(1) }
+    val requestHeightPx = remember(density, cardHeight) { with(density) { cardHeight.roundToPx() }.coerceAtLeast(1) }
     var isFocused by remember { mutableStateOf(false) }
     var longPressTriggered by remember { mutableStateOf(false) }
     val longPressKeyTracker = rememberLongPressKeyTracker()
@@ -97,7 +107,7 @@ fun GridContentCard(
             },
             modifier = Modifier
                 .width(posterCardStyle.width)
-                .height(posterCardStyle.height)
+                .height(cardHeight)
                 .then(
                     if (focusRequester != null) Modifier.focusRequester(focusRequester)
                     else Modifier
@@ -211,7 +221,7 @@ fun GridContentCard(
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
                             .fillMaxWidth()
-                            .height(posterCardStyle.height * 0.45f)
+                            .height(cardHeight * 0.45f)
                             .background(logoScrim)
                     )
                     val logoRequest = remember(item.logo) {
@@ -227,7 +237,7 @@ fun GridContentCard(
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
                             .fillMaxWidth()
-                            .heightIn(max = posterCardStyle.height * 0.35f)
+                            .heightIn(max = cardHeight * 0.35f)
                             .padding(horizontal = NuvioTheme.spacing.lg, vertical = 14.dp)
                     )
                 }

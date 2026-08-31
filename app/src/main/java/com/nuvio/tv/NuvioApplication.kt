@@ -192,7 +192,9 @@ class NuvioApplication : Application(), SingletonImageLoader.Factory {
             .precision(coil3.size.Precision.INEXACT)
             // Hardware bitmaps are RGBA_8888; keeping them off lets allowRgb565 halve poster bytes.
             .allowHardware(false)
-            .allowRgb565(true)
+            // Upstream turned rgb565 off for quality; keep it only where the halved
+            // poster bytes actually matter.
+            .allowRgb565(lowMemoryProfile)
             .bitmapFactoryMaxParallelism(if (lowMemoryProfile) 2 else 4)
             .build()
     }

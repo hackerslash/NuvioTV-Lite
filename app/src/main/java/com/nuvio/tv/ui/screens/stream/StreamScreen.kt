@@ -95,6 +95,7 @@ import com.nuvio.tv.ui.components.StreamsSkeletonList
 import com.nuvio.tv.ui.screens.player.LoadingOverlay
 import com.nuvio.tv.ui.screens.player.AddonFilterChips
 import com.nuvio.tv.ui.theme.NuvioTheme
+import com.nuvio.tv.ui.navigation.sourceSelectionRestoreTarget
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.delay as coroutineDelay
@@ -112,6 +113,8 @@ import android.util.Log
 fun StreamScreen(
     viewModel: StreamScreenViewModel = hiltViewModel(),
     startFromBeginning: Boolean = false,
+    restoreSourceSelection: Boolean = false,
+    onSourceSelectionRestoreHandled: () -> Unit = {},
     onBackPress: () -> Unit,
     onStreamSelected: (StreamPlaybackInfo) -> Unit,
     onAutoPlayResolved: (StreamPlaybackInfo) -> Unit
@@ -134,6 +137,13 @@ fun StreamScreen(
         initialValue = StreamBadgeSettings()
     )
     val scope = rememberCoroutineScope()
+
+    LaunchedEffect(restoreSourceSelection) {
+        if (restoreSourceSelection) {
+            pendingRestoreOnResume = false
+            restoreFocusedStream = true
+        }
+    }
 
     fun launchExternalPlayer(playbackInfo: StreamPlaybackInfo) {
         val url = playbackInfo.url ?: if (playbackInfo.isTorrent) "torrent://${playbackInfo.infoHash}" else return
@@ -446,7 +456,12 @@ fun StreamScreen(
                     },
                     focusedStreamIndex = focusedStreamIndex,
                     shouldRestoreFocusedStream = restoreFocusedStream,
-                    onRestoreFocusedStreamHandled = { restoreFocusedStream = false },
+                    onRestoreFocusedStreamHandled = {
+                        restoreFocusedStream = false
+                        if (restoreSourceSelection) {
+                            onSourceSelectionRestoreHandled()
+                        }
+                    },
                     onRetry = { viewModel.onEvent(StreamScreenEvent.OnRetry) },
                     modifier = Modifier
                         .weight(0.6f)
@@ -1042,12 +1057,15 @@ private fun StreamsList(
 
     LaunchedEffect(shouldRestoreFocusedStream, focusedStreamIndex, streams.size) {
         if (!shouldRestoreFocusedStream) return@LaunchedEffect
-        if (streams.isEmpty()) {
+        val targetIndex = sourceSelectionRestoreTarget(focusedStreamIndex, streams.size)
+        if (targetIndex == null) {
             onRestoreFocusedStreamHandled()
             return@LaunchedEffect
         }
         repeat(2) { withFrameNanos { } }
         try {
+            streamListState.scrollToItem(targetIndex)
+            withFrameNanos { }
             restoreFocusRequester.requestFocus()
         } catch (_: Exception) {
         }

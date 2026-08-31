@@ -28,10 +28,10 @@ private val PLACEHOLDER_SHIMMER_COLOR_STOPS = arrayOf(
 )
 
 @Composable
-fun rememberPlaceholderShimmerOffsetState(label: String, enabled: Boolean = true): State<Float> {
+fun rememberPlaceholderShimmerOffsetState(label: String): State<Float> {
     // Lite edition holds the shimmer static: it animates every frame precisely while
     // catalogs are loading, competing with them for a low-end CPU.
-    if (!enabled || AppFeaturePolicy.liteMode) {
+    if (AppFeaturePolicy.liteMode) {
         return remember { mutableStateOf(-1f) }
     }
     val shimmerTransition = rememberInfiniteTransition(label = label)
