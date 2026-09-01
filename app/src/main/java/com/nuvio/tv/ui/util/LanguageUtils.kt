@@ -189,6 +189,7 @@ internal val LANGUAGE_NAME_ALIASES = mapOf(
     "norwegian" to "no",
     "persian" to "fa",
     "polish" to "pl",
+    "portuguese" to "pt",
     "punjabi" to "pa",
     "romanian" to "ro",
     "russian" to "ru",
@@ -196,6 +197,7 @@ internal val LANGUAGE_NAME_ALIASES = mapOf(
     "sinhala" to "si",
     "slovak" to "sk",
     "slovenian" to "sl",
+    "spanish" to "es",
     "swahili" to "sw",
     "swedish" to "sv",
     "tamil" to "ta",
@@ -210,11 +212,17 @@ internal val LANGUAGE_NAME_ALIASES = mapOf(
     "zulu" to "zu"
 )
 
+// Longest-first once, at class-init: the scan below runs per subtitle and per audio track, and an
+// addon can answer with hundreds of subtitles.
+private val LANGUAGE_NAME_ALIASES_BY_LENGTH = LANGUAGE_NAME_ALIASES.entries
+    .sortedByDescending { it.key.length }
+
+private val WHITESPACE_RUN = Regex("\\s+")
+
 internal fun resolveLanguageNameAlias(tokenized: String): String? {
     if (tokenized.isBlank()) return null
     LANGUAGE_NAME_ALIASES[tokenized]?.let { return it }
-    return LANGUAGE_NAME_ALIASES.entries
-        .sortedByDescending { it.key.length }
+    return LANGUAGE_NAME_ALIASES_BY_LENGTH
         .firstOrNull { (name, _) ->
             tokenized == name ||
                 tokenized.startsWith("$name ") ||
@@ -236,7 +244,7 @@ fun languageCodeToName(code: String): String {
         .replace('-', ' ')
         .replace('.', ' ')
         .replace('/', ' ')
-        .replace(Regex("\\s+"), " ")
+        .replace(WHITESPACE_RUN, " ")
         .trim()
     val bcp47 = LANGUAGE_OVERRIDES[lowerCode]
         ?: resolveLanguageNameAlias(tokenized)
