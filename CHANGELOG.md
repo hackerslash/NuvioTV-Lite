@@ -9,6 +9,70 @@ build itself. The in-app updater compares the release tag against the installed
 `versionName`, so tags must stay version-shaped and releases must be published as
 full releases — the updater ignores prereleases and drafts.
 
+## v1.4.3-lite — 2026-09-01
+
+### Synced with upstream NuvioTV (0.8.12-beta)
+- [upstream] The in-app updater has stable and beta channels, picked in About settings. The
+  channel starts on the one that matches the installed build, and the download progress
+  follows the theme gradient. @tapframe
+- [upstream] A profile's whole TV setup can be copied onto another profile, optionally
+  including provider credentials. @tapframe
+- [upstream] The playback stats HUD no longer opens by itself when playback starts: the
+  Advanced setting only makes the button available in stream info, and whether the HUD is
+  showing is remembered separately across sessions. Its memory reading now shows the player's
+  off-heap use against the calculated buffer target, amber past the safe limit and red past
+  the warning limit. @halibiram @ram130
+- [upstream] Subtitles carried by the stream itself are offered alongside the addon ones, and
+  a track labelled with a full language name ("Portuguese", "Spanish", …) is matched to its
+  language rather than shown as a raw label. @halibiram
+- [upstream] Translated subtitles no longer come back as mojibake: the double-encoding repair
+  is confined to the Hebrew case it was written for instead of firing on any Latin-1-looking
+  text. @Rasimsson
+- [upstream] mpv no longer sits on the last frame of a finished video. @skoruppa
+- [upstream] An HLS rendition whose segments 404 is dropped so playback continues on another
+  one, rather than failing the stream. @joaotolovi
+- [upstream] Addons: an addon whose manifest cannot be fetched stays visible — and removable —
+  in the addon manager instead of vanishing from the list; the manifest cache is honoured on
+  the stream path, so querying streams no longer fires an unconditional manifest request per
+  addon; a failed refresh no longer re-runs on every addon change; and one repository instance
+  now serves the whole app. @ieno
+- [upstream] Home: metadata enrichment is retried after a failed fetch instead of being
+  written off for the session, enrichment reaches the rows the classic layout actually
+  renders, and the failed-enrichment set is bounded. @ieno
+- [upstream] Home rows key their cards by item identity, with the focused placeholder card
+  lent a positional key so focus survives real data arriving. @Telkaoss
+- [upstream] Skip-intro resolves anime ids through Simkl; the ARM service it replaces is gone.
+  @skoruppa
+- [upstream] A cancelled trailer lookup is no longer cached as "no trailer". @kayochiaradia
+- [upstream] An unknown runtime no longer renders as "0m", and the MediaSession placeholder
+  item that always threw is gone. @kayochiaradia
+- [upstream] Player strings follow the app language rather than the system one, and addon
+  certifications are read in the local form when the addon provides one.
+  @kayochiaradia @tapframe
+- [upstream] The classic home hero backdrop no longer leaks between screens, folders follow
+  home in the classic layout, the Edit Profile menu no longer shows through the gradient, and
+  the audio-language picker explains its "Original" option. @skoruppa
+- [upstream] Translations: Serbian (Latin) added, plus Polish, Vietnamese and other string
+  updates. @Alanon202 @skoruppa @blueocean2308 @mmsw91
+- Upstream's new update channels parse the version as semver, and every Lite version and tag
+  carries a `-lite` suffix — which reads as a prerelease identifier. That marked every Lite
+  release a prerelease, so picking the stable channel would have left the device with no
+  eligible update, ever. The edition marker is stripped before the version is parsed.
+- Upstream's alias table for full language names is missing Portuguese and Spanish, so
+  subtitles labelled with either were shown as `PORTUGUESE`/`SPANISH` and never matched a
+  pt/es preference. Both added, and the lookup no longer re-sorts the table and recompiles a
+  regex on every call — it runs per subtitle and per audio track, and an addon can answer with
+  hundreds.
+- Upstream's image revalidation now drops the disk copy on any 200 response. A host that sends
+  no ETag or Last-Modified can only answer 200, so every stale image from such a host was
+  re-downloaded once per cooldown instead of being read from disk. The disk copy is dropped
+  only when the request actually carried a validator, and the cooldown map — one entry per
+  image for the life of the process — is bounded.
+- The Simkl id caches that replaced ARM are capped like the ones beside them, and the redirect
+  probe reuses one derived HTTP client instead of building one per lookup.
+- The stats HUD reads total RAM from the cached device tier rather than querying
+  ActivityManager, which it would otherwise do twice a second while showing.
+
 ## v1.4.2-lite — 2026-08-30
 
 ### Synced with upstream NuvioTV (0.8.11-beta)
