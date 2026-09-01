@@ -119,14 +119,14 @@ class SubtitleCharsetDetectorTest {
     }
 
     @Test
-    fun repairsDoubleEncodedHebrewUtf8WithoutLanguageHint() {
+    fun repairsDoubleEncodedHebrewUtf8ThroughTheHotPathGuard() {
         val gibberishLatin1Utf8Text = "46\n00:04:42,243 --> 00:04:45,387\næåäï, äçæøðå àú\n!äôðèåí. -ìà"
 
-        val repaired = SubtitleCharsetDetector.repairDoubleEncodedUtf8IfNeeded(gibberishLatin1Utf8Text)
+        val repaired = SubtitleCharsetDetector.repairDoubleEncodedUtf8IfNeeded(gibberishLatin1Utf8Text, "heb")
         assertTrue("Expected repaired Hebrew text, but got: $repaired", repaired.contains("זוהן, החזרנו את"))
 
         val clean = "Nothing to repair here."
-        assertTrue(SubtitleCharsetDetector.repairDoubleEncodedUtf8IfNeeded(clean) === clean)
+        assertTrue(SubtitleCharsetDetector.repairDoubleEncodedUtf8IfNeeded(clean, "heb") === clean)
     }
 
     @Test
