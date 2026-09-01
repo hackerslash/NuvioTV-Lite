@@ -9,6 +9,21 @@ build itself. The in-app updater compares the release tag against the installed
 `versionName`, so tags must stay version-shaped and releases must be published as
 full releases — the updater ignores prereleases and drafts.
 
+## v1.4.4-lite — 2026-09-02
+
+### High-bitrate 4K no longer stalls every few minutes
+- Lite held the playback buffer to 48 MB on every device, however much memory it had.
+  On a high-bitrate 4K file that is roughly five seconds of video — too thin to absorb
+  any dip in the connection, so playback ran smoothly, stalled, refilled and stalled
+  again. Devices with normal memory now buffer the way the standard NuvioTV build does.
+- The 48 MB limit was written for 2GB boxes and still applies there, but it now follows
+  the device's real memory budget instead of a flat number, so those boxes hold at least
+  15 seconds of video rather than five.
+
+### Synced with upstream NuvioTV (0.8.12-beta)
+- Unchanged from v1.4.3-lite. Upstream has had no new commits since that release, so this
+  is a Lite-only patch on the same 0.8.12-beta base.
+
 ## v1.4.3-lite — 2026-09-01
 
 ### Synced with upstream NuvioTV (0.8.12-beta)

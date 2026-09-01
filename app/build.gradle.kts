@@ -171,8 +171,8 @@ android {
             buildConfigField("boolean", "FEATURE_CUSTOM_SERVER_CONNECTIONS_ENABLED", "false")
         }
         // NuvioTV Lite edition: playstore-lean feature set + native payload cuts
-        // (torrent .so, DoVi native conversion) + aggressive playback buffers. Reuses the
-        // playstore stub sources; low-RAM behaviour is driven by BuildConfig via
+        // (torrent .so, DoVi native conversion). Reuses the playstore stub sources;
+        // low-RAM behaviour is driven by BuildConfig via
         // com.nuvio.tv.core.build.AppFeaturePolicy.
         create("lite") {
             dimension = "distribution"
@@ -183,8 +183,8 @@ android {
             // Kept well above every previously side-loaded CI build (max 1046) because
             // Android's installer requires a higher versionCode to update, not just a
             // higher versionName. Bump by 1 per release.
-            versionCode = 10011
-            versionName = "1.4.3"
+            versionCode = 10012
+            versionName = "1.4.4"
             versionNameSuffix = "-lite"
             buildConfigField("boolean", "FEATURE_IN_APP_UPDATES_ENABLED", "true")
             buildConfigField("boolean", "FEATURE_EXTERNAL_TRAILERS_ENABLED", "false")
