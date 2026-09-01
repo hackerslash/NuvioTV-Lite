@@ -39,4 +39,15 @@ class VersionUtilsTest {
     fun `current beta naming is recognized as prerelease`() {
         assertTrue(VersionUtils.isPrerelease("0.8.12-beta"))
     }
+
+    @Test
+    fun `lite edition suffix is not a prerelease`() {
+        assertFalse(VersionUtils.isPrerelease("1.4.3-lite"))
+    }
+
+    @Test
+    fun `lite releases compare by version, not by the edition suffix`() {
+        assertTrue(VersionUtils.isRemoteNewer("v1.4.3-lite", "1.4.2-lite"))
+        assertFalse(VersionUtils.isRemoteNewer("v1.4.2-lite", "1.4.2-lite"))
+    }
 }

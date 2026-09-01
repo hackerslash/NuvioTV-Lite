@@ -52,7 +52,13 @@ internal object VersionUtils {
 
     fun normalize(raw: String?): String {
         if (raw.isNullOrBlank()) return ""
-        return raw.trim().removePrefix("v").removePrefix("V")
+        return raw.trim()
+            .removePrefix("v")
+            .removePrefix("V")
+            // "-lite" marks the edition, not a prerelease. Every Lite versionName and release tag
+            // carries it, so leaving it in the prerelease identifiers makes every Lite release look
+            // like a prerelease: the STABLE update channel then finds nothing eligible, ever.
+            .removeSuffix("-lite")
     }
 
     fun parse(raw: String?): SemanticVersion? {
