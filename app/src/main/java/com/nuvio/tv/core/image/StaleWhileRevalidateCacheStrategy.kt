@@ -13,6 +13,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import com.nuvio.tv.core.util.lruCacheMap
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.util.concurrent.ConcurrentHashMap
@@ -36,7 +37,10 @@ class StaleWhileRevalidateCacheStrategy(
         private const val TAG = "NuvioSWR"
         private const val REVALIDATION_COOLDOWN_MS = 10L * 60 * 1000 // 10 min
         private val revalidatingUrls = ConcurrentHashMap.newKeySet<String>()
-        private val revalidatedAt = ConcurrentHashMap<String, Long>()
+        // One entry per revalidated image for the life of the process, and browsing a catalog walks
+        // thousands of posters. Bounded: dropping the oldest cooldown only allows one extra
+        // conditional request for an image that has not been on screen in a long time.
+        private val revalidatedAt = lruCacheMap<String, Long>(512)
     }
 
     private val revalidationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -82,14 +86,23 @@ class StaleWhileRevalidateCacheStrategy(
                     requestBuilder.addHeader("If-Modified-Since", it)
                 }
 
-                val response = client.newCall(requestBuilder.build()).execute()
+                val request = requestBuilder.build()
+                // Without a validator the request is not conditional, so a 200 is the only answer
+                // it can give and says nothing about whether the bytes changed. Evicting the disk
+                // entry on that would re-download every image from such a host once per cooldown.
+                val conditional = request.header("If-None-Match") != null ||
+                    request.header("If-Modified-Since") != null
+
+                val response = client.newCall(request).execute()
                 try {
                     when (response.code) {
                         304 -> { /* unchanged */ }
                         in 200..299 -> {
-                            evictFromDiskCache(url)
-                            evictFromMemoryCache(url)
-                            ImageInvalidationBus.notifyInvalidated(url)
+                            if (conditional) {
+                                evictFromDiskCache(url)
+                                evictFromMemoryCache(url)
+                                ImageInvalidationBus.notifyInvalidated(url)
+                            }
                         }
                         else -> Log.w(TAG, "Revalidation ${response.code}: ${url.take(80)}")
                     }
@@ -118,8 +131,7 @@ class StaleWhileRevalidateCacheStrategy(
 
     private fun evictFromDiskCache(url: String) {
         try {
-            val diskCache = imageLoaderProvider().diskCache ?: return
-            diskCache.openSnapshot(url)?.use { diskCache.remove(url) }
+            imageLoaderProvider().diskCache?.remove(url)
         } catch (_: Exception) { }
     }
 
