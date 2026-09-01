@@ -532,19 +532,20 @@ internal fun PlayerRuntimeController.initializePlayer(
                     budgetBytes = budgetBytes,
                     allocator = allocator
                 ).also { currentBitrateAwareLoadControl = it }
-            } else if (com.nuvio.tv.core.build.AppFeaturePolicy.liteMode || MemoryBudget.isLowRamTier) {
-                // Lite and low-RAM: aggressive, heap-capped defaults on the stock path.
-                // A hard 48MB byte cap (prioritizeTimeOverSize=false) with 20s max / 5s
-                // back buffer bounds out-of-box playback heap on 2GB devices.
+            } else if (MemoryBudget.isLowRamTier) {
+                // Byte cap is the device heap budget, not a flat number: a flat 48MB is 5s
+                // of an 80 Mbps remux, so the cap fired before minBufferMs and playback ran
+                // on a ~4s buffer.
                 effectiveBackBufferDurationMs = 5_000
                 currentBitrateAwareLoadControl = null
                 Log.i(
                     PlayerRuntimeController.TAG,
-                    "BUFFER_GATE: engine=exo-lite; DefaultLoadControl (48MB/20s/5s back) host=${url.safeHost()}"
+                    "BUFFER_GATE: engine=exo-lowram; DefaultLoadControl " +
+                            "(${MemoryBudget.budgetMb}MB/15-40s/5s back) host=${url.safeHost()}"
                 )
                 DefaultLoadControl.Builder()
-                    .setTargetBufferBytes(48 * 1024 * 1024)
-                    .setBufferDurationsMs(10_000, 20_000, 2_500, 5_000)
+                    .setTargetBufferBytes(MemoryBudget.budgetMb * 1024 * 1024)
+                    .setBufferDurationsMs(15_000, 40_000, 2_500, 5_000)
                     .setPrioritizeTimeOverSizeThresholds(false)
                     .setBackBuffer(5_000, /* retainBackBufferFromKeyframe = */ true)
                     .build()
