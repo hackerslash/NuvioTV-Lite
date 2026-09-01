@@ -21,8 +21,8 @@ full releases — the updater ignores prereleases and drafts.
   15 seconds of video rather than five.
 
 ### Synced with upstream NuvioTV (0.8.12-beta)
-- Unchanged from v1.4.3-lite. Upstream has had no new commits since that release, so this
-  is a Lite-only patch on the same 0.8.12-beta base.
+- No upstream changes in this release — a Lite-only patch on the same 0.8.12-beta base as
+  v1.4.3-lite.
 
 ## v1.4.3-lite — 2026-09-01
 
