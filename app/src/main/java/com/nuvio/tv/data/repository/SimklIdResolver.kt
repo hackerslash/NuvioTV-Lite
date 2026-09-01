@@ -1,12 +1,12 @@
 package com.nuvio.tv.data.repository
 
 import android.util.Log
+import com.nuvio.tv.core.util.lruCacheMap
 import com.nuvio.tv.data.simkl.SimklApiConfiguration
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONArray
 import org.json.JSONObject
-import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Named
 import javax.inject.Singleton
@@ -46,8 +46,17 @@ class SimklIdResolver @Inject constructor(
         val tvdbEpisode: Int
     )
 
-    private val idsCache = ConcurrentHashMap<String, ResolvedIds?>()
-    private val episodeCache = ConcurrentHashMap<Long, List<EpisodeMapping>>()
+    private val idsCache = lruCacheMap<String, ResolvedIds>(48)
+    private val episodeCache = lruCacheMap<Long, List<EpisodeMapping>>(48)
+
+    // followRedirects is the only thing the redirect probe changes, and a derived client shares the
+    // pool and dispatcher, so build it once instead of per lookup.
+    private val noRedirectClient by lazy {
+        okHttpClient.newBuilder()
+            .followRedirects(false)
+            .followSslRedirects(false)
+            .build()
+    }
 
     suspend fun resolveIds(source: String, id: String): ResolvedIds? {
         val cacheKey = "$source:$id"
@@ -110,10 +119,6 @@ class SimklIdResolver @Inject constructor(
     private suspend fun resolveViaRedirect(source: String, id: String): RedirectResult? {
         return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
             val url = "$baseUrl/redirect?to=simkl&$source=$id&${commonParams()}"
-            val noRedirectClient = okHttpClient.newBuilder()
-                .followRedirects(false)
-                .followSslRedirects(false)
-                .build()
             val request = Request.Builder().url(url).get().build()
             val response = noRedirectClient.newCall(request).execute()
             val location = response.header("Location")
