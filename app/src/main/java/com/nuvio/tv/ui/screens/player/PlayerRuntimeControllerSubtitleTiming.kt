@@ -225,17 +225,16 @@ internal suspend fun PlayerRuntimeController.downloadSubtitleBody(
         throw lastError ?: IllegalStateException("Subtitle download failed")
     }
 
+/**
+ * The same-domain branch forwards Cookie and Authorization, so a shared registry suffix is not
+ * close enough: comparing the last two labels makes every `*.co.uk` host a sibling and would hand
+ * a debrid token to an unrelated site. Only the host itself and its subdomains qualify.
+ */
 private fun isSameOrSubdomain(host1: String?, host2: String?): Boolean {
     if (host1.isNullOrBlank() || host2.isNullOrBlank()) return false
-    if (host1.equals(host2, ignoreCase = true)) return true
-    val parts1 = host1.lowercase().split('.')
-    val parts2 = host2.lowercase().split('.')
-    if (parts1.size >= 2 && parts2.size >= 2) {
-        val root1 = parts1.takeLast(2).joinToString(".")
-        val root2 = parts2.takeLast(2).joinToString(".")
-        if (root1 == root2) return true
-    }
-    return false
+    val a = host1.lowercase()
+    val b = host2.lowercase()
+    return a == b || a.endsWith(".$b") || b.endsWith(".$a")
 }
 
 private fun PlayerRuntimeController.executeSubtitleDownload(
