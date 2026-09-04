@@ -10,6 +10,7 @@ import androidx.media3.extractor.ExtractorOutput
 import androidx.media3.extractor.ExtractorsFactory
 import androidx.media3.extractor.PositionHolder
 import androidx.media3.extractor.SeekMap
+import com.nuvio.tv.core.device.DeviceMemoryTier
 import java.io.EOFException
 import java.io.IOException
 
@@ -270,7 +271,14 @@ class NuvioMp4Extractor(
     internal companion object {
         private const val TAG = "NuvioMp4Extractor"
         private const val ATOM_TYPE_MOOV = 0x6d6f6f76 // 'moov'
-        internal const val MAX_MOOV_CACHE_SIZE = 32L * 1024L * 1024L
+        /**
+         * The cache buys the release of the parallel-range chunks the atom overlaps, so it only
+         * pays off while the atom is small next to a chunk (16MB on the low tier). Upstream's
+         * 32MB ceiling is a net loss there and a single allocation that size is what gets a 2GB
+         * box LMK-killed; over the cap the atom streams through as before.
+         */
+        internal val MAX_MOOV_CACHE_SIZE: Long =
+            if (DeviceMemoryTier.lowMemoryProfile) 8L * 1024L * 1024L else 32L * 1024L * 1024L
 
         private fun readInt(bytes: ByteArray, offset: Int): Int {
             return ((bytes[offset].toInt() and 0xFF) shl 24) or
