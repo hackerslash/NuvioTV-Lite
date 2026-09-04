@@ -9,6 +9,72 @@ build itself. The in-app updater compares the release tag against the installed
 `versionName`, so tags must stay version-shaped and releases must be published as
 full releases — the updater ignores prereleases and drafts.
 
+## v1.4.5-lite — 2026-09-04
+
+### The new trailing-moov cache no longer costs a 32 MB allocation
+- Upstream added an in-memory cache for a non-faststart MP4's trailing `moov` atom, which lets
+  playback replay it from RAM instead of re-fetching the end of the file, and drop the download
+  chunks that atom overlaps. The cache is worth it while the atom is small next to a chunk — on
+  the low tier a chunk is at most 16 MB, so upstream's 32 MB ceiling would trade a bigger
+  allocation for a smaller one, and a single 32 MB array is the kind of allocation that gets a
+  2GB box killed. The cap is 8 MB there, which still covers ordinary files; a larger atom streams
+  through the way it did before.
+
+### Half-size poster decoding is no longer a setting you can lose
+- Upstream's new RGB565 toggle chooses poster quality over poster bytes. Lite and any low-tier
+  device keep the halved bytes regardless, and the settings row is hidden there rather than shown
+  doing nothing.
+
+### The offline sync queue stopped growing forever
+- Upstream's cross-profile fix routes every watch-state write through a pending-mutation queue,
+  which is only drained by a remote sync. With no account connected nothing drains it, so it grew
+  one entry per watched item for the life of the install — and each queue write re-parsed and
+  re-serialised the whole thing. It now keeps the newest 500 entries, which are the ones a first
+  sync would need.
+
+### Subtitle headers stay on the stream's own host
+- The new cross-domain subtitle fix forwards `Cookie` and `Authorization` from the stream to
+  subtitle hosts it reads as the same domain, but it decided that by comparing the last two
+  labels of the hostname — which makes every `*.co.uk` host a sibling and would hand a debrid
+  token to an unrelated site. Only the stream's own host and its subdomains qualify now.
+
+### Synced with upstream NuvioTV (0.9.0-beta)
+- [upstream] Watch state no longer leaks between profiles: progress and watched items are queued,
+  pushed and pulled per profile, and a profile switch mid-playback can no longer file the session
+  under the wrong one. @tapframe
+- [upstream] Non-faststart MP4s (a trailing `moov`) start faster and hold less: the atom is cached
+  and replayed from RAM instead of re-read from the end of the file, and the download chunks it
+  overlaps are released once it is parsed. @halibiram
+- [upstream] Home rows no longer rescan item identities on every recomposition — the identities are
+  built once with the rest of the row data, off the main thread. @tapframe
+- [upstream] Posters can be decoded at half the bytes (RGB565), switchable in Advanced settings, and
+  a stale poster now stays in the memory cache so a refresh crossfades instead of blinking.
+  @tapframe @skoruppa
+- [upstream] Modern menu: the pill collapses on request and re-expands when you move to a different
+  root route, the blur behind the sidebar renders correctly on the other screens at a cheaper input
+  scale, focus colour lands on the first press, and Profile → down navigation works.
+  @skoruppa @halibiram
+- [upstream] Recent searches can be deleted one at a time, focus survives the deletion, and the
+  keyboard suggestion bar keeps titles that actually match what you typed. @Laskco @ieno
+- [upstream] Subtitles: ASS/SSA tracks take your styling where the renderer supports it and ignore it
+  under Libass rather than fighting it, sidecar cues are ordered before they are rendered, stream and
+  plugin WebVTT cues honour the position style, and a cross-domain subtitle host no longer answers
+  403. @halibiram @ieno @ayruki
+- [upstream] An opt-in software-decoding fallback for H.264 Hi10P, grouped under MPV decoding.
+  @Laskco
+- [upstream] External players on Zidoo hardware report progress again: the device is no longer
+  treated as the player, and its REST monitor stays on only as a fallback for its built-in one.
+  @Laskco
+- [upstream] Post-play no longer draws subtitles over itself and no longer races itself into the
+  wrong next episode. @skoruppa
+- [upstream] Continue watching hides unreleased videos that have no release date. @DeclanSC
+- [upstream] Crash fixes: a corrupt player preference falls back to defaults instead of throwing, a
+  drawer route missing from the nav graph is logged instead of fatal, a live stream's buffered
+  percentage can no longer overflow inside the media session, and the Leanback feature check is
+  guarded. @skoruppa
+- [upstream] Translations: Italian, Slovak, Polish, Greek, Spanish (LatAm) and Vietnamese.
+  @DanieleKun @mmsw91 @skoruppa @nosvasedis @omavel @blueocean2308
+
 ## v1.4.4-lite — 2026-09-02
 
 ### High-bitrate 4K no longer stalls every few minutes
