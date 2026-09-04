@@ -204,7 +204,8 @@ class SubtitleRepositoryImpl @Inject constructor(
                             url = url,
                             lang = lang,
                             addonName = addon.displayName,
-                            addonLogo = addon.logo
+                            addonLogo = addon.logo,
+                            headers = dto.headers
                         )
                     } ?: emptyList()
                     

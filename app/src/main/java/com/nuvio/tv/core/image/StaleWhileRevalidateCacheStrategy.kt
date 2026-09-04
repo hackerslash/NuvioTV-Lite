@@ -100,7 +100,6 @@ class StaleWhileRevalidateCacheStrategy(
                         in 200..299 -> {
                             if (conditional) {
                                 evictFromDiskCache(url)
-                                evictFromMemoryCache(url)
                                 ImageInvalidationBus.notifyInvalidated(url)
                             }
                         }

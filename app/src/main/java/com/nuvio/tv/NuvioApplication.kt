@@ -25,6 +25,7 @@ import com.nuvio.tv.core.image.StaleWhileRevalidateCacheStrategy
 import com.nuvio.tv.core.runtime.PluginRuntimeHooks
 import com.nuvio.tv.core.sync.androidtv.AndroidTvChannelSyncService
 import com.nuvio.tv.core.network.IPv4FirstDns
+import com.nuvio.tv.data.local.ImagePerformancePreferences
 import com.nuvio.tv.data.local.SentrySettingsDataStore
 import com.nuvio.tv.data.simkl.SimklAnimeIdPreferenceHolder
 import dagger.hilt.android.HiltAndroidApp
@@ -41,6 +42,7 @@ class NuvioApplication : Application(), SingletonImageLoader.Factory {
 
     @Inject lateinit var androidTvChannelSyncService: AndroidTvChannelSyncService
     @Inject lateinit var sentrySettingsDataStore: SentrySettingsDataStore
+    @Inject lateinit var imagePerformancePreferences: ImagePerformancePreferences
     @Inject lateinit var simklAnimeIdPreferenceHolder: SimklAnimeIdPreferenceHolder
 
     companion object {
@@ -190,9 +192,9 @@ class NuvioApplication : Application(), SingletonImageLoader.Factory {
             .precision(coil3.size.Precision.INEXACT)
             // Hardware bitmaps are RGBA_8888; keeping them off lets allowRgb565 halve poster bytes.
             .allowHardware(false)
-            // Upstream turned rgb565 off for quality; keep it only where the halved
-            // poster bytes actually matter.
-            .allowRgb565(lowMemoryProfile)
+            // Upstream's toggle trades poster quality against bytes; where the bytes are not
+            // optional the setting is forced on.
+            .allowRgb565(lowMemoryProfile || imagePerformancePreferences.rgb565Enabled)
             .bitmapFactoryMaxParallelism(if (lowMemoryProfile) 2 else 4)
             .build()
     }
