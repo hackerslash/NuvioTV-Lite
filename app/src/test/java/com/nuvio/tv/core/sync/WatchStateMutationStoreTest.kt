@@ -106,6 +106,19 @@ class WatchStateMutationStoreTest {
         assertFalse(recreated.hasPendingWatchedMutations(1))
     }
 
+    @Test
+    fun `pending upserts are capped at the newest entries`() = runTest {
+        val harness = harness()
+        val entries = (1..600).associate { "item$it" to progress("item$it", it.toLong()) }
+
+        harness.store.queueProgressUpserts(entries, 1)
+
+        val pending = harness.store.pendingProgressUpserts(1)
+        assertEquals(500, pending.size)
+        assertTrue(pending.containsKey("item600"))
+        assertFalse(pending.containsKey("item100"))
+    }
+
     private fun harness(): Harness {
         val stores = mutableMapOf<Int, TestPreferencesStore>()
         val factory = mockk<ProfileDataStoreFactory>()

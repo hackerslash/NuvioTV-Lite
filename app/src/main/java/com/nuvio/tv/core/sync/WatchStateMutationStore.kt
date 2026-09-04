@@ -28,6 +28,14 @@ class WatchStateMutationStore @Inject constructor(
 ) {
     companion object {
         private const val FEATURE = "watch_state_pending_mutations"
+
+        /**
+         * The queue is the only outbound path, so it is never drained for a profile with no
+         * remote account — it would grow one entry per watched item for the life of the install,
+         * and every queue op re-parses and re-serialises the whole set. Capped at the newest
+         * entries, which are the ones a later first sync actually needs.
+         */
+        private const val MAX_PENDING_UPSERTS = 500
     }
 
     private val gson = Gson()
@@ -48,7 +56,7 @@ class WatchStateMutationStore @Inject constructor(
             entries.forEach { (key, progress) ->
                 pending[key] = progress
             }
-            preferences[progressUpsertsKey] = pending.map { (key, progress) ->
+            preferences[progressUpsertsKey] = pending.capNewest(WatchProgress::lastWatched).map { (key, progress) ->
                 gson.toJson(PendingProgressUpsert(key, progress))
             }.toSet()
             preferences[progressDeletesKey] = preferences[progressDeletesKey].orEmpty() - entries.keys
@@ -106,7 +114,7 @@ class WatchStateMutationStore @Inject constructor(
             items.forEach { item ->
                 pending[item.mutationKey()] = item
             }
-            preferences[watchedUpsertsKey] = pending.map { (key, item) ->
+            preferences[watchedUpsertsKey] = pending.capNewest(WatchedItem::watchedAt).map { (key, item) ->
                 gson.toJson(PendingWatchedUpsert(key, item))
             }.toSet()
             val upsertKeys = items.mapTo(mutableSetOf(), WatchedItem::mutationKey)
@@ -178,6 +186,12 @@ class WatchStateMutationStore @Inject constructor(
         return !preferences[watchedUpsertsKey].isNullOrEmpty() ||
             !preferences[watchedDeletesKey].isNullOrEmpty()
     }
+
+    private fun <K, V> Map<K, V>.capNewest(timestamp: (V) -> Long): Map<K, V> =
+        if (size <= MAX_PENDING_UPSERTS) this
+        else entries.sortedByDescending { timestamp(it.value) }
+            .take(MAX_PENDING_UPSERTS)
+            .associate { it.key to it.value }
 
     private fun parseProgressUpserts(raw: Set<String>?): Map<String, WatchProgress> {
         return raw.orEmpty().mapNotNull { json ->
