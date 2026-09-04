@@ -108,8 +108,7 @@ class NuvioApplication : Application(), SingletonImageLoader.Factory {
     }
 
     override fun newImageLoader(context: android.content.Context): ImageLoader {
-        // Memory knobs follow the device tier too, so a full build on a 2GB box gets Lite's cuts.
-        val lowMemoryProfile = AppFeaturePolicy.liteMode || DeviceMemoryTier.isLowRam
+        val lowMemoryProfile = DeviceMemoryTier.lowMemoryProfile
         val imageOkHttpClient by lazy {
             val imageDispatcher = okhttp3.Dispatcher().apply {
                 maxRequests = 32
@@ -193,7 +192,7 @@ class NuvioApplication : Application(), SingletonImageLoader.Factory {
             // Hardware bitmaps are RGBA_8888; keeping them off lets allowRgb565 halve poster bytes.
             .allowHardware(false)
             // Upstream's toggle trades poster quality against bytes; where the bytes are not
-            // optional the setting is forced on.
+            // optional the setting is forced on, and its row is hidden to match.
             .allowRgb565(lowMemoryProfile || imagePerformancePreferences.rgb565Enabled)
             .bitmapFactoryMaxParallelism(if (lowMemoryProfile) 2 else 4)
             .build()

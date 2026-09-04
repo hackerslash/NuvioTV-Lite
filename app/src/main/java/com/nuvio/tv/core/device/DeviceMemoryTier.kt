@@ -2,6 +2,7 @@ package com.nuvio.tv.core.device
 
 import android.app.ActivityManager
 import android.content.Context
+import com.nuvio.tv.core.build.AppFeaturePolicy
 import java.io.File
 
 /**
@@ -57,6 +58,13 @@ object DeviceMemoryTier {
 
     val isLowRam: Boolean
         get() = tier?.isLowRam ?: true
+
+    /**
+     * Whether the memory cuts apply: the Lite edition always, plus any build running on a
+     * low-tier device, so a full build on a 2GB box gets Lite's cuts too.
+     */
+    val lowMemoryProfile: Boolean
+        get() = AppFeaturePolicy.liteMode || isLowRam
 
     /**
      * Ceiling on addon stream fetches running at once. Each one holds a response body, its

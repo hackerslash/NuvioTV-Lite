@@ -65,6 +65,7 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import com.nuvio.tv.R
 import com.nuvio.tv.core.build.AppFeaturePolicy
+import com.nuvio.tv.core.device.DeviceMemoryTier
 import com.nuvio.tv.data.local.Dv7HandlingMode
 import com.nuvio.tv.data.local.InternalPlayerEngine
 import com.nuvio.tv.domain.model.ExperienceMode
@@ -462,18 +463,21 @@ fun AdvancedSettingsContent(
                         )
                     }
                 )
-                SettingsToggleRow(
-                    title = stringResource(R.string.advanced_rgb565),
-                    subtitle = stringResource(R.string.advanced_rgb565_subtitle),
-                    checked = uiState.rgb565Enabled,
-                    onToggle = {
-                        viewModel.onEvent(
-                            AdvancedSettingsEvent.SetRgb565Enabled(
-                                !uiState.rgb565Enabled
+                // Forced on where poster bytes are not optional, so the row would not do anything.
+                if (!DeviceMemoryTier.lowMemoryProfile) {
+                    SettingsToggleRow(
+                        title = stringResource(R.string.advanced_rgb565),
+                        subtitle = stringResource(R.string.advanced_rgb565_subtitle),
+                        checked = uiState.rgb565Enabled,
+                        onToggle = {
+                            viewModel.onEvent(
+                                AdvancedSettingsEvent.SetRgb565Enabled(
+                                    !uiState.rgb565Enabled
+                                )
                             )
-                        )
-                    }
-                )
+                        }
+                    )
+                }
                 val profileManager = remember {
                     dagger.hilt.android.EntryPointAccessors.fromApplication(
                         context.applicationContext,
