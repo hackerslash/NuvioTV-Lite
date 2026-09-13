@@ -47,6 +47,14 @@ full releases — the updater ignores prereleases and drafts.
   same question twice, and the per-card text-direction styles upstream added to the episode
   and comment lists allocated a new `TextStyle` on every focus move; both are cached.
 
+### Debrid cache checks no longer queue the stream list behind themselves
+- With a local debrid resolver active (TorBox, Premiumize), every addon's and every scraper's
+  results waited for a cached-availability round trip in the consumer that emits them, so the
+  lookups ran one after another and the list filled in over the sum of them — tens of seconds
+  on a source-heavy setup, while the provider's own addon, whose streams arrive with ready
+  links and need no lookup, stayed instant. Each result now resolves availability alongside
+  the fetch that produced it, at up to four lookups at once.
+
 ## v1.4.6-lite — 2026-09-09
 
 ### Off-heap chunk reads no longer throw once per read

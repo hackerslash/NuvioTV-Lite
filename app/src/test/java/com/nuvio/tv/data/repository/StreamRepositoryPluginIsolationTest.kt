@@ -122,8 +122,46 @@ class StreamRepositoryPluginIsolationTest {
         coVerify(exactly = 0) { harness.addonRepository.fetchAddon(any()) }
     }
 
-    private fun newHarness(enabledScrapers: List<ScraperInfo>): Harness {
-        val addon = compatibleAddon()
+    /** Serialised again, the first lookup waits on a second that never starts, and this times out. */
+    @Test
+    fun `debrid availability lookups do not serialise addon results`() = runBlocking {
+        val harness = newHarness(
+            enabledScrapers = emptyList(),
+            addons = listOf(
+                compatibleAddon(),
+                compatibleAddon(
+                    id = "second-addon",
+                    name = "Second Addon",
+                    baseUrl = "https://second.example"
+                )
+            )
+        )
+        val firstArrived = CompletableDeferred<Unit>()
+        val bothArrived = CompletableDeferred<Unit>()
+        coEvery { harness.availability.annotateCachedAvailability(any()) } coAnswers {
+            if (firstArrived.complete(Unit)) bothArrived.await() else bothArrived.complete(Unit)
+            firstArg<List<AddonStreams>>()
+        }
+
+        val result = withTimeout(5_000) {
+            harness.repository.getStreamsFromAllAddons(
+                type = "movie",
+                videoId = "tt1341338",
+                season = null,
+                episode = null
+            ).first { it is NetworkResult.Success && it.data.size == 2 }
+        }
+
+        assertEquals(
+            listOf("Fast Addon", "Second Addon"),
+            (result as NetworkResult.Success).data.map { it.addonName }.sorted()
+        )
+    }
+
+    private fun newHarness(
+        enabledScrapers: List<ScraperInfo>,
+        addons: List<Addon> = listOf(compatibleAddon())
+    ): Harness {
         val api = mockk<AddonApi>()
         coEvery { api.getStreams(any()) } returns Response.success(
             StreamResponseDto(
@@ -137,9 +175,11 @@ class StreamRepositoryPluginIsolationTest {
         )
 
         val addonRepository = mockk<AddonRepository>()
-        every { addonRepository.getInstalledAddons() } returns flowOf(listOf(addon))
-        coEvery { addonRepository.getResolvedInstalledAddons() } returns listOf(addon)
-        coEvery { addonRepository.fetchAddon(addon.baseUrl) } returns NetworkResult.Success(addon)
+        every { addonRepository.getInstalledAddons() } returns flowOf(addons)
+        coEvery { addonRepository.getResolvedInstalledAddons() } returns addons
+        addons.forEach { installed ->
+            coEvery { addonRepository.fetchAddon(installed.baseUrl) } returns NetworkResult.Success(installed)
+        }
 
         val pluginManager = mockk<PluginManager>(relaxed = true)
         every { pluginManager.enabledScrapers } returns flowOf(enabledScrapers)
@@ -179,17 +219,22 @@ class StreamRepositoryPluginIsolationTest {
             ),
             api = api,
             tmdbService = tmdbService,
-            addonRepository = addonRepository
+            addonRepository = addonRepository,
+            availability = availability
         )
     }
 
-    private fun compatibleAddon(): Addon = Addon(
-        id = "fast-addon",
-        name = "Fast Addon",
+    private fun compatibleAddon(
+        id: String = "fast-addon",
+        name: String = "Fast Addon",
+        baseUrl: String = "https://addon.example"
+    ): Addon = Addon(
+        id = id,
+        name = name,
         version = "1.0.0",
         description = null,
         logo = ADDON_LOGO,
-        baseUrl = "https://addon.example",
+        baseUrl = baseUrl,
         catalogs = emptyList(),
         types = emptyList(),
         resources = listOf(
@@ -225,6 +270,7 @@ class StreamRepositoryPluginIsolationTest {
         val repository: StreamRepositoryImpl,
         val api: AddonApi,
         val tmdbService: TmdbService,
-        val addonRepository: AddonRepository
+        val addonRepository: AddonRepository,
+        val availability: LocalDebridAvailabilityService
     )
 }

@@ -6,6 +6,8 @@ import com.nuvio.tv.domain.model.Stream
 import com.nuvio.tv.domain.model.StreamDebridCacheState
 import com.nuvio.tv.domain.model.StreamDebridCacheStatus
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -14,6 +16,8 @@ class LocalDebridAvailabilityService @Inject constructor(
     private val dataStore: DebridSettingsDataStore,
     private val localDebridService: LocalDebridService
 ) {
+    private val checkSemaphore = Semaphore(CACHE_CHECK_CONCURRENCY)
+
     suspend fun markChecking(groups: List<AddonStreams>): List<AddonStreams> {
         val account = cacheCheckAccount() ?: return groups
         return groups.updateAvailabilityStatus { stream ->
@@ -41,21 +45,22 @@ class LocalDebridAvailabilityService @Inject constructor(
         }.distinct()
         if (hashes.isEmpty()) return groups
 
-        val cached = localDebridService.checkCached(account = account, hashes = hashes)
-            ?: return groups.updateAvailabilityStatus { stream ->
-                val hash = stream.localAvailabilityHash()
-                if (hash == null) {
-                    stream
-                } else {
-                    stream.copy(
-                        debridCacheStatus = StreamDebridCacheStatus(
-                            providerId = account.provider.id,
-                            providerName = account.provider.displayName,
-                            state = StreamDebridCacheState.UNKNOWN
-                        )
+        val cached = checkSemaphore.withPermit {
+            localDebridService.checkCached(account = account, hashes = hashes)
+        } ?: return groups.updateAvailabilityStatus { stream ->
+            val hash = stream.localAvailabilityHash()
+            if (hash == null) {
+                stream
+            } else {
+                stream.copy(
+                    debridCacheStatus = StreamDebridCacheStatus(
+                        providerId = account.provider.id,
+                        providerName = account.provider.displayName,
+                        state = StreamDebridCacheState.UNKNOWN
                     )
-                }
+                )
             }
+        }
 
         return groups.updateAvailabilityStatus { stream ->
             val hash = stream.localAvailabilityHash() ?: return@updateAvailabilityStatus stream
@@ -85,6 +90,9 @@ class LocalDebridAvailabilityService @Inject constructor(
             ?.takeIf { credential -> credential.provider.supports(DebridProviderCapability.LocalTorrentCacheCheck) }
     }
 }
+
+// ponytail: flat bound; the provider's own rate limit is the real ceiling.
+private const val CACHE_CHECK_CONCURRENCY = 4
 
 private val FINAL_CACHE_STATES = setOf(
     StreamDebridCacheState.CACHED,

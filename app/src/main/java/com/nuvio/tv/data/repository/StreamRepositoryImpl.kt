@@ -204,7 +204,7 @@ class StreamRepositoryImpl @Inject constructor(
                                             val namedStreams = streamsResult.data.map {
                                                 it.copy(addonName = addon.displayName, addonLogo = addon.logo)
                                             }
-                                            resultChannel.send(
+                                            resultChannel.sendAnnotated(
                                                 AddonStreams(
                                                     addonName = addon.displayName,
                                                     addonLogo = addon.logo,
@@ -218,7 +218,7 @@ class StreamRepositoryImpl @Inject constructor(
                                                 addon, type, videoId
                                             )
                                             if (inlineStreams.isNotEmpty()) {
-                                                resultChannel.send(
+                                                resultChannel.sendAnnotated(
                                                     AddonStreams(
                                                         addonName = addon.displayName,
                                                         addonLogo = addon.logo,
@@ -292,11 +292,9 @@ class StreamRepositoryImpl @Inject constructor(
 
                 // Emit results as they arrive
                 for (result in resultChannel) {
-                    val checkingResult = localDebridAvailabilityService.markChecking(listOf(result)).firstOrNull() ?: result
-                    val checkedResult = localDebridAvailabilityService.annotateCachedAvailability(listOf(checkingResult)).firstOrNull() ?: checkingResult
-                    mergePresentedResult(accumulatedResults, checkedResult, debridSettings)
+                    mergePresentedResult(accumulatedResults, result, debridSettings)
                     emit(NetworkResult.Success(accumulatedResults.toList()))
-                    Log.d(TAG, "Emitted ${accumulatedResults.size} addon(s), latest: ${checkedResult.addonName} with ${checkedResult.streams.size} streams")
+                    Log.d(TAG, "Emitted ${accumulatedResults.size} addon(s), latest: ${result.addonName} with ${result.streams.size} streams")
                 }
             }
 
@@ -401,6 +399,13 @@ class StreamRepositoryImpl @Inject constructor(
         }
     }
 
+    /** Annotated here, not in the consumer: that emits serially, so lookups would queue. */
+    private suspend fun Channel<AddonStreams>.sendAnnotated(group: AddonStreams) {
+        val checking = localDebridAvailabilityService.markChecking(listOf(group)).firstOrNull() ?: group
+        val checked = localDebridAvailabilityService.annotateCachedAvailability(listOf(checking)).firstOrNull() ?: checking
+        send(checked)
+    }
+
     private suspend fun mergePresentedResult(
         accumulatedResults: MutableList<AddonStreams>,
         result: AddonStreams,
@@ -467,21 +472,23 @@ class StreamRepositoryImpl @Inject constructor(
             }
 
             // Collect streaming results from each scraper
-            pluginManager.executeScrapersStreaming(
-                tmdbId = pluginId,
-                mediaType = mediaType,
-                season = season,
-                episode = episode
-            ).collect { (scraper, results) ->
-                if (results.isNotEmpty()) {
-                    val addonName = scraper.pluginAddonName(groupByRepository, repositoriesById)
-                    val addonStreams = AddonStreams(
-                        addonName = addonName,
-                        addonLogo = null,
-                        streams = results.map { result -> result.toPluginStream(scraper, addonName) }
-                    )
-                    resultChannel.send(addonStreams)
-                    Log.d(TAG, "Streamed ${results.size} results from ${scraper.name}")
+            coroutineScope {
+                pluginManager.executeScrapersStreaming(
+                    tmdbId = pluginId,
+                    mediaType = mediaType,
+                    season = season,
+                    episode = episode
+                ).collect { (scraper, results) ->
+                    if (results.isNotEmpty()) {
+                        val addonName = scraper.pluginAddonName(groupByRepository, repositoriesById)
+                        val addonStreams = AddonStreams(
+                            addonName = addonName,
+                            addonLogo = null,
+                            streams = results.map { result -> result.toPluginStream(scraper, addonName) }
+                        )
+                        this@coroutineScope.launch { resultChannel.sendAnnotated(addonStreams) }
+                        Log.d(TAG, "Streamed ${results.size} results from ${scraper.name}")
+                    }
                 }
             }
         } catch (e: Exception) {
