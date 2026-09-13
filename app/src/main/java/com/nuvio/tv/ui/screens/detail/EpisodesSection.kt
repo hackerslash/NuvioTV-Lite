@@ -423,6 +423,7 @@ fun EpisodesRow(
             }
         } ?: false
         val isPending = episodeWatchedPendingKeys.contains(episodePendingKey(selectedEpisode))
+        val isSelectedPlayEnabled = canPlayEpisode(selectedEpisode)
         val firstEpisodeInSeason = dedupedEpisodes.minByOrNull { it.episode ?: Int.MAX_VALUE }
         val hasPreviousEpisodes = selectedEpisode.episode != null &&
             firstEpisodeInSeason?.episode != null &&
@@ -447,7 +448,7 @@ fun EpisodesRow(
                 }
             } ?: false,
             onDismiss = { optionsEpisode = null },
-            isPlayEnabled = canPlayEpisode(selectedEpisode),
+            isPlayEnabled = isSelectedPlayEnabled,
             onPlay = {
                 onEpisodeClick(selectedEpisode)
                 optionsEpisode = null
@@ -465,7 +466,7 @@ fun EpisodesRow(
                 onEpisodeManualPlayClick(selectedEpisode)
                 optionsEpisode = null
             },
-            showPlayManually = showManualPlayOption && canPlayEpisode(selectedEpisode),
+            showPlayManually = showManualPlayOption && isSelectedPlayEnabled,
             onToggleWatched = {
                 onToggleEpisodeWatched(selectedEpisode)
                 optionsEpisode = null
@@ -837,9 +838,12 @@ private fun EpisodeCard(
                 )
 
                 if (description.isNotBlank()) {
+                    val directedDescriptionStyle = remember(descriptionStyle, description) {
+                        descriptionStyle.copy(textDirection = description.contentTextDirection())
+                    }
                     Text(
                         text = description,
-                        style = descriptionStyle.copy(textDirection = description.contentTextDirection()),
+                        style = directedDescriptionStyle,
                         maxLines = cardMetrics.descriptionMaxLines,
                         overflow = TextOverflow.Ellipsis
                     )

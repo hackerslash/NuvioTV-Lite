@@ -1113,7 +1113,9 @@ private fun MetaDetailsContent(
             episodesForSeason = episodesForSeason
         )
     }
-    val isPlayEnabled = playbackAvailability.canStream(meta.apiType, heroVideo?.id ?: meta.id, meta.id, heroVideo)
+    val isPlayEnabled = remember(playbackAvailability, meta, heroVideo) {
+        playbackAvailability.canStream(meta.apiType, heroVideo?.id ?: meta.id, meta.id, heroVideo)
+    }
     val canPlayEpisode = remember(playbackAvailability, meta.apiType, meta.id) {
         { video: Video -> playbackAvailability.canStream(meta.apiType, video.id, meta.id, video) }
     }

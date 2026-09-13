@@ -540,12 +540,13 @@ private fun CommentCard(
                 CommentChip(text = stringResource(R.string.detail_comments_badge_review))
             }
 
+            val bodyStyle = MaterialTheme.typography.bodyMedium
+            val directedBodyStyle = remember(bodyStyle, bodyText) {
+                bodyStyle.copy(lineHeight = 20.sp, textDirection = bodyText.contentTextDirection())
+            }
             Text(
                 text = bodyText,
-                style = MaterialTheme.typography.bodyMedium.copy(
-                    lineHeight = 20.sp,
-                    textDirection = bodyText.contentTextDirection()
-                ),
+                style = directedBodyStyle,
                 color = if (review.hasSpoilerContent) {
                     NuvioTheme.colors.Warning
                 } else {
