@@ -9,6 +9,44 @@ build itself. The in-app updater compares the release tag against the installed
 `versionName`, so tags must stay version-shaped and releases must be published as
 full releases — the updater ignores prereleases and drafts.
 
+## Unreleased
+
+### Synced with upstream NuvioTV (0.9.2-beta)
+- [upstream] Play is now gated on whether anything can actually serve the title: with no
+  stream addon or scraper that handles it, the hero button reads "Playback unavailable"
+  instead of opening an empty stream screen, and the same check guards Continue Watching
+  and the episode overlay. @tapframe
+- [upstream] Auto-play no longer skips an episode after a next-episode card is dismissed,
+  and a duration reading below the current position is ignored instead of being treated as
+  the end of the file. @ieno
+- [upstream] The next episode's resolved link is no longer saved under the previous
+  episode's key, so resuming a series stops handing back the wrong stream. @ieno
+- [upstream] Back in search no longer reopens the on-screen keyboard, and returns focus to
+  the first card of the row it was in — RTL layouts included. @ieno @haveAnIssue
+- [upstream] Binge-group reuse is off by default; it reused a group's first link for every
+  episode. @tapframe
+- [upstream] Matching display resolution no longer downscales 4:3 1080p content to 720p —
+  the smallest mode that still contains the video wins, rather than the nearest by
+  pixel distance. @halibiram
+- [upstream] Streams sharing a URL are listed under their own names instead of collapsing
+  into one row, subtitle/audio preference restoration is fixed for "none" and "original
+  audio", watched episodes get a watched icon, and the stream screen and details focus
+  restorer were tightened. @skoruppa
+- [upstream] Text now picks its direction from its own content rather than the UI locale,
+  so Arabic or Hebrew synopses, comments and episode descriptions read correctly in an
+  LTR layout. @haveAnIssue
+- [upstream] Serbian Latin, Greek, Brazilian Portuguese, Dutch and Vietnamese translations
+  updated. @Oleg-lucic @nosvasedis @DaN @Scheperr @blueocean2308
+
+### Playback availability is resolved once per title, not once per frame
+- The upstream gate above computes its answer in the body of the detail screen with no
+  caching, so every recomposition — and the detail screen recomposes on each focus move —
+  re-ran a meta-cache lookup, a scan of every episode in the series, and a scan of every
+  addon and its declared resources. The answer only changes when the title or the installed
+  sources change, so that is what it is keyed on now. The episode options overlay asked the
+  same question twice, and the per-card text-direction styles upstream added to the episode
+  and comment lists allocated a new `TextStyle` on every focus move; both are cached.
+
 ## v1.4.6-lite — 2026-09-09
 
 ### Off-heap chunk reads no longer throw once per read
