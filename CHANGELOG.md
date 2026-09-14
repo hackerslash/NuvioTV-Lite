@@ -1,5 +1,9 @@
 # Changelog — NuvioTV Lite Edition
 
+## v1.4.8-lite-tg.5 — 2026-09-14
+
+- Nuvio backend config fixed: builds accept both SUPABASE key spellings, warn at build time when blank, and QR login fails with a clear message instead of a malformed URL. (Requires backend setup below: CI secret + TV-login SQL + RLS.)
+
 ## v1.4.8-lite-tg.4 — 2026-09-14
 
 - TG search toggles (4) sync per Nuvio profile alongside the settings blob; Telegram credentials and TDLib session stay per-device by design.
