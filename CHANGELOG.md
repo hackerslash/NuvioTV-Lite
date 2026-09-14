@@ -1,5 +1,9 @@
 # Changelog — NuvioTV Lite Edition
 
+## v1.4.8-lite-tg.4 — 2026-09-14
+
+- TG search toggles (4) sync per Nuvio profile alongside the settings blob; Telegram credentials and TDLib session stay per-device by design.
+
 ## v1.4.8-lite-tg.3 — 2026-09-14
 
 - Linked Telegram account counts as a playable source again: upstream 1.4.7 gates Play on addons/scrapers, which blanked the Play button everywhere with no addons installed. Movies/series are playable when TG is linked.

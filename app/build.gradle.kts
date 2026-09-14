@@ -186,14 +186,14 @@ android {
             // Android's installer requires a higher versionCode to update, not just a
             // higher versionName. Bump by 1 per release.
             // TG-START: own-fork release identity (re-apply on upstream merge)
-            versionCode = 10021
+            versionCode = 10022
             versionName = "1.4.8"
             // TG iteration suffix: the trailing .N must be bumped with every
             // -tg.N release (same commit as versionCode), otherwise the OTA
             // comparator cannot tell an installed build from its own tag and
             // re-offers it as an update. Installed versionName carries the N,
             // release tags carry it too (v1.4.8-lite-tg.N).
-            versionNameSuffix = "-lite-tg.3"
+            versionNameSuffix = "-lite-tg.4"
             // TG-END
             buildConfigField("boolean", "FEATURE_IN_APP_UPDATES_ENABLED", "true")
             buildConfigField("boolean", "FEATURE_EXTERNAL_TRAILERS_ENABLED", "false")
