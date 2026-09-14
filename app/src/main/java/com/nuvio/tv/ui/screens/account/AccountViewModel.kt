@@ -606,6 +606,9 @@ class AccountViewModel @Inject constructor(
                 R.string.account_error_qr_login_missing_setup
             message.contains("invalid tv login redirect base url") ->
                 R.string.account_error_qr_login_misconfigured
+            // Fork: build shipped without a Supabase backend.
+            message.contains("backend is not configured") ->
+                R.string.account_error_backend_not_configured
             message.contains("invalid device nonce") ->
                 R.string.account_error_qr_login_invalid_request
 

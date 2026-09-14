@@ -544,6 +544,8 @@
     <string name="account_error_qr_login_outdated">QR login service is outdated. Reapply TV login SQL setup.</string>
     <string name="account_error_qr_login_missing_setup">QR login backend is missing setup. Update TV login SQL setup.</string>
     <string name="account_error_qr_login_misconfigured">QR login URL is misconfigured.</string>
+    <!-- Fork: build shipped without a Supabase backend (Nuvio sign-in unavailable). -->
+    <string name="account_error_backend_not_configured">Nuvio sign-in is not configured in this build.</string>
     <string name="account_error_qr_login_invalid_request">QR login request was invalid. Please retry.</string>
     <string name="account_error_no_internet">No internet connection.</string>
     <string name="account_error_connection_timeout">Connection timed out. Please try again.</string>
