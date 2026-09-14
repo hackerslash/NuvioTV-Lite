@@ -82,6 +82,23 @@ class PlaybackAvailabilityTest {
         assertFalse(available.canStream("other", video.id, "uncached-parent"))
     }
 
+    // TG-START: linked Telegram account serves movies/series (re-apply on upstream merge)
+    @Test
+    fun `linked telegram serves movies and series without addons`() {
+        val available = PlaybackAvailability(telegramCanServe = true)
+        assertTrue(available.canStream("movie", "tt123"))
+        assertTrue(available.canStream("series", "tt123:1:1"))
+        assertFalse(available.canStream("channel", "channel:1"))
+        assertFalse(available.canStream("tv", "tv:1"))
+    }
+
+    @Test
+    fun `unlinked telegram changes nothing`() {
+        assertFalse(PlaybackAvailability(telegramCanServe = false).canStream("movie", "tt123"))
+        assertFalse(PlaybackAvailability().canStream("series", "tt123:1:1"))
+    }
+    // TG-END
+
     private fun addon() = Addon(
         id = "addon", name = "Addon", version = "1", description = null, logo = null,
         baseUrl = "https://example.com", catalogs = emptyList(), types = emptyList(),

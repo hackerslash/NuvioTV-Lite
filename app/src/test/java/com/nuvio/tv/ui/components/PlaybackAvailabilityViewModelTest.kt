@@ -2,6 +2,10 @@ package com.nuvio.tv.ui.components
 
 import androidx.lifecycle.ViewModelStore
 import com.nuvio.tv.core.build.AppFeaturePolicy
+// TG-START: linked Telegram account serves movies/series (re-apply on upstream merge)
+import com.nuvio.tv.core.telegram.TelegramAuthState
+import com.nuvio.tv.core.telegram.TelegramClientManager
+// TG-END
 import com.nuvio.tv.data.local.PluginDataStore
 import com.nuvio.tv.domain.model.Addon
 import com.nuvio.tv.domain.model.AddonResource
@@ -88,4 +92,39 @@ class PlaybackAvailabilityViewModelTest {
             Dispatchers.resetMain()
         }
     }
+
+    // TG-START: linked Telegram account serves movies/series (re-apply on upstream merge)
+    @Test
+    fun `linked telegram account enables movie and series playback without addons`() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        val viewModelStore = ViewModelStore()
+        try {
+            val addonRepository = mockk<AddonRepository>()
+            val pluginDataStore = mockk<PluginDataStore>()
+            val metaRepository = mockk<MetaRepository>()
+            val telegramClientManager = mockk<TelegramClientManager>()
+            every { addonRepository.getInstalledAddons() } returns MutableStateFlow(emptyList())
+            every { pluginDataStore.scrapers } returns MutableStateFlow(emptyList())
+            every { pluginDataStore.pluginsEnabled } returns MutableStateFlow(false)
+            every { metaRepository.getCachedMeta(any(), any()) } returns null
+            every { telegramClientManager.authState } returns MutableStateFlow<TelegramAuthState>(
+                TelegramAuthState.Ready("Test", 1L)
+            )
+            val viewModel = PlaybackAvailabilityViewModel(
+                addonRepository, pluginDataStore, metaRepository, telegramClientManager
+            )
+            viewModelStore.put("availability", viewModel)
+            backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+                viewModel.availability.collect {}
+            }
+            runCurrent()
+            assertTrue(viewModel.availability.value.canStream("movie", "tt123"))
+            assertTrue(viewModel.availability.value.canStream("series", "tt123:1:1"))
+        } finally {
+            viewModelStore.clear()
+            runCurrent()
+            Dispatchers.resetMain()
+        }
+    }
+    // TG-END
 }
