@@ -818,7 +818,7 @@ create table if not exists public.watch_progress (
   video_id text not null,
   season int,
   episode int,
-  position bigint not null,
+  "position" bigint not null,
   duration bigint not null,
   last_watched bigint not null,
   updated_at timestamptz not null default now(),
@@ -836,7 +836,7 @@ create table if not exists public.watch_progress_events (
   video_id text not null default '',
   season int,
   episode int,
-  position bigint not null default 0,
+  "position" bigint not null default 0,
   duration bigint not null default 0,
   last_watched bigint not null default 0,
   created_at timestamptz not null default now()
@@ -861,7 +861,7 @@ begin
   for v_item in select * from jsonb_array_elements(coalesce(p_entries, '[]'::jsonb)) loop
     insert into public.watch_progress(
       owner_id, profile_id, progress_key, content_id, content_type, video_id,
-      season, episode, position, duration, last_watched, updated_at
+  season, episode, "position", duration, last_watched, updated_at
     ) values (
       v_owner, p_profile_id,
       v_item->>'progress_key', v_item->>'content_id', v_item->>'content_type',
@@ -873,11 +873,11 @@ begin
     on conflict (owner_id, profile_id, progress_key) do update set
       content_id = excluded.content_id, content_type = excluded.content_type,
       video_id = excluded.video_id, season = excluded.season, episode = excluded.episode,
-      position = excluded.position, duration = excluded.duration,
+      "position" = excluded."position", duration = excluded.duration,
       last_watched = excluded.last_watched, updated_at = now();
     insert into public.watch_progress_events(
       owner_id, profile_id, operation, progress_key, content_id, content_type, video_id,
-      season, episode, position, duration, last_watched
+  season, episode, "position", duration, last_watched
     ) values (
       v_owner, p_profile_id, 'upsert',
       v_item->>'progress_key', v_item->>'content_id', v_item->>'content_type',
@@ -910,12 +910,12 @@ begin
     where owner_id = v_owner and profile_id = p_profile_id and progress_key = v_key;
     insert into public.watch_progress_events(
       owner_id, profile_id, operation, progress_key, content_id, content_type, video_id,
-      season, episode, position, duration, last_watched
+  season, episode, "position", duration, last_watched
     ) values (
       v_owner, p_profile_id, 'delete', v_key,
       coalesce(v_row.content_id, ''), coalesce(v_row.content_type, ''),
       coalesce(v_row.video_id, ''), v_row.season, v_row.episode,
-      coalesce(v_row.position, 0), coalesce(v_row.duration, 0), coalesce(v_row.last_watched, 0)
+      coalesce(v_row."position", 0), coalesce(v_row.duration, 0), coalesce(v_row.last_watched, 0)
     );
   end loop;
 end;
@@ -938,7 +938,7 @@ create or replace function public.sync_pull_watch_progress_delta(p_profile_id in
 returns table(
   event_id bigint, operation text, progress_key text,
   content_id text, content_type text, video_id text,
-  season int, episode int, position bigint, duration bigint, last_watched bigint
+  season int, episode int, "position" bigint, duration bigint, last_watched bigint
 )
 language sql
 stable
@@ -946,7 +946,7 @@ security definer
 set search_path = public
 as $$
   select event_id, operation, progress_key, content_id, content_type, video_id,
-    season, episode, position, duration, last_watched
+    season, episode, "position", duration, last_watched
   from public.watch_progress_events
   where owner_id = public.sync_effective_owner()
     and profile_id = p_profile_id and event_id > p_since_event_id
@@ -957,7 +957,7 @@ grant execute on function public.sync_pull_watch_progress_delta(int, bigint, int
 create or replace function public.sync_pull_watch_progress(p_profile_id int, p_since_last_watched bigint default null, p_limit int default null)
 returns table(
   id text, user_id text, content_id text, content_type text, video_id text,
-  season int, episode int, position bigint, duration bigint, last_watched bigint,
+  season int, episode int, "position" bigint, duration bigint, last_watched bigint,
   progress_key text, profile_id int
 )
 language sql
@@ -966,7 +966,7 @@ security definer
 set search_path = public
 as $$
   select null::text, owner_id::text, content_id, content_type, video_id,
-    season, episode, position, duration, last_watched, progress_key, profile_id
+    season, episode, "position", duration, last_watched, progress_key, profile_id
   from public.watch_progress
   where owner_id = public.sync_effective_owner()
     and profile_id = p_profile_id
