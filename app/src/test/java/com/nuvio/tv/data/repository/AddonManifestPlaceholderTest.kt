@@ -45,6 +45,7 @@ import java.util.concurrent.atomic.AtomicLong
 class AddonManifestPlaceholderTest {
 
     private val addonUrl = "https://addon.example"
+    private val deadUrl = "https://dead.example"
 
     private companion object {
         const val REAL_NAME = "Test Addon"
@@ -71,6 +72,29 @@ class AddonManifestPlaceholderTest {
         // addon manager renders until a real manifest arrives.
         assertEquals("addon.example", addon.displayName)
         assertEquals(null, addon.logo)
+    }
+
+    /** A stream search resolves the list before querying, so a dead addon used to gate every other. */
+    @Test
+    fun `an unreachable addon does not delay resolving the others`() = runBlocking {
+        val harness = newRepository(
+            reachable = true,
+            urls = listOf(deadUrl, addonUrl),
+            unreachableUrls = setOf(deadUrl)
+        )
+
+        // Cache the reachable manifest first: the steady state on any device that has run before.
+        withTimeout(5_000) {
+            harness.repository.getInstalledAddons().first { list ->
+                list.any { it.version == REAL_VERSION }
+            }
+        }
+
+        // The dead addon's fetch is still hanging at this point, so this would block on it.
+        val resolved = withTimeout(1_000) { harness.repository.getResolvedInstalledAddons() }
+
+        assertEquals(REAL_VERSION, resolved.single { it.baseUrl == addonUrl }.version)
+        assertEquals(PLACEHOLDER_VERSION, resolved.single { it.baseUrl == deadUrl }.version)
     }
 
     @Test
@@ -104,8 +128,8 @@ class AddonManifestPlaceholderTest {
         withTimeout(5_000) {
             harness.repository.getInstalledAddons().first { it.isNotEmpty() }
         }
+        harness.manifestCalls.awaitAtLeast(1)
         val before = harness.manifestCalls.get()
-        assertTrue(before >= 1)
 
         // Renaming the addon recomputes installedAddonsFlow. Comparing the call count across the
         // mutation ties the extra fetch to the recomputation, rather than merely asserting that
@@ -116,7 +140,7 @@ class AddonManifestPlaceholderTest {
                 .first { list -> list.singleOrNull()?.displayName == "Renamed" }
         }
 
-        assertTrue(harness.manifestCalls.get() > before)
+        harness.manifestCalls.awaitAtLeast(before + 1)
     }
 
     @Test
@@ -225,6 +249,11 @@ class AddonManifestPlaceholderTest {
         )
     }
 
+    /** Fetches are launched, not awaited, so the count settles just after the emission. */
+    private suspend fun AtomicInteger.awaitAtLeast(target: Int) {
+        withTimeout(5_000) { while (get() < target) delay(10) }
+    }
+
     private fun newContext(): Context = mockk(relaxed = true)
 
     private data class Harness(
@@ -238,13 +267,17 @@ class AddonManifestPlaceholderTest {
         userSetNames: kotlinx.coroutines.flow.Flow<Map<String, String>> = flowOf(emptyMap()),
         reachable: Boolean = false,
         dispatcher: CoroutineDispatcher = Dispatchers.IO,
-        clock: () -> Long = System::currentTimeMillis
+        clock: () -> Long = System::currentTimeMillis,
+        urls: List<String> = listOf(addonUrl),
+        unreachableUrls: Set<String> = emptySet()
     ): Harness {
         val manifestCalls = AtomicInteger()
         val isReachable = AtomicBoolean(reachable)
         val api = mockk<AddonApi>()
         coEvery { api.getManifest(any()) } coAnswers {
             manifestCalls.incrementAndGet()
+            // Hangs like a host that drops the SYN, which is what burns the connect timeout.
+            if (unreachableUrls.any { firstArg<String>().startsWith(it) }) delay(Long.MAX_VALUE)
             if (!isReachable.get()) throw IOException("offline")
             Response.success(
                 AddonManifestDto(id = "test-addon", name = REAL_NAME, version = REAL_VERSION)
@@ -252,7 +285,7 @@ class AddonManifestPlaceholderTest {
         }
 
         val preferences = mockk<AddonPreferences>()
-        every { preferences.installedAddonUrls } returns flowOf(listOf(addonUrl))
+        every { preferences.installedAddonUrls } returns flowOf(urls)
         every { preferences.userSetNames } returns userSetNames
         every { preferences.addonEnabledStates } returns flowOf(emptyMap())
         coEvery { preferences.removeAddon(any()) } returns true

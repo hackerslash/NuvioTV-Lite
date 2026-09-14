@@ -1077,8 +1077,9 @@ private fun StreamsList(
     }
     val firstStreamKey = streamKeys.firstOrNull()
     val streamFocusRequesters = remember { mutableMapOf<String, FocusRequester>() }
-    streamKeys.forEach { key ->
-        streamFocusRequesters.getOrPut(key) { FocusRequester() }
+    remember(streamKeys) {
+        val validKeys = streamKeys.toHashSet()
+        streamFocusRequesters.keys.retainAll(validKeys)
     }
     var firstCardHasFocus by remember(firstStreamKey) { mutableStateOf(false) }
     // Reset scroll position to the top when the addon filter changes (#2538).
@@ -1175,7 +1176,7 @@ private fun StreamsList(
                     onClick = { onStreamSelected(stream) },
                     focusRequester = when {
                         shouldRestoreFocusedStream && index == focusedStreamIndex.coerceIn(0, (streams.lastIndex).coerceAtLeast(0)) -> restoreFocusRequester
-                        else -> streamFocusRequesters.getValue(streamKeys[index])
+                        else -> streamFocusRequesters.getOrPut(streamKeys[index]) { FocusRequester() }
                     },
                     onFocusChanged = { focused ->
                         if (index == 0) {

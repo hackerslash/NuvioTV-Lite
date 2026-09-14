@@ -275,7 +275,7 @@ data class PlayerSettings(
     val streamAutoPlayNextEpisodeEnabled: Boolean = false,
     val streamAutoPlayNextEpisodeFallbackEnabled: Boolean = true,
     val streamAutoPlayPreferBingeGroupForNextEpisode: Boolean = true,
-    val streamAutoPlayReuseBingeGroup: Boolean = true,
+    val streamAutoPlayReuseBingeGroup: Boolean = false,
     val streamAutoPlayTimeoutSeconds: Int = 10,
     val stillWatchingEnabled: Boolean = false,
     val stillWatchingEpisodeThreshold: Int = DEFAULT_STILL_WATCHING_EPISODE_THRESHOLD,
@@ -904,7 +904,7 @@ class PlayerSettingsDataStore @Inject constructor(
                 streamAutoPlayPreferBingeGroupForNextEpisode =
                     prefs[streamAutoPlayPreferBingeGroupForNextEpisodeKey] ?: true,
                 streamAutoPlayReuseBingeGroup =
-                    prefs[streamAutoPlayReuseBingeGroupKey] ?: true,
+                    prefs[streamAutoPlayReuseBingeGroupKey] ?: false,
                 streamAutoPlayTimeoutSeconds = PlayerSettings.applyLegacyTimeoutSentinelMigration(
                     prefs[streamAutoPlayTimeoutSecondsKey]
                 ),

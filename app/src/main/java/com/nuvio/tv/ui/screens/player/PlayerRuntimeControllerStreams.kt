@@ -1360,17 +1360,24 @@ internal fun PlayerRuntimeController.switchToEpisodeStream(
     )
     val playbackUrl = currentStreamUrl
     val playbackHeaders = currentHeaders
-    persistSelectedStreamForReuse(stream = stream, url = playbackUrl, headers = playbackHeaders)
+    val targetVideoId = targetVideo?.id ?: _uiState.value.episodeStreamsForVideoId ?: currentVideoId
+    // Do not persist an episode switch under the outgoing episode's reuse key.
+    if (targetVideoId == currentVideoId) {
+        persistSelectedStreamForReuse(stream = stream, url = playbackUrl, headers = playbackHeaders)
+    }
     persistedTrackPreference = null
     subtitleDisabledByPersistedPreference = false
     subtitleAddonRestoredByPersistedPreference = false
     pendingRestoredAddonSubtitle = null
     hasRetriedCurrentStreamAfter416 = false
     resetErrorRetryState()
-    currentVideoId = targetVideo?.id ?: _uiState.value.episodeStreamsForVideoId ?: currentVideoId
+    currentVideoId = targetVideoId
     currentSeason = targetVideo?.season ?: _uiState.value.episodeStreamsSeason ?: currentSeason
     currentEpisode = targetVideo?.episode ?: _uiState.value.episodeStreamsEpisode ?: currentEpisode
     currentEpisodeTitle = targetVideo?.title ?: _uiState.value.episodeStreamsTitle ?: currentEpisodeTitle
+    // Until the new file loads, MPV keeps reporting the old one, which is often at its end.
+    endDetectionArmed = false
+    mpvEofSeenClear = false
     currentTraktEpisodeMapping = null
     currentTraktEpisodeMappingKey = null
     lastSavedPosition = 0L

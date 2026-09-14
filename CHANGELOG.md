@@ -1,5 +1,10 @@
 # Changelog — NuvioTV Lite Edition
 
+## v1.4.8-lite-tg.1 — 2026-09-14
+
+- TG port of upstream `v1.4.8-lite` (incl. `v1.4.7-lite`: upstream `0.9.2-beta` sync — Play gated on playable sources, next-episode/autoplay/resume fixes, search back-stack + focus fixes, addon manifest resolution no longer stalls stream search, display-mode matching for 4:3).
+- Same TG module as `v1.4.6-lite-tg.1` (TDLib on-device, `TelegramDataSource`, `-tg.N` OTA iteration compare). Installs as `com.nuvio.tv.lite`, `versionCode` 10019.
+
 ## v1.4.6-lite-tg.1 — 2026-09-11
 
 - TG port of upstream `v1.4.6-lite` (upstream `0.9.1-beta` sync: search focus/back-stack fixes, VC-1 failover, splash gating, TLS pinning for first-party APIs, theme/gradient work, translation updates).
@@ -33,6 +38,61 @@ Release tags are `v<versionName>` (e.g. `v1.0.0-lite`) and are derived from the
 build itself. The in-app updater compares the release tag against the installed
 `versionName`, so tags must stay version-shaped and releases must be published as
 full releases — the updater ignores prereleases and drafts.
+
+## v1.4.8-lite — 2026-09-14
+
+### One unreachable addon no longer stalls every stream search
+- Resolving the installed addon list fetched a manifest for every addon that had none cached and
+  waited for all of them before the first stream request, so one addon that silently drops
+  connections cost the full 30-second connect timeout on every search — measured on a device as
+  30.1s of dead air, then eight addons answering in 3.8s. Resolution no longer touches the network,
+  so a dead or slow addon cannot delay a healthy one and the fastest sources render first.
+
+## v1.4.7-lite — 2026-09-14
+
+### Synced with upstream NuvioTV (0.9.2-beta)
+- [upstream] Play is now gated on whether anything can actually serve the title: with no
+  stream addon or scraper that handles it, the hero button reads "Playback unavailable"
+  instead of opening an empty stream screen, and the same check guards Continue Watching
+  and the episode overlay. @tapframe
+- [upstream] Auto-play no longer skips an episode after a next-episode card is dismissed,
+  and a duration reading below the current position is ignored instead of being treated as
+  the end of the file. @ieno
+- [upstream] The next episode's resolved link is no longer saved under the previous
+  episode's key, so resuming a series stops handing back the wrong stream. @ieno
+- [upstream] Back in search no longer reopens the on-screen keyboard, and returns focus to
+  the first card of the row it was in — RTL layouts included. @ieno @haveAnIssue
+- [upstream] Binge-group reuse is off by default; it reused a group's first link for every
+  episode. @tapframe
+- [upstream] Matching display resolution no longer downscales 4:3 1080p content to 720p —
+  the smallest mode that still contains the video wins, rather than the nearest by
+  pixel distance. @halibiram
+- [upstream] Streams sharing a URL are listed under their own names instead of collapsing
+  into one row, subtitle/audio preference restoration is fixed for "none" and "original
+  audio", watched episodes get a watched icon, and the stream screen and details focus
+  restorer were tightened. @skoruppa
+- [upstream] Text now picks its direction from its own content rather than the UI locale,
+  so Arabic or Hebrew synopses, comments and episode descriptions read correctly in an
+  LTR layout. @haveAnIssue
+- [upstream] Serbian Latin, Greek, Brazilian Portuguese, Dutch and Vietnamese translations
+  updated. @Oleg-lucic @nosvasedis @DaN @Scheperr @blueocean2308
+
+### Playback availability is resolved once per title, not once per frame
+- The upstream gate above computes its answer in the body of the detail screen with no
+  caching, so every recomposition — and the detail screen recomposes on each focus move —
+  re-ran a meta-cache lookup, a scan of every episode in the series, and a scan of every
+  addon and its declared resources. The answer only changes when the title or the installed
+  sources change, so that is what it is keyed on now. The episode options overlay asked the
+  same question twice, and the per-card text-direction styles upstream added to the episode
+  and comment lists allocated a new `TextStyle` on every focus move; both are cached.
+
+### Debrid cache checks no longer queue the stream list behind themselves
+- With a local debrid resolver active (TorBox, Premiumize), every addon's and every scraper's
+  results waited for a cached-availability round trip in the consumer that emits them, so the
+  lookups ran one after another and the list filled in over the sum of them — tens of seconds
+  on a source-heavy setup, while the provider's own addon, whose streams arrive with ready
+  links and need no lookup, stayed instant. Each result now resolves availability alongside
+  the fetch that produced it, at up to four lookups at once.
 
 ## v1.4.6-lite — 2026-09-09
 

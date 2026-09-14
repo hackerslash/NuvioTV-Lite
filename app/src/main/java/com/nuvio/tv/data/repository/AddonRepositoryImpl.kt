@@ -18,7 +18,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
@@ -36,6 +35,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.launch
 import com.nuvio.tv.core.auth.AuthManager
 import com.nuvio.tv.core.sync.AddonSyncService
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -137,6 +137,7 @@ class AddonRepositoryImpl(
     private val manifestRefreshLock = Any()
 
     private val manifestCacheLoaded = CompletableDeferred<Unit>()
+    private val manifestFetchesInFlight = ConcurrentHashMap.newKeySet<String>()
 
     init {
         syncScope.launch {
@@ -281,32 +282,34 @@ class AddonRepositoryImpl(
 
     override fun getInstalledAddons(): Flow<List<Addon>> = installedAddonsFlow
 
-    private suspend fun resolveAddons(
+    /**
+     * Never waits on the network: a cache miss yields a placeholder and the manifest is fetched in
+     * the background, so one unreachable addon cannot delay the rest by the connect timeout. A
+     * placeholder rather than null keeps the row visible - and so removable - in the addon manager,
+     * and carries no resources, so it is not queried for streams until a manifest arrives.
+     */
+    private fun resolveAddons(
         urls: List<String>,
         userNames: Map<String, String>,
         enabledByUrl: Map<String, Boolean>
-    ): List<Addon> = coroutineScope {
-        urls.map { url ->
-            async {
-                val canonical = canonicalizeUrl(url)
-                val enabled = enabledByUrl[canonical] ?: true
-                if (!enabled) {
-                    return@async getCachedManifest(canonical)
-                        ?.copy(enabled = false)
-                        ?: placeholderAddon(canonical, userNames, enabled = false)
-                }
-                // On failure fall back to a placeholder rather than null. Returning null drops the
-                // addon from the emitted list entirely, so an installed URL whose manifest has never
-                // been fetched successfully becomes invisible in the addon manager - and unremovable,
-                // because removal is driven by the listed row. A placeholder carries no resources or
-                // catalogs, so it is not queried for streams and contributes no catalog rows until a
-                // real manifest arrives.
-                (getCachedManifest(canonical) ?: when (val result = fetchAddon(url)) {
-                    is NetworkResult.Success -> result.data
-                    else -> placeholderAddon(canonical, userNames, enabled)
-                }).copy(enabled = enabled)
+    ): List<Addon> = urls.map { url ->
+        val canonical = canonicalizeUrl(url)
+        val enabled = enabledByUrl[canonical] ?: true
+        val cached = getCachedManifest(canonical)
+        if (cached == null && enabled) warmManifest(url, canonical)
+        (cached ?: placeholderAddon(canonical, userNames, enabled)).copy(enabled = enabled)
+    }
+
+    /** Deduplicated per URL: the list recomputes often and a dead addon holds its slot for 30s. */
+    private fun warmManifest(url: String, canonical: String) {
+        if (!manifestFetchesInFlight.add(canonical)) return
+        syncScope.launch {
+            try {
+                fetchAddon(url)
+            } finally {
+                manifestFetchesInFlight.remove(canonical)
             }
-        }.awaitAll()
+        }
     }
 
     override suspend fun getResolvedInstalledAddons(): List<Addon> =

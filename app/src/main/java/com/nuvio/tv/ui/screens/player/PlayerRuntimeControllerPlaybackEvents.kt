@@ -227,12 +227,19 @@ internal fun PlayerRuntimeController.startProgressUpdates() {
                         playerReportsLive = view.isLiveStreamNow(),
                         isPlaying = playingForWatchClock
                     )
-                    val nearEnd = playerDuration > 0L && pos >= (playerDuration - 500L)
-                    val mpvEofReached = view.isEofReached()
+                    // Prefer the largest known duration; MPV can report a shorter one transiently.
+                    // The playerDuration check stays: lastKnownDuration can still hold the previous
+                    // stream's value until it resets.
+                    val effectiveDuration = maxOf(playerDuration, lastKnownDuration)
+                    val nearEnd = endDetectionArmed && playerDuration > 0L &&
+                        pos >= (effectiveDuration - PlayerNextEpisodeRules.NEAR_END_MS)
+                    val eofNow = view.isEofReached()
+                    if (!eofNow) mpvEofSeenClear = true
+                    val mpvEofReached = mpvEofSeenClear && eofNow
                     val naturalEnded = !view.isLiveStreamNow() && (nearEnd || mpvEofReached) && shouldTreatAsNaturalPlaybackCompletion(
                         hasRenderedFirstFrame = firstFrameReady,
                         hasFatalError = !_uiState.value.error.isNullOrBlank(),
-                        durationMs = playerDuration
+                        durationMs = effectiveDuration
                     )
                     val wasEnded = _uiState.value.playbackEnded
                     _uiState.update { state ->
@@ -1582,6 +1589,8 @@ fun PlayerRuntimeController.onEvent(event: PlayerEvent) {
         }
         PlayerEvent.OnRetry -> {
             hasRenderedFirstFrame = false
+            endDetectionArmed = false
+            mpvEofSeenClear = false
             hasRetriedCurrentStreamAfter416 = false
             playbackIssueReportRequestVersion.incrementAndGet()
             resetErrorRetryState()
