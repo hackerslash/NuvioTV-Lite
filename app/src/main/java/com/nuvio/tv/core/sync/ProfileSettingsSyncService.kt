@@ -18,6 +18,9 @@ import com.nuvio.tv.data.local.ContinueWatchingEnrichmentCache
 import com.nuvio.tv.data.local.ExperienceModeDataStore
 import com.nuvio.tv.data.local.ProfileDataStoreFactory
 import com.nuvio.tv.data.local.StreamBadgeSettingsDataStore
+// TG-START: sync TG search toggles per profile, credentials/session stay per-device (re-apply on upstream merge)
+import com.nuvio.tv.data.local.TelegramSearchSettingsDataStore
+// TG-END
 import com.nuvio.tv.data.local.TmdbSettingsDataStore
 import com.nuvio.tv.data.remote.supabase.SupabaseProfileSetupCopyResult
 import com.nuvio.tv.data.remote.supabase.SupabaseProfileSettingsBlob
@@ -196,7 +199,10 @@ class ProfileSettingsSyncService @Inject constructor(
         "trakt_settings",
         "debrid_settings",
         "animeskip_settings",
-        "track_preference"
+        "track_preference",
+        // TG-START: sync TG search toggles per profile, credentials/session stay per-device (re-apply on upstream merge)
+        TelegramSearchSettingsDataStore.FEATURE
+        // TG-END
     )
 
     init {
