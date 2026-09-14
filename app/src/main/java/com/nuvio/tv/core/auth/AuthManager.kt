@@ -566,6 +566,14 @@ class AuthManager @Inject constructor(
     ): Result<DeviceLoginStartResult> {
         val startedAtMs = SystemClock.elapsedRealtime()
         val trace = qrTrace(traceId)
+        // Fork: fail with a clear message instead of a malformed-URL crash when
+        // the build ships without a Supabase backend configured.
+        if (serverConfiguration.backendUrl.isBlank()) {
+            val error = IllegalStateException("Nuvio backend is not configured in this build")
+            Log.e(TAG, "$trace startDeviceLoginSession misconfigured: no backend URL", error)
+            diagnostics?.finishFailure("start_device_login_session_misconfigured", AUTH_ENDPOINT_START_DEVICE_LOGIN, error = error)
+            return Result.failure(error)
+        }
         return try {
             val params = buildJsonObject {
                 put("p_device_nonce", deviceNonce)
