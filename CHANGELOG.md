@@ -9,6 +9,15 @@ build itself. The in-app updater compares the release tag against the installed
 `versionName`, so tags must stay version-shaped and releases must be published as
 full releases — the updater ignores prereleases and drafts.
 
+## Unreleased
+
+### One unreachable addon no longer stalls every stream search
+- Resolving the installed addon list fetched a manifest for every addon that had none cached and
+  waited for all of them before the first stream request, so one addon that silently drops
+  connections cost the full 30-second connect timeout on every search — measured on a device as
+  30.1s of dead air, then eight addons answering in 3.8s. Resolution no longer touches the network,
+  so a dead or slow addon cannot delay a healthy one and the fastest sources render first.
+
 ## v1.4.7-lite — 2026-09-14
 
 ### Synced with upstream NuvioTV (0.9.2-beta)
