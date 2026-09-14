@@ -1,5 +1,9 @@
 # Changelog — NuvioTV Lite Edition
 
+## v1.4.8-lite-tg.3 — 2026-09-14
+
+- Linked Telegram account counts as a playable source again: upstream 1.4.7 gates Play on addons/scrapers, which blanked the Play button everywhere with no addons installed. Movies/series are playable when TG is linked.
+
 ## v1.4.8-lite-tg.2 — 2026-09-14
 
 - OTA updater observability + robust pre-install gate: the flow logs check/download/install outcomes, and unreadable archive certificates defer to the system installer instead of a bogus signature rejection. Misleading "official release page" wording fixed (EN/ES).
