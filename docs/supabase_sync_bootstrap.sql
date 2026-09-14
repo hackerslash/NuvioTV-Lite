@@ -38,21 +38,9 @@
 create extension if not exists pgcrypto;
 
 -- ===========================================================================
--- 0. Helpers
+-- 0. Helpers (defined after §1 tables: SQL functions validate relations
+--    at creation time, so sync_effective_owner() lives below)
 -- ===========================================================================
-
-create or replace function public.sync_effective_owner()
-returns uuid
-language sql
-stable
-security definer
-set search_path = public
-as $$
-  select coalesce(
-    (select owner_id from public.account_links where user_id = auth.uid()),
-    auth.uid()
-  );
-$$;
 
 -- ===========================================================================
 -- 1. Account links + sync codes + linked devices
@@ -87,6 +75,19 @@ alter table public.linked_devices enable row level security;
 drop policy if exists linked_devices_owner_read on public.linked_devices;
 create policy linked_devices_owner_read on public.linked_devices
   for select to authenticated using (owner_id = auth.uid());
+
+create or replace function public.sync_effective_owner()
+returns uuid
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select coalesce(
+    (select owner_id from public.account_links where user_id = auth.uid()),
+    auth.uid()
+  );
+$$;
 
 -- 6-char codes, same alphabet as the TV login flow.
 create or replace function public.generate_sync_code_value()
