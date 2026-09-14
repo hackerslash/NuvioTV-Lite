@@ -21,4 +21,24 @@ class ProfileSettingsCredentialPolicyTest {
         assertFalse(shouldExcludePreferenceFromProfileSettingsSync("mdblist_settings", "mdblist_enabled"))
         assertFalse(shouldExcludePreferenceFromProfileSettingsSync("animeskip_settings", "animeskip_enabled"))
     }
+
+    // TG-START: sync TG search toggles per profile (re-apply on upstream merge)
+    @Test
+    fun `telegram search toggles are synced, never excluded`() {
+        assertFalse(
+            shouldExcludePreferenceFromProfileSettingsSync(
+                "telegram_search_settings",
+                "allow_channel_context_series_match"
+            )
+        )
+        assertFalse(shouldExcludePreferenceFromProfileSettingsSync("telegram_search_settings", "movies_i18n_enabled"))
+        assertFalse(shouldExcludePreferenceFromProfileSettingsSync("telegram_search_settings", "series_i18n_enabled"))
+        assertFalse(
+            shouldExcludePreferenceFromProfileSettingsSync(
+                "telegram_search_settings",
+                "discard_series_in_movies"
+            )
+        )
+    }
+    // TG-END
 }

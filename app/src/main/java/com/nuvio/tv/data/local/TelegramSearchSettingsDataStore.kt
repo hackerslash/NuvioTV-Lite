@@ -23,7 +23,7 @@ class TelegramSearchSettingsDataStore @Inject constructor(
     private val profileManager: ProfileManager
 ) {
     companion object {
-        private const val FEATURE = "telegram_search_settings"
+        internal const val FEATURE = "telegram_search_settings"
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
