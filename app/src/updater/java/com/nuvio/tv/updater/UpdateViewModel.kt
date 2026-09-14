@@ -1,6 +1,7 @@
 package com.nuvio.tv.updater
 
 import android.content.Context
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.nuvio.tv.BuildConfig
@@ -46,6 +47,9 @@ class UpdateViewModel @Inject constructor(
     private companion object {
         // Fork: headroom above the asset size for the download + install steps.
         const val HEADROOM_BYTES = 50L * 1024L * 1024L
+        // TG-START: updater observability (re-apply on upstream merge)
+        const val TAG = "UpdateViewModel"
+        // TG-END
     }
 
     private val _uiState = MutableStateFlow(UpdateUiState())
@@ -91,6 +95,9 @@ class UpdateViewModel @Inject constructor(
             result
                 .onSuccess { update ->
                     val remoteNewer = VersionUtils.isRemoteNewer(update.tag, BuildConfig.VERSION_NAME)
+                    // TG-START: updater observability (re-apply on upstream merge)
+                    Log.d(TAG, "check channel=$channel tag=${update.tag} local=${BuildConfig.VERSION_NAME} remoteNewer=$remoteNewer asset=${update.assetName} size=${update.assetSizeBytes}")
+                    // TG-END
                     val shouldShow = UpdateBannerPolicy.shouldShow(
                         isRemoteNewer = remoteNewer,
                         force = force,
@@ -275,6 +282,9 @@ class UpdateViewModel @Inject constructor(
 
             result
                 .onSuccess { file ->
+                    // TG-START: updater observability (re-apply on upstream merge)
+                    Log.d(TAG, "download ok path=${file.absolutePath} size=${file.length()}")
+                    // TG-END
                     _uiState.update {
                         it.copy(
                             isDownloading = false,
@@ -286,6 +296,9 @@ class UpdateViewModel @Inject constructor(
                     installUpdateOrRequestPermission()
                 }
                 .onFailure { error ->
+                    // TG-START: updater observability (re-apply on upstream merge)
+                    Log.w(TAG, "download failed: ${error.message}")
+                    // TG-END
                     // Fork: truncated downloads get a clear message instead of a
                     // misleading signature error two steps later.
                     val message = if (error is IncompleteDownloadException) {
@@ -325,15 +338,31 @@ class UpdateViewModel @Inject constructor(
         }
 
         _uiState.update { it.copy(showUnknownSourcesDialog = false) }
-        if (!ApkInstaller.launchInstall(context, apkFile)) {
-            apkFile.delete()
-            _uiState.update {
-                it.copy(
-                    errorMessage = context.getString(R.string.update_error_signature_mismatch),
-                    showBanner = true
-                )
+        // TG-START: updater observability, distinct unverifiable outcome (re-apply on upstream merge)
+        when (ApkInstaller.launchInstall(context, apkFile)) {
+            ApkInstaller.LaunchGate.LAUNCH -> Unit
+            ApkInstaller.LaunchGate.SIGNATURE_MISMATCH -> {
+                Log.w(TAG, "install blocked: genuine signature mismatch, deleting ${apkFile.name}")
+                apkFile.delete()
+                _uiState.update {
+                    it.copy(
+                        errorMessage = context.getString(R.string.update_error_signature_mismatch),
+                        showBanner = true
+                    )
+                }
+            }
+            ApkInstaller.LaunchGate.UNVERIFIABLE -> {
+                Log.w(TAG, "install not started: file unverifiable or no installer handler, deleting ${apkFile.name}")
+                apkFile.delete()
+                _uiState.update {
+                    it.copy(
+                        errorMessage = context.getString(R.string.update_error_unverifiable),
+                        showBanner = true
+                    )
+                }
             }
         }
+        // TG-END
     }
 
     fun openUnknownSourcesSettings() {

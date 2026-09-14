@@ -7,12 +7,33 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
+import android.util.Log
 import androidx.core.content.FileProvider
 import com.nuvio.tv.BuildConfig
 import java.io.File
 import java.security.MessageDigest
 
 object ApkInstaller {
+
+    // TG-START: updater observability, pre-install gate outcome (re-apply on upstream merge)
+    private const val TAG = "ApkInstaller"
+
+    /** Outcome of the pre-install gate in [launchInstall]. */
+    enum class LaunchGate { LAUNCH, SIGNATURE_MISMATCH, UNVERIFIABLE }
+
+    /**
+     * Pure gate: an empty [archiveDigests] (platforms where getPackageArchiveInfo
+     * yields no certificates even for a well-formed APK) must NOT read as a
+     * mismatch — the system installer, which verifies rigorously, gets the
+     * final verdict instead.
+     */
+    internal fun gate(installedDigests: Set<String>, archiveDigests: Set<String>): LaunchGate =
+        when {
+            archiveDigests.isEmpty() -> LaunchGate.UNVERIFIABLE
+            archiveDigests.none { it in installedDigests } -> LaunchGate.SIGNATURE_MISMATCH
+            else -> LaunchGate.LAUNCH
+        }
+    // TG-END
 
     fun canRequestPackageInstalls(context: Context): Boolean {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -33,22 +54,37 @@ object ApkInstaller {
         }
     }
 
-    /** Returns false without installing if [apkFile] is not signed by the installed app's certificate. */
-    fun launchInstall(context: Context, apkFile: File): Boolean {
+    // TG-START: updater observability, delegate unverifiable files to system installer (re-apply on upstream merge)
+    /**
+     * Hands [apkFile] to the system installer. Genuine mismatches are still
+     * blocked here; when the archive certificates cannot even be read (or the
+     * install intent cannot be fired), the outcome is UNVERIFIABLE so the UI
+     * can say so instead of crying wolf about signatures.
+     */
+    fun launchInstall(context: Context, apkFile: File): LaunchGate {
         val installed = signingDigests(context, null)
-        if (signingDigests(context, apkFile.absolutePath).none { it in installed }) return false
+        val archive = signingDigests(context, apkFile.absolutePath)
+        Log.d(TAG, "launchInstall file=${apkFile.name} size=${apkFile.length()} installedDigests=$installed archiveDigests=$archive")
+        if (gate(installed, archive) == LaunchGate.SIGNATURE_MISMATCH) {
+            Log.w(TAG, "launchInstall rejected: genuine signature mismatch")
+            return LaunchGate.SIGNATURE_MISMATCH
+        }
+        val launched = runCatching {
+            val authority = "${BuildConfig.APPLICATION_ID}.fileprovider"
+            val uri = FileProvider.getUriForFile(context, authority, apkFile)
 
-        val authority = "${BuildConfig.APPLICATION_ID}.fileprovider"
-        val uri = FileProvider.getUriForFile(context, authority, apkFile)
+            val intent = Intent(Intent.ACTION_VIEW)
+                .setDataAndType(uri, "application/vnd.android.package-archive")
+                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 
-        val intent = Intent(Intent.ACTION_VIEW)
-            .setDataAndType(uri, "application/vnd.android.package-archive")
-            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-
-        context.startActivity(intent)
-        return true
+            context.startActivity(intent)
+        }.onFailure { e ->
+            Log.e(TAG, "launchInstall startActivity failed", e)
+        }.isSuccess
+        return if (launched) LaunchGate.LAUNCH else LaunchGate.UNVERIFIABLE
     }
+    // TG-END
 
     /** SHA-256 of each signing certificate of [apkPath], or of the installed app when null. */
     @Suppress("DEPRECATION")

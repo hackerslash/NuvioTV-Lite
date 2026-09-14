@@ -1112,4 +1112,8 @@
     <string name="update_error_incomplete">Descarga incompleta, reintenta con conexión estable</string>
     <string name="update_error_no_space">Sin espacio libre suficiente para la actualización</string>
     <!-- Fork end. -->
+    <!-- TG-START: updater observability, distinct unverifiable outcome (re-apply on upstream merge) -->
+    <string name="update_error_signature_mismatch">Actualización rechazada: el archivo descargado no está firmado por el mismo desarrollador. Descarga la actualización desde los releases de este repositorio.</string>
+    <string name="update_error_unverifiable">No se pudo iniciar la actualización en este dispositivo. Reintenta o instala el APK manualmente desde los releases de este repositorio.</string>
+    <!-- TG-END -->
 </resources>
