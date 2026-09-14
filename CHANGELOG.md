@@ -1,5 +1,9 @@
 # Changelog — NuvioTV Lite Edition
 
+## v1.4.8-lite-tg.2 — 2026-09-14
+
+- OTA updater observability + robust pre-install gate: the flow logs check/download/install outcomes, and unreadable archive certificates defer to the system installer instead of a bogus signature rejection. Misleading "official release page" wording fixed (EN/ES).
+
 ## v1.4.8-lite-tg.1 — 2026-09-14
 
 - TG port of upstream `v1.4.8-lite` (incl. `v1.4.7-lite`: upstream `0.9.2-beta` sync — Play gated on playable sources, next-episode/autoplay/resume fixes, search back-stack + focus fixes, addon manifest resolution no longer stalls stream search, display-mode matching for 4:3).
