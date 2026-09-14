@@ -9,7 +9,7 @@ build itself. The in-app updater compares the release tag against the installed
 `versionName`, so tags must stay version-shaped and releases must be published as
 full releases — the updater ignores prereleases and drafts.
 
-## Unreleased
+## v1.4.8-lite — 2026-09-14
 
 ### One unreachable addon no longer stalls every stream search
 - Resolving the installed addon list fetched a manifest for every addon that had none cached and
