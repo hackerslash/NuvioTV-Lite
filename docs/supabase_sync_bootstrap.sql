@@ -32,6 +32,9 @@
 --     premium tiers); the app tolerates empty catalogs (color avatars).
 --  6. p_origin_client_id is accepted and ignored (loop prevention is
 --     client-side via signatures).
+--  7. addons/plugins keep the pre-existing upstream shape (id + user_id);
+--     pre-existing policies and push functions are preserved, unknown shapes
+--     get an owner read policy. New tables use (owner_id, profile_id) keys.
 --  7. PINs are stored with pgcrypto crypt(); no brute-force lockout
 --     (verify returns retry_after_seconds = 0).
 
@@ -364,8 +367,8 @@ begin
   delete from public.provider_credentials where owner_id = v_owner and profile_id = p_profile_id;
   delete from public.collections where owner_id = v_owner and profile_id = p_profile_id;
   delete from public.home_catalog_settings where owner_id = v_owner and profile_id = p_profile_id;
-  delete from public.addons where owner_id = v_owner and profile_id = p_profile_id;
-  delete from public.plugins where owner_id = v_owner and profile_id = p_profile_id;
+  delete from public.addons where user_id = v_owner and profile_id = p_profile_id;
+  delete from public.plugins where user_id = v_owner and profile_id = p_profile_id;
   delete from public.watch_progress where owner_id = v_owner and profile_id = p_profile_id;
   delete from public.watch_progress_events where owner_id = v_owner and profile_id = p_profile_id;
   delete from public.watched_items where owner_id = v_owner and profile_id = p_profile_id;
@@ -475,20 +478,25 @@ grant execute on function public.verify_profile_pin(int, text) to authenticated;
 -- 3. Addons / plugins (push RPC + direct owner reads)
 -- ===========================================================================
 
+-- NOTE: addons/plugins keep the pre-existing upstream shape (id + user_id),
+-- which the app's direct reads (eq user_id) and DTOs expect.
 create table if not exists public.addons (
-  owner_id uuid not null,
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null,
   profile_id int not null default 1,
   url text not null,
   name text,
   enabled boolean not null default true,
   sort_order int not null default 0,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  primary key (owner_id, profile_id, url)
+  updated_at timestamptz not null default now()
 );
+create unique index if not exists uq_addons_user_profile_url
+  on public.addons(user_id, profile_id, url);
 
 create table if not exists public.plugins (
-  owner_id uuid not null,
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null,
   profile_id int not null default 1,
   url text not null,
   name text,
@@ -496,22 +504,54 @@ create table if not exists public.plugins (
   sort_order int not null default 0,
   repo_type text,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  primary key (owner_id, profile_id, url)
+  updated_at timestamptz not null default now()
 );
+create unique index if not exists uq_plugins_user_profile_url
+  on public.plugins(user_id, profile_id, url);
 
 alter table public.addons enable row level security;
 alter table public.plugins enable row level security;
 
-drop policy if exists addons_owner_read on public.addons;
-create policy addons_owner_read on public.addons
-  for select to authenticated using (owner_id = auth.uid());
+-- Owner-read policies, adapted to whichever shape the tables have: pre-existing
+-- projects keep their own policies; fresh projects get a user_id read policy.
+do $$
+begin
+  if exists (select 1 from information_schema.columns
+             where table_schema = 'public' and table_name = 'addons' and column_name = 'owner_id')
+     and not exists (select 1 from pg_policies
+                     where schemaname = 'public' and tablename = 'addons'
+                     and policyname = 'addons_owner_read') then
+    create policy addons_owner_read on public.addons
+      for select to authenticated using (owner_id = auth.uid());
+  end if;
+  if exists (select 1 from information_schema.columns
+             where table_schema = 'public' and table_name = 'addons' and column_name = 'user_id')
+     and not exists (select 1 from pg_policies
+                     where schemaname = 'public' and tablename = 'addons'
+                     and policyname in ('addons_owner_rw', 'addons_owner_read')) then
+    create policy addons_owner_read on public.addons
+      for select to authenticated using (user_id = auth.uid());
+  end if;
+  if exists (select 1 from information_schema.columns
+             where table_schema = 'public' and table_name = 'plugins' and column_name = 'owner_id')
+     and not exists (select 1 from pg_policies
+                     where schemaname = 'public' and tablename = 'plugins'
+                     and policyname = 'plugins_owner_read') then
+    create policy plugins_owner_read on public.plugins
+      for select to authenticated using (owner_id = auth.uid());
+  end if;
+  if exists (select 1 from information_schema.columns
+             where table_schema = 'public' and table_name = 'plugins' and column_name = 'user_id')
+     and not exists (select 1 from pg_policies
+                     where schemaname = 'public' and tablename = 'plugins'
+                     and policyname in ('plugins_owner_rw', 'plugins_owner_read')) then
+    create policy plugins_owner_read on public.plugins
+      for select to authenticated using (user_id = auth.uid());
+  end if;
+end
+$$;
 
-drop policy if exists plugins_owner_read on public.plugins;
-create policy plugins_owner_read on public.plugins
-  for select to authenticated using (owner_id = auth.uid());
-
-create or replace function public.sync_push_addons(p_addons jsonb, p_profile_id int, p_origin_client_id text)
+create or replace function public.sync_push_addons(p_addons jsonb, p_profile_id int default 1, p_origin_client_id text default null)
 returns void
 language plpgsql
 security definer
@@ -525,23 +565,23 @@ begin
   if v_owner is null then raise exception 'not authenticated'; end if;
   for v_item in select * from jsonb_array_elements(coalesce(p_addons, '[]'::jsonb)) loop
     v_seen := v_seen || (v_item->>'url');
-    insert into public.addons(owner_id, profile_id, url, name, enabled, sort_order, updated_at)
+    insert into public.addons(user_id, profile_id, url, name, enabled, sort_order, updated_at)
     values (
       v_owner, p_profile_id, v_item->>'url', v_item->>'name',
       coalesce((v_item->>'enabled')::boolean, true),
       coalesce((v_item->>'sort_order')::int, 0), now()
     )
-    on conflict (owner_id, profile_id, url) do update set
+    on conflict (user_id, profile_id, url) do update set
       name = excluded.name, enabled = excluded.enabled,
       sort_order = excluded.sort_order, updated_at = now();
   end loop;
   delete from public.addons
-  where owner_id = v_owner and profile_id = p_profile_id and url <> all (v_seen);
+  where user_id = v_owner and profile_id = p_profile_id and url <> all (v_seen);
 end;
 $$;
 grant execute on function public.sync_push_addons(jsonb, int, text) to authenticated;
 
-create or replace function public.sync_push_plugins(p_plugins jsonb, p_profile_id int, p_origin_client_id text)
+create or replace function public.sync_push_plugins(p_plugins jsonb, p_profile_id int default 1, p_origin_client_id text default null)
 returns void
 language plpgsql
 security definer
@@ -555,19 +595,19 @@ begin
   if v_owner is null then raise exception 'not authenticated'; end if;
   for v_item in select * from jsonb_array_elements(coalesce(p_plugins, '[]'::jsonb)) loop
     v_seen := v_seen || (v_item->>'url');
-    insert into public.plugins(owner_id, profile_id, url, name, enabled, sort_order, repo_type, updated_at)
+    insert into public.plugins(user_id, profile_id, url, name, enabled, sort_order, repo_type, updated_at)
     values (
       v_owner, p_profile_id, v_item->>'url', v_item->>'name',
       coalesce((v_item->>'enabled')::boolean, true),
       coalesce((v_item->>'sort_order')::int, 0),
       v_item->>'repo_type', now()
     )
-    on conflict (owner_id, profile_id, url) do update set
+    on conflict (user_id, profile_id, url) do update set
       name = excluded.name, enabled = excluded.enabled,
       sort_order = excluded.sort_order, repo_type = excluded.repo_type, updated_at = now();
   end loop;
   delete from public.plugins
-  where owner_id = v_owner and profile_id = p_profile_id and url <> all (v_seen);
+  where user_id = v_owner and profile_id = p_profile_id and url <> all (v_seen);
 end;
 $$;
 grant execute on function public.sync_push_plugins(jsonb, int, text) to authenticated;
@@ -1344,11 +1384,11 @@ declare
 begin
   if v_owner is null then raise exception 'not authenticated'; end if;
   for r in select profile_id, count(*) as c from public.addons
-           where owner_id = v_owner group by profile_id loop
+           where user_id = v_owner group by profile_id loop
     v_addons := v_addons || jsonb_build_object(r.profile_id::text, r.c);
   end loop;
   for r in select profile_id, count(*) as c from public.plugins
-           where owner_id = v_owner group by profile_id loop
+           where user_id = v_owner group by profile_id loop
     v_plugins := v_plugins || jsonb_build_object(r.profile_id::text, r.c);
   end loop;
   for r in select profile_id, count(*) as c from public.library_items
