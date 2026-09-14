@@ -64,14 +64,13 @@ AGENTS.md
 docs/
 !docs/
 docs/*
-<<<<<<< HEAD
 !docs/telegram-requirements.md
 !docs/telegram-release-strategy.md
-graphify-out/
-=======
 !docs/gh-pages-link/
 !docs/gh-pages-link/index.html
 !docs/gh-pages-link/README.md
->>>>>>> origin/dev
+!docs/supabase_qr_rpc_bootstrap.sql
+!docs/supabase_sync_bootstrap.sql
+graphify-out/
 status-page/
 EMULATOR_SETUP.local.md
