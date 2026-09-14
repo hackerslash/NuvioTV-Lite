@@ -20,7 +20,10 @@ internal data class PlaybackAvailability(
     val addons: List<Addon> = emptyList(),
     val scrapers: List<ScraperInfo> = emptyList(),
     val isLoaded: Boolean = false,
-    private val cachedMeta: (String, String) -> Meta? = { _, _ -> null }
+    private val cachedMeta: (String, String) -> Meta? = { _, _ -> null },
+    // TG-START: linked Telegram account serves movies/series (re-apply on upstream merge)
+    val telegramCanServe: Boolean = false,
+    // TG-END
 ) {
     fun canStream(
         type: String,
@@ -30,5 +33,8 @@ internal data class PlaybackAvailability(
     ): Boolean = video?.takeIf { it.id == videoId }?.streams?.isNotEmpty() == true ||
         cachedMeta(type, contentId)?.videos?.any { it.id == videoId && it.streams.isNotEmpty() } == true ||
         addons.any { it.enabled && it.supportsStreamResource(type, videoId) } ||
-        scrapers.any { it.enabled && it.supportsType(type) }
+        scrapers.any { it.enabled && it.supportsType(type) } ||
+        // TG-START: linked Telegram account serves movies/series (re-apply on upstream merge)
+        (telegramCanServe && (type == "movie" || type == "series"))
+        // TG-END
 }
