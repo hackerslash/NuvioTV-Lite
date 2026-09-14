@@ -2348,6 +2348,9 @@
     <string name="update_error_incomplete">Download incomplete, please retry with a stable connection</string>
     <string name="update_error_no_space">Not enough free storage for the update</string>
     <!-- Fork end. -->
+    <!-- TG-START: updater observability, distinct unverifiable outcome (re-apply on upstream merge) -->
+    <string name="update_error_unverifiable">Update couldn\'t be started on this device. Please retry, or install the APK manually from this repository\'s releases.</string>
+    <!-- TG-END -->
     <string name="update_error_apk_missing">Downloaded file is missing</string>
 
     <!-- Profile PIN errors -->
@@ -3251,5 +3254,5 @@
     <string name="stream_test_error_connection">Connection failed. The last played stream link may have expired or is unreachable. Please play the video again and retry.</string>
 
     <string name="trakt_unlicensed">Trakt is not available yet because the maintainer does not have a Trakt API key. Until then you can sync your Trakt data into Nuvio with the Sync Bridge at nuvio.wiki/tools#sync-bridge.</string>
-    <string name="update_error_signature_mismatch">Update rejected: the downloaded file is not signed by the same developer as the installed app. Get the update from the official release page.</string>
+    <string name="update_error_signature_mismatch">Update rejected: the downloaded file is not signed by the same developer as the installed app. Get the update from this repository\'s releases.</string>
 </resources>
