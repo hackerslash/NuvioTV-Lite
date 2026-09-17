@@ -1,5 +1,8 @@
 package com.nuvio.tv.ui.util
 
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextDirection
 
 /**
@@ -25,3 +28,11 @@ fun String.contentTextDirection(): TextDirection {
 
 /** True if the string's own content direction (see [contentTextDirection]) is RTL. */
 fun String.isContentRtl(): Boolean = contentTextDirection() == TextDirection.Rtl
+
+/**
+ * [contentTextDirection] applied to this style. Remembered because a `copy` allocates a new
+ * `SpanStyle` and `ParagraphStyle`, and list cards recompose on every focus move.
+ */
+@Composable
+fun TextStyle.directedFor(text: String): TextStyle =
+    remember(this, text) { copy(textDirection = text.contentTextDirection()) }

@@ -2,7 +2,6 @@ package com.nuvio.tv.data.repository
 
 import android.util.Log
 import com.nuvio.tv.core.util.lruCacheMap
-import java.util.concurrent.ConcurrentHashMap
 import com.nuvio.tv.data.simkl.SimklApiConfiguration
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -49,7 +48,7 @@ class SimklIdResolver @Inject constructor(
 
     private val idsCache = lruCacheMap<String, ResolvedIds>(48)
     private val episodeCache = lruCacheMap<Long, List<EpisodeMapping>>(48)
-    private val animeSeasonCache = ConcurrentHashMap<String, List<AnimeSeasonEntry>>()
+    private val animeSeasonCache = lruCacheMap<String, List<AnimeSeasonEntry>>(48)
 
     // followRedirects is the only thing the redirect probe changes, and a derived client shares the
     // pool and dispatcher, so build it once instead of per lookup.

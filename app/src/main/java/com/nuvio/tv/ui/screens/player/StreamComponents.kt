@@ -59,7 +59,7 @@ import com.nuvio.tv.ui.components.SourceChipStatus
 import com.nuvio.tv.ui.components.SourceStatusFilterChip
 import com.nuvio.tv.ui.components.StreamBadgeChips
 import com.nuvio.tv.ui.theme.NuvioTheme
-import com.nuvio.tv.ui.util.contentTextDirection
+import com.nuvio.tv.ui.util.directedFor
 import androidx.compose.ui.res.stringResource
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.withFrameNanos
@@ -162,9 +162,7 @@ internal fun StreamItem(
                 ) {
                     Text(
                         text = streamName,
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            textDirection = streamName.contentTextDirection()
-                        ),
+                        style = MaterialTheme.typography.titleMedium.directedFor(streamName),
                         color = NuvioTheme.colors.TextPrimary
                     )
 
@@ -188,9 +186,7 @@ internal fun StreamItem(
                     if (description != streamName) {
                         Text(
                             text = description,
-                            style = MaterialTheme.typography.bodySmall.copy(
-                                textDirection = description.contentTextDirection()
-                            ),
+                            style = MaterialTheme.typography.bodySmall.directedFor(description),
                             color = NuvioTheme.extendedColors.textSecondary
                         )
                     }
@@ -225,9 +221,7 @@ internal fun StreamItem(
 
                     Text(
                         text = stream.addonName,
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            textDirection = stream.addonName.contentTextDirection()
-                        ),
+                        style = MaterialTheme.typography.labelSmall.directedFor(stream.addonName),
                         color = NuvioTheme.extendedColors.textTertiary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis

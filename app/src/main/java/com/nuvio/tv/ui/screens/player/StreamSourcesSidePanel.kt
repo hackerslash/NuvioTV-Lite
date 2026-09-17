@@ -347,14 +347,15 @@ internal fun StreamSourcesSidePanel(
 
                     val lastKeyRepeatDispatchRef = remember { java.util.concurrent.atomic.AtomicLong(0L) }
 
-                    val lastVisibleIndex = remember(streamListState) {
-                        androidx.compose.runtime.derivedStateOf {
+                    // Read through snapshotFlow, not in composition: observing the last visible
+                    // index here would recompose this panel — over live playback — on every row
+                    // the focus moves through.
+                    val pageSize = uiState.sourceFilteredStreams.size
+                    LaunchedEffect(streamListState, pageSize) {
+                        androidx.compose.runtime.snapshotFlow {
                             streamListState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
-                        }
-                    }
-                    LaunchedEffect(lastVisibleIndex.value, uiState.sourceFilteredStreams.size) {
-                        if (lastVisibleIndex.value >= uiState.sourceFilteredStreams.size - 20) {
-                            onExpandStreams()
+                        }.collect { lastVisibleIndex ->
+                            if (lastVisibleIndex >= pageSize - 20) onExpandStreams()
                         }
                     }
 
