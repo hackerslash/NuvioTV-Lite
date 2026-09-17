@@ -1,5 +1,11 @@
 # Changelog — NuvioTV Lite Edition
 
+## v1.4.9-lite-tg.1 — 2026-09-17
+
+- TG port of upstream `v1.4.9-lite` (upstream `0.9.4-beta` sync: movie skip segments — end credits/post-credits detection, subtitle long-press off, subtitle credential hygiene on reload, MPV episode-switch progress fix, stream-list recomposition perf + pagination, ffmpeg downmix native, Matroska/dvmkv updates, localizations).
+- TG windowed streaming (PR#22): single TDLib cursor per fileId (single-flight), thin-reader DataSource with bounded 30s stalls into Exo retries, no watchdog auto-seek on TG, honest TG progress overlay, space brake/temp rotation/session pinning, one-tap TG cache clear. Fixes seek spinner, re-entry stalls and /data fill on low-storage boxes.
+- Stream list keeps TG ordering on top of upstream pagination. Installs as `com.nuvio.tv.lite`, `versionCode` 10024.
+
 ## v1.4.8-lite-tg.5 — 2026-09-14
 
 - Nuvio backend config fixed: builds accept both SUPABASE key spellings, warn at build time when blank, and QR login fails with a clear message instead of a malformed URL. (Requires backend setup below: CI secret + TV-login SQL + RLS.)
@@ -54,6 +60,53 @@ Release tags are `v<versionName>` (e.g. `v1.0.0-lite`) and are derived from the
 build itself. The in-app updater compares the release tag against the installed
 `versionName`, so tags must stay version-shaped and releases must be published as
 full releases — the updater ignores prereleases and drafts.
+
+## v1.4.9-lite — 2026-09-17
+
+### Synced with upstream NuvioTV (0.9.4-beta)
+- [upstream] Movies now get skip segments: IntroDB end credits and post-credits scenes are
+  detected, skipping the credits stops short of a post-credits scene instead of swallowing it,
+  and post-play recommendations fire from the credits rather than a fixed percentage of the
+  runtime. The segments are forwarded to external players too. @YLaskco @skoruppa
+- [upstream] Long-pressing the selected subtitle track turns subtitles off. @Ramon
+- [upstream] Subtitle requests no longer carry stream credentials off the stream's host: Referer
+  and Origin are dropped on an HTTPS-to-HTTP downgrade, and only a small allowlist survives a hop
+  to a different host. Reloading media routes its subtitles through the same download path.
+  @ieno
+- [upstream] Switching episodes under MPV no longer saves the new position against the previous
+  episode. @ieno
+- [upstream] MKV playback follows nested SeekHeads so ExoPlayer can seek in more files, and a
+  truncated tail is treated as end of input instead of an error. @halibiram
+- [upstream] FFmpeg downmix distortion and unbounded buffer growth fixed. @kernexshadow
+- [upstream] Rotten Tomatoes ratings show certified-fresh / rotten and verified-hot / stale
+  icons. @tapframe
+- [upstream] Addon results render a page at a time instead of all at once, TMDB collection
+  ordering is fixed, and continue-watching progress uses the theme accent.
+  @skoruppa @tapframe
+- [upstream] Anime identification reworked: TVDB resolves Simkl anime IDs, the AniSkip episode
+  number is mapped per anime season, anime IDs are only preferred for content that actually has
+  them, and IntroDB keeps priority over AniSkip. AniSkip can also be switched off.
+  @skoruppa @YLaskco
+- [upstream] The unaired next-episode card is hidden while post-play recommendations are showing,
+  grid focus no longer snaps back after "See all", and search no longer reopens the keyboard on
+  back. @skoruppa @YLaskco @haveAnIssue
+- [upstream] Text direction and emoji handling corrected in more places. @haveAnIssue
+- [upstream] CloudStream extensions keep working under R8. @halibiram
+- [upstream] Turkish, Spanish, Spanish (LatAm), Polish, Dutch and Slovak translations updated.
+  @halibiram @IberianSoldierPC @Omavel @skoruppa @Scheperr @mmsw @blueocean2308
+
+### Stream lists stop recomposing on every focus move
+- The pagination upstream added reads the last visible row index from inside the list composable,
+  so the entire stream list re-ran each time focus stepped to the next row — on the player's
+  source panel that happens over live video. The index is now observed outside composition, so
+  scrolling triggers the next page without recomposing anything. The per-row text-direction
+  styles upstream added to both stream lists are cached as well; they were allocating a fresh
+  `TextStyle`, `SpanStyle` and `ParagraphStyle` per card on every recomposition.
+
+### Simkl's new per-season cache is bounded
+- The anime-season lookup upstream added caches every parent entry it resolves in a map that is
+  never trimmed, alongside the ID and episode caches this edition already bounds. It is now the
+  same bounded LRU map, so a long anime session cannot grow it without limit.
 
 ## v1.4.8-lite — 2026-09-14
 

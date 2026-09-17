@@ -73,6 +73,7 @@ private const val DIRECT_AUTOPLAY_HARD_TIMEOUT_MS = 60_000L
 // TG-START: preferred-resume cache TTL (re-apply on upstream merge)
 private const val PREFERRED_STREAM_CACHE_FALLBACK_MS = 30L * 24L * 60L * 60L * 1000L
 // TG-END
+private const val STREAM_FILTER_PAGE_SIZE = 100
 
 @HiltViewModel
 class StreamScreenViewModel @Inject constructor(
@@ -109,6 +110,8 @@ class StreamScreenViewModel @Inject constructor(
     private var sourceChipErrorDismissJob: Job? = null
     private var pendingCacheSaveJob: Job? = null
     private var streamBadgePresentationJob: Job? = null
+    private var streamFilterExpandJob: Job? = null
+    private var streamFilterFullList: List<Stream> = emptyList()
     private var streamBadgePresentationRequestId = 0L
     private var badgedAddonNames: Set<String> = emptySet()
     private var playbackMetaVideos: List<Video>? = null
@@ -255,15 +258,19 @@ class StreamScreenViewModel @Inject constructor(
                         )
                         // TG-END
                         val currentFilter = state.selectedAddonFilter
-                        val filteredStreams = if (currentFilter == null) {
+                        val fullFiltered = if (currentFilter == null) {
                             updatedAllStreams
                         } else {
                             updatedAllStreams.filter { it.addonName == currentFilter }
                         }
+                        streamFilterFullList = fullFiltered
+                        val pageEnd = state.filteredStreams.size.coerceAtMost(fullFiltered.size)
+                            .coerceAtLeast(STREAM_FILTER_PAGE_SIZE.coerceAtMost(fullFiltered.size))
                         state.copy(
                             addonStreams = updatedAddonStreams,
                             allStreams = updatedAllStreams,
-                            filteredStreams = filteredStreams
+                            filteredStreams = if (pageEnd >= fullFiltered.size) fullFiltered
+                                else fullFiltered.subList(0, pageEnd)
                         )
                     }
                 }
@@ -600,13 +607,19 @@ class StreamScreenViewModel @Inject constructor(
                 }
 
                 val currentFilter = _uiState.value.selectedAddonFilter
-                // TG-START: filter TG-ordered streams (else allStreams; re-apply on upstream merge)
-                val filteredStreams = if (currentFilter == null) {
+                // TG-START: filter TG-ordered streams, then upstream pagination (re-apply on upstream merge)
+                val fullFiltered = if (currentFilter == null) {
                     orderedStreams
                 } else {
                     orderedStreams.filter { it.addonName == currentFilter }
                 }
                 // TG-END
+                streamFilterFullList = fullFiltered
+                val paginatedStreams = if (fullFiltered.size > STREAM_FILTER_PAGE_SIZE) {
+                    fullFiltered.subList(0, STREAM_FILTER_PAGE_SIZE)
+                } else {
+                    fullFiltered
+                }
 
                 updateUiStateIfChanged {
                     it.copy(
@@ -615,7 +628,7 @@ class StreamScreenViewModel @Inject constructor(
                         // TG-START: expose TG-ordered streams (else allStreams; re-apply on upstream merge)
                         allStreams = orderedStreams,
                         // TG-END
-                        filteredStreams = filteredStreams,
+                        filteredStreams = paginatedStreams,
                         availableAddons = availableAddons,
                         sourceChips = mergeSourceChipStatuses(
                             existing = _uiState.value.sourceChips,
@@ -709,19 +722,23 @@ class StreamScreenViewModel @Inject constructor(
                                 )
                                 // TG-END
                                 val currentFilter = state.selectedAddonFilter
-                                // TG-START: filter TG-ordered streams (else updatedAllStreams; re-apply on upstream merge)
-                                val filteredStreams = if (currentFilter == null) {
+                                // TG-START: filter TG-ordered streams, then upstream pagination (re-apply on upstream merge)
+                                val fullFiltered = if (currentFilter == null) {
                                     orderedStreams
                                 } else {
                                     orderedStreams.filter { it.addonName == currentFilter }
                                 }
                                 // TG-END
+                                streamFilterFullList = fullFiltered
+                                val pageEnd = state.filteredStreams.size.coerceAtMost(fullFiltered.size)
+                                    .coerceAtLeast(STREAM_FILTER_PAGE_SIZE.coerceAtMost(fullFiltered.size))
                                 state.copy(
                                     addonStreams = updatedGroups,
                                     // TG-START: expose TG-ordered streams (else updatedAllStreams; re-apply on upstream merge)
                                     allStreams = orderedStreams,
                                     // TG-END
-                                    filteredStreams = filteredStreams
+                                    filteredStreams = if (pageEnd >= fullFiltered.size) fullFiltered
+                                        else fullFiltered.subList(0, pageEnd)
                                 )
                             }
                         }
@@ -1203,20 +1220,36 @@ class StreamScreenViewModel @Inject constructor(
     }
 
     private fun filterByAddon(addonName: String?) {
+        streamFilterExpandJob?.cancel()
         updateUiStateIfChanged { state ->
             if (state.selectedAddonFilter == addonName) {
-                state
-            } else {
-                val filteredStreams = if (addonName == null) {
-                    state.allStreams
-                } else {
-                    state.allStreams.filter { it.addonName == addonName }
-                }
-                state.copy(
-                    selectedAddonFilter = addonName,
-                    filteredStreams = filteredStreams
-                )
+                return@updateUiStateIfChanged state
             }
+            val fullFiltered = if (addonName == null) {
+                state.allStreams
+            } else {
+                state.allStreams.filter { it.addonName == addonName }
+            }
+            streamFilterFullList = fullFiltered
+            val paginatedStreams = if (fullFiltered.size > STREAM_FILTER_PAGE_SIZE) {
+                fullFiltered.subList(0, STREAM_FILTER_PAGE_SIZE)
+            } else {
+                fullFiltered
+            }
+            state.copy(
+                selectedAddonFilter = addonName,
+                filteredStreams = paginatedStreams
+            )
+        }
+    }
+
+    fun expandFilteredStreamsIfNeeded() {
+        val current = _uiState.value.filteredStreams
+        val full = streamFilterFullList
+        if (current.size >= full.size) return
+        val nextEnd = (current.size + STREAM_FILTER_PAGE_SIZE).coerceAtMost(full.size)
+        updateUiStateIfChanged {
+            it.copy(filteredStreams = full.subList(0, nextEnd))
         }
     }
 

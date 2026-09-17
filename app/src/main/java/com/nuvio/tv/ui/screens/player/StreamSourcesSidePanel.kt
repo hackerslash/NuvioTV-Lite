@@ -66,6 +66,7 @@ internal fun StreamSourcesSidePanel(
     onReload: () -> Unit,
     onAddonFilterSelected: (String?) -> Unit,
     onStreamSelected: (Stream) -> Unit,
+    onExpandStreams: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val isRtl = androidx.compose.ui.platform.LocalLayoutDirection.current == androidx.compose.ui.unit.LayoutDirection.Rtl
@@ -345,6 +346,18 @@ internal fun StreamSourcesSidePanel(
                     )
 
                     val lastKeyRepeatDispatchRef = remember { java.util.concurrent.atomic.AtomicLong(0L) }
+
+                    // Read through snapshotFlow, not in composition: observing the last visible
+                    // index here would recompose this panel — over live playback — on every row
+                    // the focus moves through.
+                    val pageSize = uiState.sourceFilteredStreams.size
+                    LaunchedEffect(streamListState, pageSize) {
+                        androidx.compose.runtime.snapshotFlow {
+                            streamListState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+                        }.collect { lastVisibleIndex ->
+                            if (lastVisibleIndex >= pageSize - 20) onExpandStreams()
+                        }
+                    }
 
                     LazyColumn(
                         state = streamListState,

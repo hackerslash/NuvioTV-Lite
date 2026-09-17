@@ -124,8 +124,8 @@ android {
         applicationId = "com.nuvio.tv"
         minSdk = 24
         targetSdk = 36
-        versionCode = 1058
-        versionName = "0.9.2-beta"
+        versionCode = 1060
+        versionName = "0.9.4-beta"
 
         buildConfigField("String", "PARENTAL_GUIDE_API_URL", "\"${localProperties.getProperty("PARENTAL_GUIDE_API_URL", "")}\"")
         buildConfigField("String", "INTRODB_API_URL", "\"${localProperties.getProperty("INTRODB_API_URL", "")}\"")
@@ -206,14 +206,14 @@ android {
             // Android's installer requires a higher versionCode to update, not just a
             // higher versionName. Bump by 1 per release.
             // TG-START: own-fork release identity (re-apply on upstream merge)
-            versionCode = 10023
-            versionName = "1.4.8"
+            versionCode = 10024
+            versionName = "1.4.9"
             // TG iteration suffix: the trailing .N must be bumped with every
             // -tg.N release (same commit as versionCode), otherwise the OTA
             // comparator cannot tell an installed build from its own tag and
             // re-offers it as an update. Installed versionName carries the N,
-            // release tags carry it too (v1.4.8-lite-tg.N).
-            versionNameSuffix = "-lite-tg.5"
+            // release tags carry it too (v1.4.9-lite-tg.N).
+            versionNameSuffix = "-lite-tg.1"
             // TG-END
             buildConfigField("boolean", "FEATURE_IN_APP_UPDATES_ENABLED", "true")
             buildConfigField("boolean", "FEATURE_EXTERNAL_TRAILERS_ENABLED", "false")
