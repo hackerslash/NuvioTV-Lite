@@ -1116,4 +1116,13 @@
     <string name="update_error_signature_mismatch">Actualización rechazada: el archivo descargado no está firmado por el mismo desarrollador. Descarga la actualización desde los releases de este repositorio.</string>
     <string name="update_error_unverifiable">No se pudo iniciar la actualización en este dispositivo. Reintenta o instala el APK manualmente desde los releases de este repositorio.</string>
     <!-- TG-END -->
+    <!-- TG-START: windowed TG progress (re-apply on upstream merge) -->
+    <string name="tg_downloading_progress">Descargando de Telegram… %1$d/%2$d MB · %3$d KB/s</string>
+    <string name="tg_paused_low_space">Poco espacio: descarga en pausa. Libera espacio o usa «Liberar caché».</string>
+    <string name="telegram_cache_group_title">Caché de descargas</string>
+    <string name="telegram_cache_measuring">Midiendo…</string>
+    <string name="telegram_cache_size_mb">Caché: %1$d MB</string>
+    <string name="telegram_cache_freed_mb">liberados %1$d MB</string>
+    <string name="telegram_cache_clear_action">Liberar caché</string>
+    <!-- TG-END -->
 </resources>

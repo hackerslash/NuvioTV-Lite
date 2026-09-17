@@ -343,6 +343,9 @@ class PlayerRuntimeController(
     internal var vodTelemetryJob: Job? = null
     internal var firstFrameWatchdogJob: Job? = null
     internal var stallWatchdogJob: Job? = null
+    // TG-START: TG progress reporter for windowed playback (re-apply on upstream merge)
+    internal var tgProgressJob: Job? = null
+    // TG-END
     internal var hideControlsJob: Job? = null
     internal var hideSeekOverlayJob: Job? = null
     internal var watchProgressSaveJob: Job? = null

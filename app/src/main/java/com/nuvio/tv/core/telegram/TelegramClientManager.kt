@@ -193,6 +193,9 @@ class TelegramClientManager @Inject constructor(
     private fun handleUpdate(update: TdApi.Object) {
         when (update) {
             is TdApi.UpdateAuthorizationState -> handleAuthState(update.authorizationState)
+            // TG-START: UpdateFile push for TgDownloadSessionManager (re-apply on upstream merge)
+            is TdApi.UpdateFile -> notifyFileUpdateListeners(update.file)
+            // TG-END
             is TdApi.Error -> {
                 val state = _authState.value
                 if (state !is TelegramAuthState.Ready && state !is TelegramAuthState.Idle) {
@@ -201,6 +204,27 @@ class TelegramClientManager @Inject constructor(
             }
         }
     }
+
+    // TG-START: UpdateFile push for TgDownloadSessionManager (re-apply on upstream merge)
+    private val fileUpdateListeners =
+        java.util.concurrent.CopyOnWriteArraySet<(TdApi.File) -> Unit>()
+
+    /** Progress push: single-flight session manager consumes file updates. */
+    fun addFileUpdateListener(listener: (TdApi.File) -> Unit) {
+        fileUpdateListeners.add(listener)
+    }
+
+    fun removeFileUpdateListener(listener: (TdApi.File) -> Unit) {
+        fileUpdateListeners.remove(listener)
+    }
+
+    private fun notifyFileUpdateListeners(file: TdApi.File) {
+        if (fileUpdateListeners.isEmpty()) return
+        fileUpdateListeners.forEach { listener ->
+            runCatching { listener(file) }
+        }
+    }
+    // TG-END
 
     private fun handleAuthState(state: TdApi.AuthorizationState) {
         Log.d(TAG, "authState -> ${state::class.simpleName}")

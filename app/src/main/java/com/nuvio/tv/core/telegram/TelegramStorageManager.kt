@@ -26,6 +26,43 @@ class TelegramStorageManager @Inject constructor(
     @Volatile
     private var lastTrimMs: Long = 0L
 
+    // TG-START: active-session pinning for windowed playback (re-apply on upstream merge)
+    private val pinnedPaths = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+
+    /** Pin a file so trim/eviction never deletes it while a session is alive. */
+    fun pin(absolutePath: String) {
+        pinnedPaths.add(File(absolutePath).absolutePath)
+    }
+
+    fun unpin(absolutePath: String) {
+        pinnedPaths.remove(File(absolutePath).absolutePath)
+    }
+
+    /**
+     * Delete everything except [keepPaths] (+ internally pinned). Returns
+     * freed bytes. Used by "Liberar caché TG" and the low-space gate.
+     */
+    fun evictAllExcept(keepPaths: Set<String>): Long {
+        val dir = File(context.filesDir, TG_FILES_DIR)
+        if (!dir.exists()) return 0L
+        val keepAbs = (keepPaths + pinnedPaths).map { File(it).absolutePath }.toSet()
+        var freed = 0L
+        dir.walkTopDown().filter { it.isFile }.forEach { f ->
+            if (f.absolutePath !in keepAbs) {
+                val len = f.length().coerceAtLeast(0L)
+                if (f.delete()) {
+                    freed += len
+                    cleanupEmptyParents(f, dir)
+                }
+            }
+        }
+        if (freed > 0L) {
+            Log.i(TAG, "EVICT freed=${freed / 1048576}MB kept=${keepAbs.size}")
+        }
+        return freed
+    }
+    // TG-END
+
     data class TrimResult(
         val scannedBytes: Long,
         val deletedBytes: Long,
@@ -77,6 +114,9 @@ class TelegramStorageManager @Inject constructor(
         val protectedAbs = protectedPath?.let { File(it).absolutePath }
         val candidates = files
             .asSequence()
+            // TG-START: never trim pinned session files (re-apply on upstream merge)
+            .filterNot { f -> f.absolutePath in pinnedPaths }
+            // TG-END
             .filterNot { f -> protectedAbs != null && f.absolutePath == protectedAbs }
             .sortedBy { it.lastModified() }
             .toList()
@@ -117,8 +157,19 @@ class TelegramStorageManager @Inject constructor(
         )
     }
 
-    fun clearAllDownloads(): Long {
+    // TG-START: cache size readout for settings UI (re-apply on upstream merge)
+    /** Total MB in the TDLib download dir (UI readout). */
+    fun downloadsSizeMb(): Long {
         val dir = File(context.filesDir, TG_FILES_DIR)
+        if (!dir.exists()) return 0L
+        val total = runCatching {
+            dir.walkTopDown().filter { it.isFile }.sumOf { it.length().coerceAtLeast(0L) }
+        }.getOrDefault(0L)
+        return total / 1048576L
+    }
+    // TG-END
+
+    fun clearAllDownloads(): Long {        val dir = File(context.filesDir, TG_FILES_DIR)
         if (!dir.exists()) return 0L
         val total = dir.walkTopDown().filter { it.isFile }.sumOf { it.length().coerceAtLeast(0L) }
         runCatching {
