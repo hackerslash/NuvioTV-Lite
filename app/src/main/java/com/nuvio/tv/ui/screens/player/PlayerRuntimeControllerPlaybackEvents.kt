@@ -54,13 +54,19 @@ internal fun PlayerRuntimeController.skipActiveInterval(): Boolean {
 }
 
 internal fun PlayerRuntimeController.skipInterval(interval: SkipInterval): Boolean {
+    if (interval.type == "post-credits") return false
     val duration = currentPlaybackDurationMs().takeIf { it > 0 } ?: Long.MAX_VALUE
-    val seekMs = if (interval.endTime == Double.MAX_VALUE) {
+    val postCredits = interval.followingPostCreditsScene(skipIntervals, currentPlaybackDurationMs())
+    val targetTime = postCredits?.startTime ?: interval.endTime
+    val seekMs = if (targetTime == Double.MAX_VALUE) {
         duration
     } else {
-        (interval.endTime * 1000).toLong()
+        (targetTime * 1000).toLong()
     }
-    seekPlaybackTo(seekMs.coerceAtMost(duration), SeekParameters.NEXT_SYNC)
+    val seekParameters = if (postCredits != null || interval.type == "movie-credits") {
+        SeekParameters.EXACT
+    } else SeekParameters.NEXT_SYNC
+    seekPlaybackTo(seekMs.coerceAtMost(duration), seekParameters)
     scheduleProgressSyncAfterSeek()
     _uiState.update { it.copy(activeSkipInterval = null, skipIntervalDismissed = true) }
     return true
@@ -194,7 +200,8 @@ internal fun PlayerRuntimeController.startProgressUpdates() {
                     val cacheBuffering = view.isPausedForCacheNow() || view.isCoreIdleNow()
                     var firstFrameReady = hasRenderedFirstFrame
                         if (!firstFrameReady) {
-                            firstFrameReady = pos > 0L || (playingNow && !cacheBuffering && playerDuration > 0L)
+                            firstFrameReady = view.isPositionFromRequestedMedia() &&
+                                (pos > 0L || (playingNow && !cacheBuffering && playerDuration > 0L))
                             if (firstFrameReady) {
                                 hasRenderedFirstFrame = true
                                 val clickToFirstFrameMs = launchStartedAtElapsedMs
