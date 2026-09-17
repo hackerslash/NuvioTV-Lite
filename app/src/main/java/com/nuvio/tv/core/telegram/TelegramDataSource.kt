@@ -16,69 +16,26 @@ import java.io.IOException
 import java.io.InterruptedIOException
 import java.io.RandomAccessFile
 import java.util.Locale
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
-import org.drinkless.tdlib.TdApi
 
 /**
- * Custom ExoPlayer [DataSource] that reads Telegram files directly from TDLib's
- * temp files via [RandomAccessFile]. No HTTP proxy involved.
+ * Lector fino sobre [TgDownloadSessionManager] (ventana disciplinada).
  *
- * Pattern inspired by Nagram's [FileStreamLoadOperation]:
- * - Blocking wait in read() when data isn't on disk yet
- * - Seek-aware DownloadFile reissue (linear + seek window)
- * - Single reader per stream
- * - TDLib manages download progress; we just read from disk
+ * - open()/read()/close() NUNCA emiten DownloadFile: el cursor lo posee la
+ *   sesión (una emisión por motivo, single-flight). El doble open del
+ *   extractor, los seeks y las re-entradas solo leen o esperan.
+ * - Solo se lee dentro de bytes verificados (prefijo push o sonda
+ *   GetFileDownloadedPrefixSize); fuera del prefijo TDLib deja basura.
+ * - Stall acotado (30s) → TgStallTimeoutException → reintentos Exo +
+ *   auto-rebuild con posición. Nunca spinner infinito.
  */
 @UnstableApi
 class TelegramDataSource private constructor(
-    private val clientManager: TelegramClientManager,
-    private val storageManager: TelegramStorageManager
+    private val sessionManager: TgDownloadSessionManager
 ) : DataSource {
 
     companion object {
         private const val TAG = "TgDataSource"
-        private const val DOWNLOAD_PRIORITY = 32
-        private const val POLL_DATA_MS = 100L
-        private const val READ_TIMEOUT_MS = 240_000L
-        private const val FILE_APPEAR_TIMEOUT_MS = 15_000L
-        private const val INFO_CACHE_TTL_MS = 120_000L
-        private const val SEEK_GAP_TRIGGER_BYTES = 64L * 1024L * 1024L
-        private const val LINEAR_WINDOW_BYTES = 192L * 1024L * 1024L
-        private const val SEEK_WINDOW_BYTES = 96L * 1024L * 1024L
-        private const val DOWNLOAD_REISSUE_COOLDOWN_MS = 2_500L
-        private const val DOWNLOAD_REISSUE_MIN_DELTA_BYTES = 8L * 1024L * 1024L
-        private const val SEEK_EXIT_HYSTERESIS_BYTES = 32L * 1024L * 1024L
-        private const val SEEK_LOCK_MS = 3_000L
-        private const val DOWNLOAD_STATE_TTL_MS = 20L * 60L * 1000L
-        private const val COMPLETION_CHECK_INTERVAL_MS = 1_000L
-        private const val PATH_REFRESH_INTERVAL_MS = 2_000L
-        private const val RANGE_CHECK_INTERVAL_MS = 250L
-        private const val MIN_FREE_BYTES_SOFT = 700L * 1024L * 1024L
-        private const val CANCEL_COOLDOWN_MS = 10_000L
-
-        private data class FileInfo(val totalSize: Long, val localPath: String?, val ts: Long)
-        private val fileInfoCache = ConcurrentHashMap<Int, FileInfo>()
-
-        private enum class DownloadMode { LINEAR, SEEK }
-
-        private data class DownloadState(
-            var mode: DownloadMode,
-            var offset: Long,
-            var limit: Long,
-            var lastIssueMs: Long,
-            var reissueCount: Int,
-            var active: Boolean,
-            var updatedAtMs: Long
-        )
-
-        private val downloadStateByFileId = ConcurrentHashMap<Int, DownloadState>()
         private val streamSeq = AtomicLong(1L)
     }
 
@@ -87,22 +44,17 @@ class TelegramDataSource private constructor(
     private var position: Long = 0
     private var bytesRemaining: Long = 0
     private var closed = false
+    private var readerRegistered = false
     private var raf: RandomAccessFile? = null
-    private var currentFile: File? = null
+    private var currentPath: String? = null
+    private var lastEpoch: Long = -1L
 
     private var lastLogMs: Long = 0
     private var lastLogBytes: Long = 0
-    private var lastCompletionCheckMs: Long = 0
-    private var downloadCompletedCache: Boolean = false
-    private var lastPathRefreshMs: Long = 0
-    private var lastRangeCheckMs: Long = 0
-    private var downloadedRangeStart: Long = 0
-    private var downloadedRangeEndExclusive: Long = 0
-    private var downloadActiveCache: Boolean = false
-    private val streamSessionId: Long = streamSeq.getAndIncrement()
-    private var lastCancelMs: Long = 0
-    private var seekLockUntilMs: Long = 0
+    private var lastConsumeSnapBytes: Long = 0
+    private var lastConsumeSnapMs: Long = 0
 
+    private val streamSessionId: Long = streamSeq.getAndIncrement()
     private var transferListener: TransferListener? = null
 
     override fun addTransferListener(transferListener: TransferListener) {
@@ -114,14 +66,6 @@ class TelegramDataSource private constructor(
     @Throws(IOException::class)
     override fun open(dataSpec: DataSpec): Long {
         closed = false
-        downloadCompletedCache = false
-        lastCompletionCheckMs = 0
-        lastPathRefreshMs = 0
-        lastRangeCheckMs = 0
-        downloadedRangeStart = 0
-        downloadedRangeEndExclusive = 0
-        downloadActiveCache = false
-
         val uri = dataSpec.uri
         val pathParts = uri.path?.trim('/')?.split('/')
             ?: throw IOException("Invalid URI: $uri")
@@ -130,51 +74,32 @@ class TelegramDataSource private constructor(
         fileId = pathParts[3].toIntOrNull()
             ?: throw IOException("Invalid fileId in URI: $uri")
 
-        val fileInfo = blockingGetFileInfo(fileId)
-            ?: throw IOException("TDLib GetFile returned null for $fileId")
-        totalSize = fileInfo.totalSize
-        if (totalSize <= 0L) throw IOException("Invalid file size: $totalSize")
+        // Una sola llamada: meta + pin + ventana (≤1 emisión) + fichero.
+        val handle = sessionManager.openReader(fileId, dataSpec.position)
+
+        if (currentPath != handle.filePath) {
+            runCatching { raf?.close() }
+            currentPath = handle.filePath
+            raf = RandomAccessFile(File(handle.filePath), "r")
+        } else if (raf == null) {
+            raf = RandomAccessFile(File(handle.filePath), "r")
+        }
+        readerRegistered = true
+
+        totalSize = handle.totalSize
+        position = dataSpec.position
+        bytesRemaining = totalSize - dataSpec.position
+        lastEpoch = sessionManager.sessionEpoch(fileId)
+        lastLogMs = System.currentTimeMillis()
+        lastLogBytes = position
+        lastConsumeSnapBytes = position
+        lastConsumeSnapMs = lastLogMs
 
         Log.i(
             TAG,
-            "OPEN sid=$streamSessionId fileId=$fileId size=${totalSize / 1048576}MB pos=${dataSpec.position}"
+            "OPEN sid=$streamSessionId fileId=$fileId size=${totalSize / 1048576}MB " +
+                "pos=${position / 1048576}MB free=${handle.freeBytes / 1048576}MB"
         )
-
-        storageManager.maybeTrim(
-            reason = "open:$fileId",
-            protectedPath = fileInfo.localPath
-        )
-
-        requestLinearDownload(force = true)
-
-        val filePath = waitForFile(fileId, fileInfo.localPath)
-            ?: run {
-                if (Thread.currentThread().isInterrupted) {
-                    throw InterruptedIOException("waitForFile interrupted for fileId=$fileId")
-                }
-                throw IOException("File not available on disk for fileId=$fileId")
-            }
-
-        if (currentFile?.absolutePath != filePath) {
-            raf?.close()
-            currentFile = File(filePath)
-            raf = RandomAccessFile(currentFile, "r")
-        } else if (raf == null) {
-            raf = RandomAccessFile(currentFile, "r")
-        }
-
-        position = dataSpec.position
-        bytesRemaining = totalSize - dataSpec.position
-        lastLogMs = System.currentTimeMillis()
-        lastLogBytes = position
-        refreshDownloadRange(force = true)
-
-        if (shouldUseSeekMode(position)) {
-            requestSeekDownload(position)
-        } else {
-            requestLinearDownload(force = false)
-        }
-
         return bytesRemaining
     }
 
@@ -182,74 +107,48 @@ class TelegramDataSource private constructor(
     override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
         if (closed || bytesRemaining <= 0) return -1
 
-        var deadline = System.currentTimeMillis() + READ_TIMEOUT_MS
+        // Rotación del temp (disco crítico): reabrir el raf en el nuevo fichero.
+        if (!ensureEpoch()) return -1
 
-        while (true) {
-            if (closed) return -1
+        // Espera acotada a bytes verificados; expira → retry Exo.
+        val available = try {
+            sessionManager.awaitReadable(fileId, position, length) { closed }
+        } catch (e: InterruptedIOException) {
+            throw e
+        } catch (e: IOException) {
+            throw e
+        }
+        if (available <= 0) {
+            Log.i(TAG, "READ EOF sid=$streamSessionId fileId=$fileId")
+            return -1
+        }
+        if (closed) return -1
+        // La espera puede haber rotado el temp: revalidar antes de leer.
+        if (!ensureEpoch()) return -1
 
-            maybeRefreshFilePath()
-            refreshDownloadRange(force = false)
-
-            val fileLen = currentFile?.length() ?: 0L
-            val inContiguousWindow = position >= downloadedRangeStart && position < downloadedRangeEndExclusive
-            val contiguousAvailable = if (inContiguousWindow) {
-                (downloadedRangeEndExclusive - position).coerceAtLeast(0L)
-            } else {
-                0L
-            }
-            val fileBoundedAvailable = (fileLen - position).coerceAtLeast(0L)
-            val available = minOf(contiguousAvailable, fileBoundedAvailable)
-
-            if (available <= 0) {
-                if (shouldUseSeekMode(position) || shouldStayInSeekMode(position)) {
-                    requestSeekDownload(position)
-                } else {
-                    requestLinearDownload(force = false)
-                }
-            }
-
-            if (available > 0) {
-                val toRead = minOf(length.toLong(), available, bytesRemaining).toInt()
-                raf?.seek(position)
-                val bytesRead = raf?.read(buffer, offset, toRead) ?: -1
-                if (bytesRead > 0) {
-                    position += bytesRead
-                    bytesRemaining -= bytesRead
-                    logProgress()
-                    return bytesRead
-                }
-            }
-
-            if (bytesRemaining <= 0) {
-                Log.i(TAG, "READ EOF sid=$streamSessionId fileId=$fileId")
-                return -1
-            }
-
-            if (isDownloadCompleteCached()) {
-                Log.i(TAG, "READ EOF sid=$streamSessionId fileId=$fileId (download complete)")
-                return -1
-            }
-
-            if (System.currentTimeMillis() >= deadline) {
-                val completed = isDownloadCompleteCached(forceRefresh = true)
-                if (completed) {
-                    Log.i(TAG, "READ EOF sid=$streamSessionId fileId=$fileId (download complete after wait)")
-                    return -1
-                }
-                Log.w(
-                    TAG,
-                    "READ WAIT sid=$streamSessionId fileId=$fileId pos=${position / 1048576}MB disk=${fileLen / 1048576}MB range=${downloadedRangeStart / 1048576}MB..${downloadedRangeEndExclusive / 1048576}MB mode=${currentModeName()} reissues=${currentReissueCount()}"
-                )
-                deadline = System.currentTimeMillis() + READ_TIMEOUT_MS
-            }
-
-            try {
-                Thread.sleep(POLL_DATA_MS)
-            } catch (_: InterruptedException) {
-                Thread.currentThread().interrupt()
-                throw InterruptedIOException("read interrupted for fileId=$fileId")
+        // El path puede rotar (TDLib mueve el temp); reabrir si cambió.
+        val livePath = sessionManager.currentPath(fileId)
+        if (livePath != null && livePath != currentPath) {
+            val f = File(livePath)
+            if (f.exists() && f.canRead()) {
+                runCatching { raf?.close() }
+                currentPath = livePath
+                raf = RandomAccessFile(f, "r")
+                Log.i(TAG, "PATH ROTATE sid=$streamSessionId fileId=$fileId")
             }
         }
+
+        val toRead = minOf(length.toLong(), available, bytesRemaining).toInt()
+        raf?.seek(position)
+        val bytesRead = raf?.read(buffer, offset, toRead) ?: -1
+        if (bytesRead > 0) {
+            position += bytesRead
+            bytesRemaining -= bytesRead
+            logProgress()
+            return bytesRead
+        }
+        if (bytesRemaining <= 0) return -1
+        throw IOException("Short read at pos=$position fileId=$fileId")
     }
 
     @Throws(IOException::class)
@@ -258,330 +157,78 @@ class TelegramDataSource private constructor(
         closed = true
         runCatching { raf?.close() }
         raf = null
-        Log.i(
-            TAG,
-            "CLOSE sid=$streamSessionId fileId=$fileId pos=${position / 1048576}MB/${totalSize / 1048576}MB mode=${currentModeName()} reissues=${currentReissueCount()}"
-        )
-        cleanupExpiredDownloadState()
+        if (readerRegistered) {
+            readerRegistered = false
+            sessionManager.releaseReader(fileId)
+        }
+        Log.i(TAG, "CLOSE sid=$streamSessionId fileId=$fileId pos=${position / 1048576}MB")
     }
 
-    // ── Download management ───────────────────────────────────────────────
-
-    private fun shouldUseSeekMode(targetPos: Long, knownContiguousEnd: Long = downloadedRangeEndExclusive): Boolean {
-        if (targetPos <= 0L) return false
-        val gap = targetPos - knownContiguousEnd
-        return gap > SEEK_GAP_TRIGGER_BYTES
-    }
-
-    private fun shouldStayInSeekMode(targetPos: Long): Boolean {
-        val state = downloadStateByFileId[fileId] ?: return false
-        if (state.mode != DownloadMode.SEEK) return false
-        if (System.currentTimeMillis() < seekLockUntilMs) return true
-        return downloadedRangeEndExclusive < (targetPos + SEEK_EXIT_HYSTERESIS_BYTES)
-    }
-
-    private fun requestLinearDownload(force: Boolean) {
-        val free = getUsableSpaceBytes()
-        if (free > 0 && free < MIN_FREE_BYTES_SOFT) {
-            val offset = position.coerceIn(0L, (totalSize - 1).coerceAtLeast(0L))
-            val limit = minOf(LINEAR_WINDOW_BYTES, (totalSize - offset).coerceAtLeast(1L))
-            Log.w(
-                TAG,
-                "LOW SPACE sid=$streamSessionId fileId=$fileId free=${free / 1048576}MB -> LINEAR WINDOW offset=${offset / 1048576}MB limit=${limit / 1048576}MB"
-            )
-            issueDownload(mode = DownloadMode.LINEAR, offset = offset, limit = limit, force = true)
-            maybeCancelStalePendingDownload()
-            return
-        }
-        issueDownload(mode = DownloadMode.LINEAR, offset = 0L, limit = 0L, force = force)
-    }
-
-    private fun requestSeekDownload(targetPos: Long) {
-        val safeOffset = targetPos.coerceIn(0L, (totalSize - 1).coerceAtLeast(0L))
-        val now = System.currentTimeMillis()
-        if (now < seekLockUntilMs) {
-            return
-        }
-        seekLockUntilMs = now + SEEK_LOCK_MS
-        val free = getUsableSpaceBytes()
-        val adjustedWindow = when {
-            free <= 0L -> SEEK_WINDOW_BYTES
-            free < MIN_FREE_BYTES_SOFT / 2L -> 32L * 1024L * 1024L
-            free < MIN_FREE_BYTES_SOFT -> 64L * 1024L * 1024L
-            else -> SEEK_WINDOW_BYTES
-        }
-        val seekLimit = minOf(adjustedWindow, (totalSize - safeOffset).coerceAtLeast(1L))
-        issueDownload(
-            mode = DownloadMode.SEEK,
-            offset = safeOffset,
-            limit = seekLimit,
-            force = false
-        )
-        if (free > 0 && free < MIN_FREE_BYTES_SOFT) {
-            maybeCancelStalePendingDownload()
-        }
-    }
-
-    private fun issueDownload(mode: DownloadMode, offset: Long, limit: Long, force: Boolean) {
-        if (fileId <= 0) return
-        val now = System.currentTimeMillis()
-        val state = downloadStateByFileId[fileId]
-        val sameRequest = state != null && state.mode == mode && state.offset == offset && state.limit == limit
-        val cooldownActive = state != null && (now - state.lastIssueMs) < DOWNLOAD_REISSUE_COOLDOWN_MS
-        val closeOffset = state != null && kotlin.math.abs(state.offset - offset) < DOWNLOAD_REISSUE_MIN_DELTA_BYTES
-
-        if (!force && state != null) {
-            if (sameRequest && state.active) return
-            if (cooldownActive && (sameRequest || (mode == DownloadMode.SEEK && closeOffset))) return
-        }
-
-        val newState = DownloadState(
-            mode = mode,
-            offset = offset,
-            limit = limit,
-            lastIssueMs = now,
-            reissueCount = (state?.reissueCount ?: 0) + 1,
-            active = true,
-            updatedAtMs = now
-        )
-        downloadStateByFileId[fileId] = newState
-
-        Log.i(
-            TAG,
-            "DOWNLOAD ISSUE sid=$streamSessionId fileId=$fileId mode=$mode offset=${offset / 1048576}MB limit=${if (limit == 0L) 0 else limit / 1048576}MB reissues=${newState.reissueCount}"
-        )
-
-        CoroutineScope(Dispatchers.IO).launch {
-            try {
-                val dl = TdApi.DownloadFile()
-                dl.fileId = fileId
-                dl.priority = DOWNLOAD_PRIORITY
-                dl.offset = offset
-                dl.limit = limit
-                dl.synchronous = false
-                clientManager.sendRequest(dl)
-
-                val after = downloadStateByFileId[fileId]
-                if (after != null && after.offset == offset && after.limit == limit && after.mode == mode) {
-                    after.active = true
-                    after.updatedAtMs = System.currentTimeMillis()
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "DOWNLOAD FAILED sid=$streamSessionId fileId=$fileId mode=$mode", e)
-                val after = downloadStateByFileId[fileId]
-                if (after != null && after.offset == offset && after.limit == limit && after.mode == mode) {
-                    after.active = false
-                    after.updatedAtMs = System.currentTimeMillis()
-                }
-            }
-        }
-    }
-
-    private fun cleanupExpiredDownloadState() {
-        val now = System.currentTimeMillis()
-        val iter = downloadStateByFileId.entries.iterator()
-        while (iter.hasNext()) {
-            val (_, state) = iter.next()
-            if (now - state.updatedAtMs > DOWNLOAD_STATE_TTL_MS) {
-                iter.remove()
-            }
-        }
-    }
-
-    private fun getUsableSpaceBytes(): Long {
-        val f = currentFile ?: return -1L
-        return runCatching { f.parentFile?.usableSpace ?: -1L }.getOrDefault(-1L)
-    }
-
-    private fun maybeCancelStalePendingDownload() {
-        val now = System.currentTimeMillis()
-        if (now - lastCancelMs < CANCEL_COOLDOWN_MS) return
-        val state = downloadStateByFileId[fileId] ?: return
-        if (state.mode != DownloadMode.LINEAR || state.limit != 0L) return
-        lastCancelMs = now
-        val localFileId = fileId
-        Log.w(TAG, "LOW SPACE sid=$streamSessionId fileId=$localFileId cancel pending linear download to protect td.binlog")
-        CoroutineScope(Dispatchers.IO).launch {
-            runCatching {
-                val req = TdApi.CancelDownloadFile()
-                req.fileId = localFileId
-                req.onlyIfPending = true
-                clientManager.sendRequest(req)
-            }
-        }
-    }
-
-    // ── Blocking helpers ──────────────────────────────────────────────────
-
-    private fun blockingGetFileInfo(fileId: Int): FileInfo? {
-        val cached = fileInfoCache[fileId]
-        if (cached != null && System.currentTimeMillis() - cached.ts < INFO_CACHE_TTL_MS) {
-            Log.i(TAG, "GetFile HIT CACHE fileId=$fileId size=${cached.totalSize / 1048576}MB")
-            return cached
-        }
-
-        Log.i(TAG, "GetFile fileId=$fileId ...")
-        var result: FileInfo? = null
-        val latch = CountDownLatch(1)
-        CoroutineScope(Dispatchers.IO).launch {
-            try {
-                val req = TdApi.GetFile()
-                req.fileId = fileId
-                val resp = clientManager.sendRequest(req)
-                val file = resp as? TdApi.File
-                if (file != null) {
-                    val size = file.size.takeIf { it > 0 } ?: file.expectedSize
-                    Log.i(TAG, "GetFile size=${size / 1048576}MB path=${file.local?.path} completed=${file.local?.isDownloadingCompleted}")
-                    if (size > 0L) {
-                        result = FileInfo(
-                            totalSize = size,
-                            localPath = file.local?.path?.takeIf { it.isNotEmpty() },
-                            ts = System.currentTimeMillis()
-                        )
-                    }
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "GetFile FAILED fileId=$fileId", e)
-            } finally {
-                latch.countDown()
-            }
-        }
-        latch.await(10_000, TimeUnit.MILLISECONDS)
-        result?.let { fileInfoCache[fileId] = it }
-        return result
-    }
-
-    private fun waitForFile(fileId: Int, localPath: String?): String? {
-        if (localPath != null) {
-            val f = File(localPath)
-            if (f.exists() && f.canRead()) return localPath
-        }
-
-        val deadline = System.currentTimeMillis() + FILE_APPEAR_TIMEOUT_MS
+    /**
+     * Reabre el raf si la sesión rotó el temp (epoch). Espera acotada a que el
+     * nuevo fichero exista. Devuelve false si cerrado.
+     */
+    @Throws(IOException::class)
+    private fun ensureEpoch(): Boolean {
+        if (closed) return false
+        val epoch = sessionManager.sessionEpoch(fileId)
+        if (epoch == lastEpoch && raf != null) return true
+        val deadline = System.currentTimeMillis() + 15_000L
         while (System.currentTimeMillis() < deadline) {
-            if (Thread.currentThread().isInterrupted) {
-                Log.i(TAG, "waitForFile interrupted before query fileId=$fileId")
-                return null
-            }
-            val path = runBlocking {
-                try {
-                    val file = clientManager.sendRequest(
-                        TdApi.GetFile(fileId)
-                    ) as? TdApi.File
-                    file?.local?.path?.takeIf { it.isNotEmpty() }
-                } catch (_: Exception) {
-                    null
-                }
-            }
+            if (closed) return false
+            val path = sessionManager.currentPath(fileId)
             if (path != null) {
                 val f = File(path)
-                if (f.exists() && f.canRead()) return path
+                if (f.exists() && f.canRead()) {
+                    if (path != currentPath) {
+                        runCatching { raf?.close() }
+                        currentPath = path
+                        raf = RandomAccessFile(f, "r")
+                        Log.i(TAG, "EPOCH sid=$streamSessionId fileId=$fileId epoch=$epoch path=$path")
+                    } else if (raf == null) {
+                        raf = RandomAccessFile(f, "r")
+                    }
+                    lastEpoch = epoch
+                    return true
+                }
             }
             try {
-                Thread.sleep(500L)
+                Thread.sleep(250L)
             } catch (_: InterruptedException) {
                 Thread.currentThread().interrupt()
-                Log.i(TAG, "waitForFile interrupted during sleep fileId=$fileId")
-                return null
+                throw InterruptedIOException("ensureEpoch interrupted fileId=$fileId")
             }
         }
-        Log.w(TAG, "waitForFile timed out fileId=$fileId")
-        return null
+        throw IOException("Temp file unavailable after rotate fileId=$fileId")
     }
-
-    private fun maybeRefreshFilePath() {
-        if (fileId <= 0 || closed) return
-        val now = System.currentTimeMillis()
-        if (now - lastPathRefreshMs < PATH_REFRESH_INTERVAL_MS) return
-        lastPathRefreshMs = now
-        runCatching {
-            val file = runBlocking { clientManager.sendRequest(TdApi.GetFile(fileId)) as? TdApi.File }
-            val newPath = file?.local?.path?.takeIf { it.isNotEmpty() } ?: return
-            if (currentFile?.absolutePath == newPath && raf != null) return
-            val newFile = File(newPath)
-            if (!newFile.exists() || !newFile.canRead()) return
-            runCatching { raf?.close() }
-            currentFile = newFile
-            raf = RandomAccessFile(newFile, "r")
-            runCatching { raf?.seek(position) }
-            Log.i(TAG, "PATH REFRESH sid=$streamSessionId fileId=$fileId path=$newPath")
-        }
-    }
-
-    private fun refreshDownloadRange(force: Boolean) {
-        if (fileId <= 0 || closed) return
-        val now = System.currentTimeMillis()
-        if (!force && now - lastRangeCheckMs < RANGE_CHECK_INTERVAL_MS) return
-        lastRangeCheckMs = now
-        runCatching {
-            val file = runBlocking { clientManager.sendRequest(TdApi.GetFile(fileId)) as? TdApi.File } ?: return
-            val local = file.local ?: return
-            val start = local.downloadOffset.coerceAtLeast(0L)
-            val end = (start + local.downloadedPrefixSize).coerceAtLeast(start)
-            downloadedRangeStart = start
-            downloadedRangeEndExclusive = end
-            downloadCompletedCache = local.isDownloadingCompleted
-            downloadActiveCache = local.isDownloadingActive
-        }
-    }
-
-    private fun isDownloadCompleteCached(forceRefresh: Boolean = false): Boolean {
-        val now = System.currentTimeMillis()
-        if (!forceRefresh && now - lastCompletionCheckMs < COMPLETION_CHECK_INTERVAL_MS) {
-            return downloadCompletedCache
-        }
-        lastCompletionCheckMs = now
-        downloadCompletedCache = isDownloadComplete()
-        return downloadCompletedCache
-    }
-
-    private fun isDownloadComplete(): Boolean {
-        var result = false
-        val latch = CountDownLatch(1)
-        CoroutineScope(Dispatchers.IO).launch {
-            try {
-                val file = clientManager.sendRequest(
-                    TdApi.GetFile(fileId)
-                ) as? TdApi.File
-                result = file?.local?.isDownloadingCompleted == true
-            } catch (_: Exception) {
-            } finally {
-                latch.countDown()
-            }
-        }
-        latch.await(3_000, TimeUnit.MILLISECONDS)
-        return result
-    }
-
-    // ── Logging ───────────────────────────────────────────────────────────
 
     private fun logProgress() {
         val now = System.currentTimeMillis()
-        if (now - lastLogMs < 3_000) return
+        if (now - lastLogMs < TgWindowConfig.TELEMETRY_INTERVAL_MS) return
         val deltaBytes = position - lastLogBytes
         val deltaSec = (now - lastLogMs) / 1000.0
-        val speed = if (deltaSec > 0) deltaBytes / 1024.0 / deltaSec else 0.0
-        val fileLen = currentFile?.length() ?: 0L
-        val ahead = fileLen - position
+        val consume = if (deltaSec > 0) deltaBytes / 1024.0 / deltaSec else 0.0
+        val snap = sessionManager.snapshot(fileId)
         Log.i(
             TAG,
-            "READ sid=$streamSessionId fileId=$fileId mode=${currentModeName()} pos=${position / 1048576}MB disk=${fileLen / 1048576}MB range=${downloadedRangeStart / 1048576}MB..${downloadedRangeEndExclusive / 1048576}MB active=$downloadActiveCache ahead=${ahead / 1048576}MB speed=${String.format(Locale.US, "%.0f", speed)}KB/s reissues=${currentReissueCount()}"
+            "READ sid=$streamSessionId fileId=$fileId pos=${position / 1048576}MB " +
+                "verified=${snap?.verifiedStartMb}..${snap?.verifiedEndMb}MB " +
+                "dl=${snap?.downloadedMb}/${snap?.totalMb}MB active=${snap?.active} " +
+                "consume=${String.format(Locale.US, "%.0f", consume)}KB/s " +
+                "ingress=${snap?.ingressKBs}KB/s issues=${snap?.issues}"
         )
         lastLogMs = now
         lastLogBytes = position
     }
 
-    private fun currentModeName(): String = downloadStateByFileId[fileId]?.mode?.name ?: "NA"
-
-    private fun currentReissueCount(): Int = downloadStateByFileId[fileId]?.reissueCount ?: 0
-
-    // ── Factory ───────────────────────────────────────────────────────────
+    // ── Factory ───────────────────────────────────────────────────
 
     @EntryPoint
     @InstallIn(SingletonComponent::class)
     interface TelegramClientEntryPoint {
         fun telegramClientManager(): TelegramClientManager
         fun telegramStorageManager(): TelegramStorageManager
+        fun tgDownloadSessionManager(): TgDownloadSessionManager
     }
 
     class Factory(private val context: Context) : DataSource.Factory {
@@ -591,8 +238,7 @@ class TelegramDataSource private constructor(
                 appContext, TelegramClientEntryPoint::class.java
             )
             return TelegramDataSource(
-                clientManager = entryPoint.telegramClientManager(),
-                storageManager = entryPoint.telegramStorageManager()
+                sessionManager = entryPoint.tgDownloadSessionManager()
             )
         }
     }

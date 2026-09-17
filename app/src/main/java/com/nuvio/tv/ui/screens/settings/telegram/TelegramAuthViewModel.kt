@@ -17,7 +17,11 @@ import kotlinx.coroutines.launch
 @HiltViewModel
 class TelegramAuthViewModel @Inject constructor(
     private val clientManager: TelegramClientManager,
-    private val telegramSearchSettingsDataStore: TelegramSearchSettingsDataStore
+    private val telegramSearchSettingsDataStore: TelegramSearchSettingsDataStore,
+    // TG-START: download cache management (re-apply on upstream merge)
+    private val tgDownloadSessionManager: com.nuvio.tv.core.telegram.TgDownloadSessionManager,
+    private val telegramStorageManager: com.nuvio.tv.core.telegram.TelegramStorageManager
+    // TG-END
 ) : ViewModel() {
 
     val authState: StateFlow<TelegramAuthState> = clientManager.authState
@@ -92,6 +96,29 @@ class TelegramAuthViewModel @Inject constructor(
 
     fun clearCredentialsError() {
         _credentialsError.value = false
+    }
+    // TG-END
+
+    // TG-START: download cache management (re-apply on upstream merge)
+    private val _cacheSizeMb = MutableStateFlow(-1L)
+    /** -1 = aún no medido. */
+    val downloadCacheSizeMb: StateFlow<Long> = _cacheSizeMb.asStateFlow()
+
+    private val _lastFreedMb = MutableStateFlow<Long?>(null)
+    val lastFreedMb: StateFlow<Long?> = _lastFreedMb.asStateFlow()
+
+    fun refreshDownloadCacheSize() {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            _cacheSizeMb.value = telegramStorageManager.downloadsSizeMb()
+        }
+    }
+
+    fun clearDownloadCache() {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            val freed = tgDownloadSessionManager.clearCacheExceptActive()
+            _lastFreedMb.value = freed
+            _cacheSizeMb.value = telegramStorageManager.downloadsSizeMb()
+        }
     }
     // TG-END
 }

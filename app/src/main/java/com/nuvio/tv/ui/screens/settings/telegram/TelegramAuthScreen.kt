@@ -78,6 +78,13 @@ fun TelegramAuthScreen(
     val seriesI18nEnabled by viewModel.seriesI18nEnabled.collectAsState()
     val discardSeriesInMovies by viewModel.discardSeriesInMovies.collectAsState()
     // TG-END
+    // TG-START: download cache readout (re-apply on upstream merge)
+    val downloadCacheSizeMb by viewModel.downloadCacheSizeMb.collectAsState()
+    val lastFreedMb by viewModel.lastFreedMb.collectAsState()
+    LaunchedEffect(authState) {
+        if (authState is TelegramAuthState.Ready) viewModel.refreshDownloadCacheSize()
+    }
+    // TG-END
 
     BackHandler { onBackPress() }
 
@@ -217,6 +224,33 @@ fun TelegramAuthScreen(
                     }
                 )
             }
+            // TG-START: download cache management (re-apply on upstream merge)
+            Spacer(Modifier.height(20.dp))
+            SettingsGroupCard(
+                modifier = Modifier.fillMaxWidth(),
+                title = stringResource(R.string.telegram_cache_group_title)
+            ) {
+                val cacheText = if (downloadCacheSizeMb < 0) {
+                    stringResource(R.string.telegram_cache_measuring)
+                } else {
+                    stringResource(R.string.telegram_cache_size_mb, downloadCacheSizeMb)
+                }
+                val freedText = lastFreedMb?.let {
+                    stringResource(R.string.telegram_cache_freed_mb, it)
+                }
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = if (freedText != null) "$cacheText · $freedText" else cacheText,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    Button(onClick = { viewModel.clearDownloadCache() }) {
+                        Text(stringResource(R.string.telegram_cache_clear_action))
+                    }
+                }
+            }
+            // TG-END
             }
             // TG-END
 

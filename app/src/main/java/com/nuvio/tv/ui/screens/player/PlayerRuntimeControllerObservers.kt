@@ -759,7 +759,76 @@ internal fun PlayerRuntimeController.cancelFirstFrameWatchdog() {
 internal fun PlayerRuntimeController.cancelStallWatchdog() {
     stallWatchdogJob?.cancel()
     stallWatchdogJob = null
+    // TG-START: stop TG progress reporter alongside watchdog (re-apply on upstream merge)
+    cancelTgProgressReporter()
+    // TG-END
 }
+
+// TG-START: windowed TG stall handling — never auto-seek (re-apply on upstream merge)
+// TDLib owns a single download cursor per fileId: an automatic seekTo here
+// would reopen the DataSource and restart the download from scratch. Stalls
+// surface as bounded IOException from the DataSource, which already engages
+// Exo's retry ladder. We only report honest download progress instead.
+internal fun PlayerRuntimeController.isTelegramSource(): Boolean {
+    return try {
+        android.net.Uri.parse(currentStreamUrl).host == "127.0.0.1"
+    } catch (_: Exception) {
+        false
+    }
+}
+
+private fun PlayerRuntimeController.tgFileIdFromUrl(): Int {
+    return try {
+        android.net.Uri.parse(currentStreamUrl).pathSegments.lastOrNull()?.toIntOrNull() ?: 0
+    } catch (_: Exception) {
+        0
+    }
+}
+
+internal fun PlayerRuntimeController.maybeScheduleTgProgressReporter() {
+    if (tgProgressJob?.isActive == true) return
+    val fileId = tgFileIdFromUrl()
+    if (fileId == 0) return
+    tgProgressJob = scope.launch {
+        val sessions = runCatching {
+            dagger.hilt.android.EntryPointAccessors.fromApplication(
+                context.applicationContext,
+                com.nuvio.tv.core.telegram.TelegramDataSource.TelegramClientEntryPoint::class.java
+            ).tgDownloadSessionManager()
+        }.getOrNull() ?: return@launch
+        while (isActive) {
+            val player = _exoPlayer ?: return@launch
+            if (player.playbackState != Player.STATE_BUFFERING) return@launch
+            if (!hasRenderedFirstFrame) {
+                sessions.snapshot(fileId)?.let { snap ->
+                    if (!snap.completed && snap.totalMb > 0) {
+                        _uiState.update {
+                            it.copy(
+                                loadingMessage = if (snap.braked) {
+                                    context.getString(com.nuvio.tv.R.string.tg_paused_low_space)
+                                } else {
+                                    context.getString(
+                                        com.nuvio.tv.R.string.tg_downloading_progress,
+                                        snap.downloadedMb,
+                                        snap.totalMb,
+                                        snap.ingressKBs
+                                    )
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+            delay(1000L)
+        }
+    }
+}
+
+internal fun PlayerRuntimeController.cancelTgProgressReporter() {
+    tgProgressJob?.cancel()
+    tgProgressJob = null
+}
+// TG-END
 
 /** Tiny skip past the buffered edge to force Media3 to cancel the in-flight Range request. */
 private val STALL_WATCHDOG_SKIP_PAST_BUFFERED_MS = PlayerStallWatchdogPolicy.SKIP_PAST_BUFFERED_MS
@@ -769,6 +838,12 @@ internal fun PlayerRuntimeController.maybeScheduleStallWatchdog() {
     if (stallWatchdogJob?.isActive == true) return
     val player = _exoPlayer ?: return
     if (player.playbackState != Player.STATE_BUFFERING) return
+    // TG-START: no auto-seek on TG sources (re-apply on upstream merge)
+    if (isTelegramSource()) {
+        maybeScheduleTgProgressReporter()
+        return
+    }
+    // TG-END
 
     stallWatchdogJob = scope.launch {
         var lastBufferedPosition = player.bufferedPosition

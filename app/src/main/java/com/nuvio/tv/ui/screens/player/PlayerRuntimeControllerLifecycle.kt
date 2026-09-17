@@ -29,6 +29,9 @@ internal fun PlayerRuntimeController.releasePlayer(flushPlaybackState: Boolean) 
         e.printStackTrace()
     }
     progressJob?.cancel()
+    // TG-START: stop TG progress reporter on release (re-apply on upstream merge)
+    cancelTgProgressReporter()
+    // TG-END
     mpvTrackRefreshJob?.cancel()
     mpvTrackRefreshJob = null
     mpvTrackRefreshInProgress = false
