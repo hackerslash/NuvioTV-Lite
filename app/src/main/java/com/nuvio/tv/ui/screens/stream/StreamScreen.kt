@@ -40,6 +40,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
+import androidx.compose.ui.AbsoluteAlignment
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -55,6 +56,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -74,6 +76,8 @@ import coil3.request.crossfade
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import com.nuvio.tv.ui.util.directedFor
+import com.nuvio.tv.ui.util.rememberContentTextDirection
+import com.nuvio.tv.ui.util.toAbsoluteAlignment
 import com.nuvio.tv.ui.util.localizeEpisodeTitle
 import androidx.tv.material3.Border
 import androidx.tv.material3.Card
@@ -1298,6 +1302,9 @@ private fun StreamCard(
 
                 Text(
                     text = streamName,
+                    modifier = Modifier.align(
+                        streamName.rememberContentTextDirection().toAbsoluteAlignment()
+                    ),
                     style = MaterialTheme.typography.titleMedium.directedFor(streamName),
                     color = NuvioTheme.colors.TextPrimary
                 )
@@ -1306,6 +1313,9 @@ private fun StreamCard(
                     if (description.isNotBlank() && description != streamName) {
                         Text(
                             text = description,
+                            modifier = Modifier.align(
+                                description.rememberContentTextDirection().toAbsoluteAlignment()
+                            ),
                             style = MaterialTheme.typography.bodySmall.directedFor(description),
                             color = NuvioTheme.extendedColors.textSecondary
                         )
