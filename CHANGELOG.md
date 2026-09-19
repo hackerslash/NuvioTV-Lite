@@ -9,6 +9,20 @@ build itself. The in-app updater compares the release tag against the installed
 `versionName`, so tags must stay version-shaped and releases must be published as
 full releases — the updater ignores prereleases and drafts.
 
+## Unreleased
+
+### Memory limits follow the device, not the edition
+- The image and decode cuts — animated posters, background poster refresh, the poster cache
+  share, full-colour decoding, decode parallelism — were gated on the Lite edition itself, so a
+  1GB stick and an 8GB box got the same reductions. They now key on the device, so above ~1.5GB
+  of RAM this edition renders posters at full colour with the same cache share and animation as
+  the standard build.
+- The cut that governs them moved from 2.5GB to 1.6GB, so 2GB boxes — the common Android TV
+  class — keep full catalogue and stream-search fan-out instead of the counts written for 1GB
+  sticks.
+- The buffer and parallel-chunk ceilings did not move: they are what keeps a 2GB box from being
+  killed mid-playback, so they still apply at and below that class.
+
 ## v1.4.10-lite — 2026-09-19
 
 ### Synced with upstream NuvioTV (1.0.0)

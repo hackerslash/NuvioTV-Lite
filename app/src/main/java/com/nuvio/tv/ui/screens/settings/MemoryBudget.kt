@@ -51,17 +51,17 @@ object MemoryBudget {
 
     private val maxHeapMb: Long = Runtime.getRuntime().maxMemory() / (1024L * 1024L)
 
-    /** True on low-RAM devices (Fire TV / TV-stick class). Keyed on physical RAM, not heap size. */
-    val isLowRamTier: Boolean = DeviceMemoryTier.isLowRam
+    /** Every knob here is allocation safety, so it keys on the higher cut, not the comfort one. */
+    val isConstrainedTier: Boolean = DeviceMemoryTier.isConstrained
 
     // Pre-cap ratio budget; conversionBudgetMb derives from this so DV7 headroom isn't cut by the cap.
     private val rawBudgetMb: Int =
-        (maxHeapMb * (if (isLowRamTier) LOW_HEAP_RATIO else HIGH_HEAP_RATIO)).toInt()
+        (maxHeapMb * (if (isConstrainedTier) LOW_HEAP_RATIO else HIGH_HEAP_RATIO)).toInt()
 
-    val budgetMb: Int = computeBudgetMb(rawBudgetMb, maxHeapMb, isLowRamTier)
+    val budgetMb: Int = computeBudgetMb(rawBudgetMb, maxHeapMb, isConstrainedTier)
 
-    internal fun computeBudgetMb(rawBudgetMb: Int, maxHeapMb: Long, isLowRamTier: Boolean): Int =
-        if (isLowRamTier) {
+    internal fun computeBudgetMb(rawBudgetMb: Int, maxHeapMb: Long, isConstrainedTier: Boolean): Int =
+        if (isConstrainedTier) {
             rawBudgetMb
                 .coerceAtMost((maxHeapMb - LOW_HEAP_RESERVE_MB).toInt())
                 .coerceAtMost(LOW_RAM_BUFFER_CEILING_MB)
@@ -72,7 +72,7 @@ object MemoryBudget {
 
     // DV7 conversion headroom: a third of the raw budget on low-RAM, half on high-RAM; never above budget.
     val conversionBudgetMb: Int =
-        (if (isLowRamTier) rawBudgetMb / 3 else rawBudgetMb / 2)
+        (if (isConstrainedTier) rawBudgetMb / 3 else rawBudgetMb / 2)
             .coerceAtMost(budgetMb).coerceAtLeast(MIN_BUFFER_MB)
 
     fun effectiveBufferMb(stored: Int): Int =
@@ -92,7 +92,7 @@ object MemoryBudget {
         bufferMb + if (parallelEnabled) parallelOverheadMb(connectionCount, chunkSizeMb) else 0
 
     /** Hard chunk-size ceiling for this device tier; binds everywhere, including performance mode. */
-    val tierMaxChunkMb: Int = if (isLowRamTier) LOW_RAM_MAX_CHUNK_MB else MAX_CHUNK_MB
+    val tierMaxChunkMb: Int = if (isConstrainedTier) LOW_RAM_MAX_CHUNK_MB else MAX_CHUNK_MB
 
     /** Max chunk size that fits budget given current buffer size */
     fun maxChunkMb(bufferMb: Int, connectionCount: Int): Int =
@@ -111,9 +111,9 @@ object MemoryBudget {
         connectionCount: Int,
         chunkKb: Int,
         bufferMb: Int,
-        isLowRamTier: Boolean
+        isConstrainedTier: Boolean
     ): Pair<Int, Int> {
-        if (!isLowRamTier) return connectionCount to chunkKb
+        if (!isConstrainedTier) return connectionCount to chunkKb
         val connections = connectionCount.coerceAtMost(MAX_CONNECTIONS)
         return connections to chunkKb.coerceAtMost(maxChunkMb(bufferMb, connections) * 1024)
     }

@@ -535,7 +535,7 @@ internal fun PlayerRuntimeController.initializePlayer(
                 Log.i(
                     PlayerRuntimeController.TAG,
                     "BUFFER_GATE: engine=exo-custom master=on " +
-                            "lowRam=${MemoryBudget.isLowRamTier} " +
+                            "constrained=${MemoryBudget.isConstrainedTier} " +
                             "allowLarge=${playerSettings.allowLargeTargetBuffer} " +
                             "dv7conv=$libdoviConversionActive " +
                             "managed=$budgetManaged " +
@@ -565,7 +565,7 @@ internal fun PlayerRuntimeController.initializePlayer(
                     budgetBytes = budgetBytes,
                     allocator = allocator
                 ).also { currentBitrateAwareLoadControl = it }
-            } else if (MemoryBudget.isLowRamTier) {
+            } else if (MemoryBudget.isConstrainedTier) {
                 // Byte cap is the device heap budget, not a flat number: a flat 48MB is 5s
                 // of an 80 Mbps remux, so the cap fired before minBufferMs and playback ran
                 // on a ~4s buffer.
@@ -618,7 +618,7 @@ internal fun PlayerRuntimeController.initializePlayer(
                     connectionCount = playerSettings.parallelConnectionCount,
                     chunkKb = playerSettings.parallelChunkSizeKb,
                     bufferMb = MemoryBudget.effectiveBufferMb(playerSettings.bufferSettings.targetBufferSizeMb),
-                    isLowRamTier = MemoryBudget.isLowRamTier
+                    isConstrainedTier = MemoryBudget.isConstrainedTier
                 )
                 mediaSourceFactory.useParallelConnections = playerSettings.useParallelConnections
                 mediaSourceFactory.parallelConnectionCount = parallelConnections
@@ -2745,7 +2745,7 @@ private fun PlayerRuntimeController.recordFirstFrameDiagnostics(
     currentBitrateAwareLoadControl?.let { lc ->
         val budgetManaged = playerSettings.bufferBudgetManaged
         val keepZeroForDv7 = budgetManaged && conversionSucceeded > 0L &&
-                MemoryBudget.isLowRamTier
+                MemoryBudget.isConstrainedTier
         val resolvedBackBufferMs = if (keepZeroForDv7) 0 else configuredBackBufferMs
         if (resolvedBackBufferMs != effectiveBackBufferDurationMs) {
             lc.setBackBufferDurationOverrideMs(resolvedBackBufferMs)
@@ -2761,7 +2761,7 @@ private fun PlayerRuntimeController.recordFirstFrameDiagnostics(
         Log.i(
             PlayerRuntimeController.TAG,
             "BACK_BUFFER_RESOLVED: dvConversion=$dvConversionOccurred " +
-                    "lowRam=${MemoryBudget.isLowRamTier} " +
+                    "constrained=${MemoryBudget.isConstrainedTier} " +
                     "resolvedBackBufferMs=$resolvedBackBufferMs " +
                     "managed=$budgetManaged " +
                     "parallelOverheadMb=$currentParallelChunkOverheadMb " +

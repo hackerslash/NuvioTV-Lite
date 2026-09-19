@@ -508,7 +508,7 @@ internal class ParallelRangeDataSource(
     private var session: ChunkSession? = null
     private var bytesServedThisOpen: Long = 0L
     private val sessionChunkCap: Int = parallelConnections +
-        if (com.nuvio.tv.ui.screens.settings.MemoryBudget.isLowRamTier) 2 else 4
+        if (com.nuvio.tv.ui.screens.settings.MemoryBudget.isConstrainedTier) 2 else 4
 
     override fun open(dataSpec: DataSpec): Long {
         val isSubtitle = dataSpec.uri.getQueryParameter("nuvio_type") == "subtitle"

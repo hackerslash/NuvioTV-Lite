@@ -108,7 +108,7 @@ internal class PostPlayRecommendationController(
     private val recommendationCache = mutableMapOf<Int, PostPlayRecommendation>()
     private var recommendationLoadAttempted = false
     private val postPlayTrailerPlaybackEnabled = AppFeaturePolicy.inAppTrailerPlaybackEnabled
-    private val isLowRamTier = DeviceMemoryTier.isLowRam
+    private val isLowRam = DeviceMemoryTier.isLowRam
     private var autoPlayTrailerEnabled = postPlayTrailerPlaybackEnabled
     private var lastSnapshot: PlaybackSnapshot? = null
     private var lastPlaybackIdentity: PlaybackIdentity? = null
@@ -370,7 +370,7 @@ internal class PostPlayRecommendationController(
             autoPlayTrailerEnabled = postPlayTrailerPlaybackEnabled && runCatching {
                 trailerSettingsDataStore.settings.first().enabled
             }.getOrDefault(true)
-            postPlayPrefetchIndices(candidates.size, 0, isLowRamTier).forEach(::startCandidateResolution)
+            postPlayPrefetchIndices(candidates.size, 0, isLowRam).forEach(::startCandidateResolution)
             val resolvedCandidate = awaitCandidateResolution(0)
             if (resolvedCandidate == null) {
                 clearRecommendationPipeline()
@@ -400,7 +400,7 @@ internal class PostPlayRecommendationController(
             postPlayPrefetchIndices(
                 count = recommendationCandidates.size,
                 currentIndex = _uiState.value.recommendationIndex,
-                isLowRam = isLowRamTier
+                isLowRam = isLowRam
             ).forEach { index ->
                 launch {
                     val resolvedCandidate = awaitCandidateResolution(index) ?: return@launch

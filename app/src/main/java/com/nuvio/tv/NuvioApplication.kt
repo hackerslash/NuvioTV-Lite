@@ -108,7 +108,7 @@ class NuvioApplication : Application(), SingletonImageLoader.Factory {
     }
 
     override fun newImageLoader(context: android.content.Context): ImageLoader {
-        val lowMemoryProfile = DeviceMemoryTier.lowMemoryProfile
+        val isLowRam = DeviceMemoryTier.isLowRam
         val imageOkHttpClient by lazy {
             val imageDispatcher = okhttp3.Dispatcher().apply {
                 maxRequests = 32
@@ -138,9 +138,9 @@ class NuvioApplication : Application(), SingletonImageLoader.Factory {
 
         return ImageLoader.Builder(this)
             .components {
-                // Lite and low-RAM skip animated-image decoding: an animated GIF/WebP/HEIF
-                // from an arbitrary poster URL retains every frame, dwarfing the poster cache.
-                if (!lowMemoryProfile) {
+                // Low-RAM skips animated-image decoding: an animated GIF/WebP/HEIF from an
+                // arbitrary poster URL retains every frame, dwarfing the poster cache.
+                if (!isLowRam) {
                     if (Build.VERSION.SDK_INT >= 28) {
                         add(AnimatedImageDecoder.Factory())
                     } else {
@@ -149,10 +149,10 @@ class NuvioApplication : Application(), SingletonImageLoader.Factory {
                 }
                 add(SvgDecoder.Factory())
                 add(
-                    // Lite and low-RAM skip stale-while-revalidate: no background revalidation
+                    // Low-RAM skips stale-while-revalidate: no background revalidation
                     // churn and no process-lifetime URL maps. Posters refresh
                     // on normal cache expiry via Coil's default CacheControl strategy.
-                    if (lowMemoryProfile) {
+                    if (isLowRam) {
                         coil3.network.okhttp.OkHttpNetworkFetcherFactory(
                             callFactory = { imageOkHttpClient },
                         )
@@ -171,9 +171,9 @@ class NuvioApplication : Application(), SingletonImageLoader.Factory {
             }
             .memoryCache {
                 val totalRamMb = DeviceMemoryTier.totalRamMb
-                // Cache % scales with RAM; isLowRam (<=2560MB) absorbs the former <=2048 tier.
+                // Cache % scales with RAM; the 8% floor is the 1-1.5GB class only.
                 val cachePercent = when {
-                    lowMemoryProfile -> 0.08
+                    isLowRam -> 0.08
                     totalRamMb <= 3072 -> 0.20
                     else -> 0.25
                 }
@@ -193,8 +193,8 @@ class NuvioApplication : Application(), SingletonImageLoader.Factory {
             .allowHardware(false)
             // Upstream's toggle trades poster quality against bytes; where the bytes are not
             // optional the setting is forced on, and its row is hidden to match.
-            .allowRgb565(lowMemoryProfile || imagePerformancePreferences.rgb565Enabled)
-            .bitmapFactoryMaxParallelism(if (lowMemoryProfile) 2 else 4)
+            .allowRgb565(isLowRam || imagePerformancePreferences.rgb565Enabled)
+            .bitmapFactoryMaxParallelism(if (isLowRam) 2 else 4)
             .build()
     }
 }
