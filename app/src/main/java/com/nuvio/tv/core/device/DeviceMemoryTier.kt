@@ -2,6 +2,7 @@ package com.nuvio.tv.core.device
 
 import android.app.ActivityManager
 import android.content.Context
+import com.nuvio.tv.core.build.AppFeaturePolicy
 import java.io.File
 
 /**
@@ -75,6 +76,13 @@ object DeviceMemoryTier {
     /** 2GB class and below: buffer budget and parallel chunk ceilings. */
     val isConstrained: Boolean
         get() = tier?.isConstrained ?: true
+
+    /**
+     * Skips animated decoding, poster revalidation and speculative prefetch. An edition trait:
+     * RAM decides how big things are sized, never what runs.
+     */
+    val dropsOptionalWork: Boolean
+        get() = AppFeaturePolicy.liteMode || isLowRam
 
     /**
      * Ceiling on addon stream fetches running at once. Each one holds a response body, its

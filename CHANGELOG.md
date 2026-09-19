@@ -11,15 +11,15 @@ full releases — the updater ignores prereleases and drafts.
 
 ## Unreleased
 
-### Memory limits follow the device, not the edition
-- The image and decode cuts — animated posters, background poster refresh, the poster cache
-  share, full-colour decoding, decode parallelism — were gated on the Lite edition itself, so a
-  1GB stick and an 8GB box got the same reductions. They now key on the device, so above ~1.5GB
-  of RAM this edition renders posters at full colour with the same cache share and animation as
-  the standard build.
-- The cut that governs them moved from 2.5GB to 1.6GB, so 2GB boxes — the common Android TV
-  class — keep full catalogue and stream-search fan-out instead of the counts written for 1GB
-  sticks.
+### Resource sizing follows the device; dropped work stays dropped
+- The poster cache share and the decode, catalogue and stream-search fan-out were sized for a
+  1GB stick on every device this edition ran on. They now follow the device, so a 2GB box — the
+  common Android TV class — no longer loads its home screen and searches streams at the pace
+  written for a TV stick, and the cut that governs them moved from 2.5GB to 1.6GB.
+- What this edition skips, it still skips at any RAM size: animated poster decoding, background
+  poster revalidation, and resolving every post-play recommendation up front while the video is
+  still playing. Those cost work rather than memory, so having RAM spare is no reason to start
+  doing them.
 - The buffer and parallel-chunk ceilings did not move: they are what keeps a 2GB box from being
   killed mid-playback, so they still apply at and below that class.
 

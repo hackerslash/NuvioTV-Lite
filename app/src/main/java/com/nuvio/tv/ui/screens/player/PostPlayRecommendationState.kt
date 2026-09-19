@@ -90,13 +90,17 @@ internal fun PlayerUiState.blocksPostPlayRecommendation(): Boolean {
 /**
  * Candidate indices whose details are resolved up front. Each one costs an addon meta fetch, a
  * TMDB id lookup, an enrichment call, ratings and a trailer lookup, and they all land while the
- * video pipeline is still up — so a low-RAM device resolves only the card on screen and pages
- * the rest in on demand.
+ * video pipeline is still up — so an edition that drops optional work resolves only the card on
+ * screen and pages the rest in on demand.
  */
-internal fun postPlayPrefetchIndices(count: Int, currentIndex: Int, isLowRam: Boolean): IntRange =
+internal fun postPlayPrefetchIndices(
+    count: Int,
+    currentIndex: Int,
+    dropsOptionalWork: Boolean
+): IntRange =
     when {
         count <= 0 -> IntRange.EMPTY
-        !isLowRam -> 0 until count
+        !dropsOptionalWork -> 0 until count
         currentIndex in 0 until count -> currentIndex..currentIndex
         else -> IntRange.EMPTY
     }

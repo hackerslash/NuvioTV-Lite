@@ -16,9 +16,9 @@ import com.nuvio.tv.core.device.DeviceMemoryTier
 fun rememberImageRevalidationKey(imageUrl: String?): Int {
     var version by remember(imageUrl) { mutableIntStateOf(0) }
 
-    // Low-RAM has stale-while-revalidate disabled, so the bus never emits — skip the
-    // per-poster collector. The flag is fixed for the process, so this branch is stable.
-    if (imageUrl != null && !DeviceMemoryTier.isLowRam) {
+    // Stale-while-revalidate is off here, so the bus never emits — skip the per-poster
+    // collector. The flag is fixed for the process, so this branch is stable.
+    if (imageUrl != null && !DeviceMemoryTier.dropsOptionalWork) {
         LaunchedEffect(imageUrl) {
             ImageInvalidationBus.events.collect { invalidatedUrl ->
                 if (invalidatedUrl == imageUrl) {

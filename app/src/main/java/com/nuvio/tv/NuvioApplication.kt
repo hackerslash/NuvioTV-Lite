@@ -109,6 +109,7 @@ class NuvioApplication : Application(), SingletonImageLoader.Factory {
 
     override fun newImageLoader(context: android.content.Context): ImageLoader {
         val isLowRam = DeviceMemoryTier.isLowRam
+        val dropsOptionalWork = DeviceMemoryTier.dropsOptionalWork
         val imageOkHttpClient by lazy {
             val imageDispatcher = okhttp3.Dispatcher().apply {
                 maxRequests = 32
@@ -138,9 +139,9 @@ class NuvioApplication : Application(), SingletonImageLoader.Factory {
 
         return ImageLoader.Builder(this)
             .components {
-                // Low-RAM skips animated-image decoding: an animated GIF/WebP/HEIF from an
-                // arbitrary poster URL retains every frame, dwarfing the poster cache.
-                if (!isLowRam) {
+                // An animated GIF/WebP/HEIF from an arbitrary poster URL retains every frame,
+                // dwarfing the poster cache — work this edition drops at any RAM size.
+                if (!dropsOptionalWork) {
                     if (Build.VERSION.SDK_INT >= 28) {
                         add(AnimatedImageDecoder.Factory())
                     } else {
@@ -149,10 +150,9 @@ class NuvioApplication : Application(), SingletonImageLoader.Factory {
                 }
                 add(SvgDecoder.Factory())
                 add(
-                    // Low-RAM skips stale-while-revalidate: no background revalidation
-                    // churn and no process-lifetime URL maps. Posters refresh
-                    // on normal cache expiry via Coil's default CacheControl strategy.
-                    if (isLowRam) {
+                    // No background revalidation churn and no process-lifetime URL maps.
+                    // Posters refresh on normal cache expiry via Coil's default strategy.
+                    if (dropsOptionalWork) {
                         coil3.network.okhttp.OkHttpNetworkFetcherFactory(
                             callFactory = { imageOkHttpClient },
                         )
@@ -193,7 +193,7 @@ class NuvioApplication : Application(), SingletonImageLoader.Factory {
             .allowHardware(false)
             // Upstream's toggle trades poster quality against bytes; where the bytes are not
             // optional the setting is forced on, and its row is hidden to match.
-            .allowRgb565(isLowRam || imagePerformancePreferences.rgb565Enabled)
+            .allowRgb565(dropsOptionalWork || imagePerformancePreferences.rgb565Enabled)
             .bitmapFactoryMaxParallelism(if (isLowRam) 2 else 4)
             .build()
     }

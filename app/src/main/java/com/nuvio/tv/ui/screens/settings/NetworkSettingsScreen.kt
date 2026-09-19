@@ -464,7 +464,7 @@ fun AdvancedSettingsContent(
                     }
                 )
                 // Forced on where poster bytes are not optional, so the row would not do anything.
-                if (!DeviceMemoryTier.isLowRam) {
+                if (!DeviceMemoryTier.dropsOptionalWork) {
                     SettingsToggleRow(
                         title = stringResource(R.string.advanced_rgb565),
                         subtitle = stringResource(R.string.advanced_rgb565_subtitle),
