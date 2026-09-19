@@ -9,6 +9,27 @@ build itself. The in-app updater compares the release tag against the installed
 `versionName`, so tags must stay version-shaped and releases must be published as
 full releases — the updater ignores prereleases and drafts.
 
+## v1.4.10-lite — 2026-09-19
+
+### Synced with upstream NuvioTV (1.0.0)
+- [upstream] HDR letterbox bars are true black again: the player leaves its letterbox transparent
+  so the panel shows black rather than a painted-on dark grey. Amazon devices and the MVP player
+  keep the old opaque backdrop. @halibiram
+- [upstream] Right-to-left titles and descriptions now sit against the correct edge instead of
+  only rendering in the correct order — stream lists, stream cards, content cards, hero
+  descriptions, source filter chips and the search dropdown. Profile PIN entry stays
+  left-to-right under an RTL locale. @haveAnIssue
+- [upstream] Release tooling recognises the `i18n` commit prefix and Vietnamese, and PR builds
+  attach the debug APK for direct download. @tapframe
+
+### Upstream's new text-direction work kept off the recomposition path
+- The alignment upstream added re-reads each string's bidi direction every time a row recomposes,
+  and rebuilds a `TextStyle` with it — on the same list rows this edition already stopped
+  recomposing on focus moves, plus the home content cards, the hero carousel and the source
+  chips, where it ran per card per frame. The direction and the style it produces are now
+  remembered per string, so a focus move or a carousel tick does no bidi scanning and allocates
+  nothing.
+
 ## v1.4.9-lite — 2026-09-17
 
 ### Synced with upstream NuvioTV (0.9.4-beta)
