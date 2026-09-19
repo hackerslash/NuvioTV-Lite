@@ -60,6 +60,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.text.style.TextOverflow
 import com.nuvio.tv.ui.util.contentTextDirection
+import com.nuvio.tv.ui.util.directedFor
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
@@ -385,9 +386,7 @@ private fun DiscoverDropdownPicker(
                 ) {
                     Text(
                         text = value,
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            textDirection = value.contentTextDirection()
-                        ),
+                        style = MaterialTheme.typography.titleMedium.directedFor(value),
                         color = NuvioTheme.colors.TextPrimary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
@@ -461,9 +460,9 @@ private fun DiscoverDropdownPicker(
                             color = itemTextColor,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
-                            style = TextStyle(
-                                textDirection = option.label.contentTextDirection()
-                            )
+                            style = remember(option.label) {
+                                TextStyle(textDirection = option.label.contentTextDirection())
+                            }
                         )
                     },
                     onClick = { onSelect(option) },

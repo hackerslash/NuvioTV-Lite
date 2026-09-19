@@ -67,7 +67,7 @@ import coil3.request.ImageRequest
 import coil3.request.colorSpace
 import coil3.request.crossfade
 import com.nuvio.tv.domain.model.MetaPreview
-import com.nuvio.tv.ui.util.contentTextDirection
+import com.nuvio.tv.ui.util.directedFor
 import com.nuvio.tv.ui.util.formatHeroRuntime
 import com.nuvio.tv.ui.util.LocalRecompositionHighlighterEnabled
 import com.nuvio.tv.ui.util.localizedContentType
@@ -372,9 +372,7 @@ private fun HeroCarouselSlide(
             item.description?.takeIf { it.isNotBlank() }?.let { description ->
                 Text(
                     text = description,
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        textDirection = description.contentTextDirection()
-                    ),
+                    style = MaterialTheme.typography.bodyMedium.directedFor(description),
                     color = NuvioTheme.colors.TextPrimary,
                     maxLines = 4,
                     overflow = TextOverflow.Ellipsis
