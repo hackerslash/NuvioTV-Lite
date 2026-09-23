@@ -13,6 +13,16 @@ channel.
 
 Lite numbering restarted at 2.0.0 after 1.4.10; it is independent of upstream's version.
 
+## Unreleased
+
+### Loading posters no longer vanish into the background
+- A poster still loading shows a faint outline in the card's shape that breathes until its image
+  arrives. With pure black surfaces the card fill is the page colour, so a loading card used to be
+  invisible. Covers the classic and grid cards, the Modern home cards and Continue Watching.
+- The breathing is one shared clock that runs only while a loading poster is on screen, redraws
+  just those cards about 30 times a second, and stops on its own once they have loaded, so a
+  settled home screen draws no frames. A poster that failed keeps a still outline instead.
+
 ## v2.0.0-lite — 2026-09-23
 
 **Choose your updates:** go to Settings → About → Update channel. **Stable** (the default) gets

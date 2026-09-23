@@ -282,7 +282,8 @@ fun ContentCard(
         val showExpandedLogo = !item.logo.isNullOrBlank() && !logoLoadFailed
 
         val bgCardColor = NuvioTheme.colors.BackgroundCard
-        val backgroundPainter = remember(bgCardColor) { androidx.compose.ui.graphics.painter.ColorPainter(bgCardColor) }
+        val backgroundPainter = rememberPosterPlaceholderPainter(cardShape, bgCardColor)
+        val loadingPainter = rememberPosterPlaceholderPainter(cardShape, bgCardColor, breathing = true)
 
         Card(
             onClick = {
@@ -401,7 +402,7 @@ fun ContentCard(
                         model = imageModel,
                         contentDescription = item.name,
                         modifier = Modifier.fillMaxSize(),
-                        placeholder = backgroundPainter,
+                        placeholder = loadingPainter,
                         error = backgroundPainter,
                         fallback = backgroundPainter,
                         contentScale = ContentScale.Crop

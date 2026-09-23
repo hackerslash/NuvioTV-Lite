@@ -618,7 +618,8 @@ fun ContinueWatchingCard(
     }
     
     val bgCardColor = NuvioTheme.colors.BackgroundCard
-    val backgroundPainter = remember(bgCardColor) { androidx.compose.ui.graphics.painter.ColorPainter(bgCardColor) }
+    val backgroundPainter = rememberPosterPlaceholderPainter(cwCardShape, bgCardColor)
+    val loadingPainter = rememberPosterPlaceholderPainter(cwCardShape, bgCardColor, breathing = true)
 
     Card(
         onClick = {
@@ -683,6 +684,7 @@ fun ContinueWatchingCard(
                 effectiveImageModel = effectiveImageModel,
                 shouldBlur = shouldBlur,
                 backgroundPainter = backgroundPainter,
+                loadingPainter = loadingPainter,
                 stripWidth = artworkWidth,
                 stripHeight = imageHeight,
                 cardShape = cwCardShape,
@@ -784,7 +786,7 @@ fun ContinueWatchingCard(
                                     )
                                 }
                             },
-                        placeholder = backgroundPainter,
+                        placeholder = loadingPainter,
                         error = backgroundPainter,
                         fallback = backgroundPainter,
                         contentScale = ContentScale.Crop,
@@ -926,6 +928,7 @@ private fun WideCardContent(
     effectiveImageModel: String?,
     shouldBlur: Boolean,
     backgroundPainter: Painter,
+    loadingPainter: Painter,
     stripWidth: Dp,
     stripHeight: Dp,
     cardShape: RoundedCornerShape,
@@ -969,7 +972,7 @@ private fun WideCardContent(
                     modifier = Modifier
                         .fillMaxSize()
                         .then(if (shouldBlur) Modifier.blur(12.dp) else Modifier),
-                    placeholder = backgroundPainter,
+                    placeholder = loadingPainter,
                     error = backgroundPainter,
                     fallback = backgroundPainter,
                     contentScale = ContentScale.Crop,

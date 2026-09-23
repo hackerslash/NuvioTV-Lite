@@ -82,7 +82,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.compose.runtime.compositionLocalOf
-import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.tv.material3.Border
 import androidx.tv.material3.Card
 import androidx.tv.material3.CardDefaults
@@ -1237,7 +1236,8 @@ private fun ModernCarouselCard(
     val backgroundCardColor = NuvioTheme.colors.BackgroundCard
     val focusRingBorder = NuvioTheme.focusRing.border(NuvioTheme.spacing.xxs)
     val titleMedium = MaterialTheme.typography.titleMedium
-    val backgroundPainter = remember(backgroundCardColor) { ColorPainter(backgroundCardColor) }
+    val backgroundPainter = com.nuvio.tv.ui.components.rememberPosterPlaceholderPainter(cardShape, backgroundCardColor)
+    val loadingPainter = com.nuvio.tv.ui.components.rememberPosterPlaceholderPainter(cardShape, backgroundCardColor, breathing = true)
     val focusedBorder = remember(cardShape, focusRingBorder) {
         Border(
             border = focusRingBorder,
@@ -1381,7 +1381,7 @@ private fun ModernCarouselCard(
                             model = imageModel,
                             contentDescription = item.title,
                             modifier = Modifier.fillMaxSize(),
-                            placeholder = backgroundPainter,
+                            placeholder = loadingPainter,
                             error = backgroundPainter,
                             fallback = backgroundPainter,
                             contentScale = imageContentScale,
