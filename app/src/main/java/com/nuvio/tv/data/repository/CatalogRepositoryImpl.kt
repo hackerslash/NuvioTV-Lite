@@ -4,7 +4,9 @@ import android.content.Context
 import android.util.Log
 import com.nuvio.tv.core.network.NetworkResult
 import com.nuvio.tv.core.network.safeApiCall
+import com.nuvio.tv.core.poster.withCustomPosterUrls
 import com.nuvio.tv.data.mapper.toDomainOrNull
+import com.nuvio.tv.data.local.LayoutPreferenceDataStore
 import com.nuvio.tv.data.remote.api.AddonApi
 import com.nuvio.tv.domain.model.CatalogRow
 import com.nuvio.tv.domain.model.ContentType
@@ -16,6 +18,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import java.net.URLEncoder
 import java.util.concurrent.ConcurrentHashMap
@@ -25,7 +28,8 @@ import javax.inject.Singleton
 @Singleton
 class CatalogRepositoryImpl @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val api: AddonApi
+    private val api: AddonApi,
+    private val layoutPreferenceDataStore: LayoutPreferenceDataStore
 ) : CatalogRepository {
     companion object {
         private const val TAG = "CatalogRepository"
@@ -65,7 +69,7 @@ class CatalogRepositoryImpl @Inject constructor(
 
         catalogCache[url]?.let { cached ->
             if (!cached.isExpired()) {
-                emit(NetworkResult.Success(cached.row))
+                emit(NetworkResult.Success(cached.row.withPosterPattern()))
                 return@flow
             }
             catalogCache.remove(url)
@@ -127,7 +131,13 @@ class CatalogRepositoryImpl @Inject constructor(
                 }
             }
         }
-        emit(deferred.await())
+        // Cached rows keep the addon's posters so a pattern change is not stuck behind the TTL.
+        emit(deferred.await().let { if (it is NetworkResult.Success) NetworkResult.Success(it.data.withPosterPattern()) else it })
+    }
+
+    private suspend fun CatalogRow.withPosterPattern(): CatalogRow {
+        val pattern = layoutPreferenceDataStore.customPosterUrlPattern.first()
+        return if (pattern.isBlank()) this else copy(items = items.withCustomPosterUrls(pattern))
     }
 
     private fun buildCatalogUrl(

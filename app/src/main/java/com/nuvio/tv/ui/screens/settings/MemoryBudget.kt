@@ -24,6 +24,11 @@ object MemoryBudget {
     // hand a 2GB device ~435MB of buffers and get the process LMK-killed well before any OOM.
     private const val LOW_RAM_BUFFER_CEILING_MB = 250
 
+    // Conversion overhead tracks the video rather than the device, so these only hold back a margin;
+    // high-RAM keeps a larger one because it still retains a back buffer during conversion.
+    private const val LOW_RAM_CONVERSION_RATIO = 0.95f
+    private const val HIGH_RAM_CONVERSION_RATIO = 0.75f
+
     /** ParallelRangeDataSource schedules maxAhead = parallelConnections + 1 chunks concurrently */
     private const val BUFFER_OVERHEAD = 2
 
@@ -40,6 +45,9 @@ object MemoryBudget {
     private const val LOW_RAM_MAX_CHUNK_MB = 16
     const val BUFFER_STEP_MB = 25
     const val MIN_BUFFER_MB = 25
+    // Half the device default floors the slider above what a low-RAM stick can sustain.
+    const val MIN_TARGET_BUFFER_MB = 50
+    private const val MIN_PLAYBACK_BUDGET_MB = 100
     const val MAX_BUFFER_MB = 1024 * 4
     private const val DEFAULT_EFFECTIVE_BUFFER_MB = 50
 
@@ -54,7 +62,7 @@ object MemoryBudget {
     /** Every knob here is allocation safety, so it keys on the higher cut, not the comfort one. */
     val isConstrainedTier: Boolean = DeviceMemoryTier.isConstrained
 
-    // Pre-cap ratio budget; conversionBudgetMb derives from this so DV7 headroom isn't cut by the cap.
+    // Pre-cap ratio budget, before the low-RAM reserve trims it below.
     private val rawBudgetMb: Int =
         (maxHeapMb * (if (isConstrainedTier) LOW_HEAP_RATIO else HIGH_HEAP_RATIO)).toInt()
 
@@ -65,14 +73,17 @@ object MemoryBudget {
             rawBudgetMb
                 .coerceAtMost((maxHeapMb - LOW_HEAP_RESERVE_MB).toInt())
                 .coerceAtMost(LOW_RAM_BUFFER_CEILING_MB)
-                .coerceAtLeast(MIN_BUFFER_MB)
+                // The flat reserve collapses the budget on small heaps, so hold a floor that still
+                // leaves the smallest devices half their heap.
+                .coerceAtLeast(
+                    MIN_PLAYBACK_BUDGET_MB.coerceAtMost((maxHeapMb / 2).toInt()).coerceAtLeast(MIN_BUFFER_MB)
+                )
         } else {
             rawBudgetMb
         }
 
-    // DV7 conversion headroom: a third of the raw budget on low-RAM, half on high-RAM; never above budget.
     val conversionBudgetMb: Int =
-        (if (isConstrainedTier) rawBudgetMb / 3 else rawBudgetMb / 2)
+        (budgetMb * (if (isConstrainedTier) LOW_RAM_CONVERSION_RATIO else HIGH_RAM_CONVERSION_RATIO)).toInt()
             .coerceAtMost(budgetMb).coerceAtLeast(MIN_BUFFER_MB)
 
     fun effectiveBufferMb(stored: Int): Int =

@@ -6,6 +6,7 @@ import android.os.Build
 import android.os.StrictMode
 import coil3.ImageLoader
 import coil3.SingletonImageLoader
+import com.nuvio.tv.core.image.CustomPosterFallbackInterceptor
 import coil3.disk.DiskCache
 import coil3.memory.MemoryCache
 import coil3.gif.GifDecoder
@@ -139,6 +140,7 @@ class NuvioApplication : Application(), SingletonImageLoader.Factory {
 
         return ImageLoader.Builder(this)
             .components {
+                add(CustomPosterFallbackInterceptor())
                 // An animated GIF/WebP/HEIF from an arbitrary poster URL retains every frame,
                 // dwarfing the poster cache — work this edition drops at any RAM size.
                 if (!dropsOptionalWork) {

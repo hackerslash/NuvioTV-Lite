@@ -130,8 +130,6 @@ class ContinueWatchingAiringRulesTest {
 
         val ms = meta.earliestUpcomingEpisodeMs(now)
         assertNotNull(ms)
-        // Date-only releases are anchored at UTC midnight, not the viewer's zone — see
-        // EpisodeReleaseDateParserTest.`date only release starts at utc midnight`.
         val expected = tomorrow.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
         assertEquals(expected, ms)
 

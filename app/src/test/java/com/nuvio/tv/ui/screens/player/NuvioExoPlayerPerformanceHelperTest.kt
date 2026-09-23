@@ -29,10 +29,10 @@ class NuvioExoPlayerPerformanceHelperTest {
 
     @Test
     fun `safe native memory limit follows reported totalMem`() {
-        assertEquals(250, getSafeNativeMemoryLimitMb(0L))
-        assertEquals(150, getSafeNativeMemoryLimitMb(reported(0.9)))
+        assertEquals(200, getSafeNativeMemoryLimitMb(0L))
+        assertEquals(100, getSafeNativeMemoryLimitMb(reported(0.9)))
         assertEquals(200, getSafeNativeMemoryLimitMb(reported(1.3)))
-        assertEquals(250, getSafeNativeMemoryLimitMb(reported(1.7)))
+        assertEquals(200, getSafeNativeMemoryLimitMb(reported(1.7)))
         assertEquals(500, getSafeNativeMemoryLimitMb(reported(2.6)))
         assertEquals(1000, getSafeNativeMemoryLimitMb(reported(3.6)))
         assertEquals(1600, getSafeNativeMemoryLimitMb(reported(5.4)))
@@ -41,10 +41,10 @@ class NuvioExoPlayerPerformanceHelperTest {
 
     @Test
     fun `warning native memory limit follows reported totalMem`() {
-        assertEquals(325, getWarningNativeMemoryLimitMb(0L))
-        assertEquals(180, getWarningNativeMemoryLimitMb(reported(0.9)))
-        assertEquals(250, getWarningNativeMemoryLimitMb(reported(1.3)))
-        assertEquals(325, getWarningNativeMemoryLimitMb(reported(1.7)))
+        assertEquals(260, getWarningNativeMemoryLimitMb(0L))
+        assertEquals(130, getWarningNativeMemoryLimitMb(reported(0.9)))
+        assertEquals(260, getWarningNativeMemoryLimitMb(reported(1.3)))
+        assertEquals(260, getWarningNativeMemoryLimitMb(reported(1.7)))
         assertEquals(650, getWarningNativeMemoryLimitMb(reported(2.6)))
         assertEquals(1200, getWarningNativeMemoryLimitMb(reported(3.6)))
         assertEquals(2000, getWarningNativeMemoryLimitMb(reported(5.4)))

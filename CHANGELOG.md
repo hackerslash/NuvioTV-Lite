@@ -11,6 +11,39 @@ full releases — the updater ignores prereleases and drafts.
 
 ## Unreleased
 
+### Synced with upstream NuvioTV (1.1.0-beta.1)
+- [upstream] MDBList accounts: sign in from the tracking settings page by device code, then sync
+  watched history, playback progress and scrobbles, and browse your MDBList watchlist and static
+  lists in the Library. Ratings requests are batched and reused. @tapframe
+- [upstream] Custom poster URL patterns (RPDB-style, including btttr) in Layout settings, set from
+  the TV or a phone via a QR page. Custom posters fall back to the addon's own art when they fail
+  to load, and cover home rows, Continue Watching, collections and the Library. @skoruppa
+- [upstream] The VOD disk cache no longer needs the custom buffer engine, reads are buffered
+  instead of 184 bytes at a time, cache writes move off the read path, and the cache is cleared
+  after playback. Buffer defaults, native memory tiers and the back-buffer share were retuned, and
+  the forced MP4 chunk session is gone in favour of an extractor moov fix. @Ramon @halibiram
+- [upstream] The detail page no longer jumps when you come back from a studio, network, cast
+  member, Similar or Collection, the next-to-watch season is kept after the last episode, and
+  closing extra player controls with Back returns focus to Play. @halibiram
+- [upstream] The home hero shows the focused row's version of a title and no longer flashes a
+  different film after a refresh. @Telkaoss
+- [upstream] Simkl history marks, episode runtimes and lagging fetches match mobile. @Matt
+- [upstream] RTL navigation fixes in the Library and on focus buttons; the TMDB release-date
+  override is removed; Greek, Vietnamese and Polish strings updated. @haveAnIssue @skoruppa
+  @nosvasedis @blueocean2308
+
+### Upstream's new work kept inside this edition's limits
+- The buffer ceiling that keeps a 2GB box from being killed mid-playback still applies under
+  upstream's new playback floor, and the Dolby Vision conversion budget is now sized off that
+  capped budget.
+- Catalogue rows are still served from this edition's short in-memory cache. Custom poster URLs
+  are applied when a row is handed out rather than stored with it, so changing the pattern shows
+  up straight away without refetching every row.
+- Continue Watching and Upcoming on the Classic and Grid home layouts no longer rebuild their
+  poster list on every recomposition once a custom poster pattern is set.
+- The MDBList ratings cache upstream introduced is capped at 512 titles instead of growing for the
+  whole session, as the previous per-title cache already was.
+
 ### Resource sizing follows the device; dropped work stays dropped
 - The poster cache share and the decode, catalogue and stream-search fan-out were sized for a
   1GB stick on every device this edition ran on. They now follow the device, so a 2GB box — the
