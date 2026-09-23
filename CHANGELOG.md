@@ -13,7 +13,11 @@ channel.
 
 Lite numbering restarted at 2.0.0 after 1.4.10; it is independent of upstream's version.
 
-## Unreleased
+## v2.0.0-lite — 2026-09-23
+
+**Choose your updates:** go to Settings → About → Update channel. **Stable** (the default) gets
+tested releases only; **Beta** also gets early builds that may contain bugs, starting with the
+next Lite beta.
 
 ### Version 2.0.0
 - Lite moves to a clean 2.0.0 numbering. Installed 1.4.x builds see it as a normal update.
