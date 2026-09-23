@@ -14,7 +14,7 @@ on:
         type: string
         default: ""
       prerelease:
-        description: "Mark as prerelease. Note that in-app OTA ignores prereleases."
+        description: "Mark as prerelease (only the Beta update channel sees it). Beta versions like 1.5.0-beta.1 are always marked."
         required: false
         type: boolean
         default: false
@@ -111,7 +111,11 @@ jobs:
           # subheadings; stop at the next version's "## " heading.
           awk '/^## /{n++; if (n>1) exit; next} n==1 && !/^### /' CHANGELOG.md > RELEASE_NOTES.md
           args=( "$tag" --target "${GITHUB_SHA}" --title "$title" --notes-file RELEASE_NOTES.md )
-          if [ "${{ inputs.prerelease }}" = "true" ]; then
+          # Stable reads /releases/latest and drops a beta it finds there, so a beta published as a
+          # full release would leave Stable with no update at all. "-lite" is the edition, not a
+          # prerelease marker; anything else after the patch number is.
+          core="${tag#v}"; core="${core%-lite}"
+          if [ "${{ inputs.prerelease }}" = "true" ] || [[ "$core" == *-* ]]; then
             args+=( --prerelease )
           fi
           gh release create "${args[@]}" "${apks[@]}"
