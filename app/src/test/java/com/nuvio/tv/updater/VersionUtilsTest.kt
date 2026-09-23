@@ -49,6 +49,7 @@ class VersionUtilsTest {
     fun `lite releases compare by version, not by the edition suffix`() {
         assertTrue(VersionUtils.isRemoteNewer("v1.4.3-lite", "1.4.2-lite"))
         assertFalse(VersionUtils.isRemoteNewer("v1.4.2-lite", "1.4.2-lite"))
+        assertTrue(VersionUtils.isRemoteNewer("v2.0.0-lite", "1.4.10-lite"))
     }
 
     @Test

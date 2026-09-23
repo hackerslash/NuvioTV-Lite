@@ -185,8 +185,10 @@ android {
             // Kept well above every previously side-loaded CI build (max 1046) because
             // Android's installer requires a higher versionCode to update, not just a
             // higher versionName. Bump by 1 per release.
-            versionCode = 10018
-            versionName = "1.4.10"
+            versionCode = 10019
+            // Restarted at 2.0.0 after 1.4.10. Must only ever go up: installed builds offer an
+            // update only when the release tag is a higher X.Y.Z than their own versionName.
+            versionName = "2.0.0"
             versionNameSuffix = "-lite"
             buildConfigField("boolean", "FEATURE_IN_APP_UPDATES_ENABLED", "true")
             buildConfigField("boolean", "FEATURE_EXTERNAL_TRAILERS_ENABLED", "false")

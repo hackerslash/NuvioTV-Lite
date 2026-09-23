@@ -4,12 +4,19 @@ All notable changes to the Lite Edition are documented here. Versions use the
 `X.Y.Z-lite` scheme; every release ships torrent-free per-ABI APKs and receives
 in-app OTA updates.
 
-Release tags are `v<versionName>` (e.g. `v1.0.0-lite`) and are derived from the
+Release tags are `v<versionName>` (e.g. `v2.0.0-lite`) and are derived from the
 build itself. The in-app updater compares the release tag against the installed
-`versionName`, so tags must stay version-shaped and releases must be published as
-full releases — the updater ignores prereleases and drafts.
+`versionName`, so tags must stay version-shaped and every new version must be higher
+than the last one shipped. Stable releases are published as full releases; betas
+(`X.Y.Z-beta.N-lite`) are published as prereleases and only reach the Beta update
+channel.
+
+Lite numbering restarted at 2.0.0 after 1.4.10; it is independent of upstream's version.
 
 ## Unreleased
+
+### Version 2.0.0
+- Lite moves to a clean 2.0.0 numbering. Installed 1.4.x builds see it as a normal update.
 
 ### Synced with upstream NuvioTV (1.1.0-beta.1)
 - [upstream] MDBList accounts: sign in from the tracking settings page by device code, then sync
