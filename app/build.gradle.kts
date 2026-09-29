@@ -174,7 +174,7 @@ android {
             buildConfigField("boolean", "FEATURE_CUSTOM_SERVER_CONNECTIONS_ENABLED", "false")
         }
         // NuvioTV Lite edition: playstore-lean feature set + native payload cuts
-        // (torrent .so, DoVi native conversion). Reuses the playstore stub sources;
+        // (DoVi native conversion). Reuses the playstore stub sources;
         // low-RAM behaviour is driven by BuildConfig via
         // com.nuvio.tv.core.build.AppFeaturePolicy.
         create("lite") {
@@ -196,7 +196,6 @@ android {
             buildConfigField("boolean", "FEATURE_EXTERNAL_PLAYBACK_KEEP_ALIVE_ENABLED", "false")
             buildConfigField("boolean", "FEATURE_CUSTOM_SERVER_CONNECTIONS_ENABLED", "false")
             buildConfigField("boolean", "FEATURE_LITE_EDITION", "true")
-            buildConfigField("boolean", "FEATURE_TORRENT_ENABLED", "false")
         }
     }
 
