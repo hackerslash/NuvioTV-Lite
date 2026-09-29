@@ -1,6 +1,7 @@
 package com.nuvio.tv.ui.screens.home
 
 import com.nuvio.tv.ui.theme.NuvioTheme
+import com.nuvio.tv.ui.util.directedFor
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.State
@@ -52,7 +53,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.ExperimentalComposeUiApi
 import com.nuvio.tv.ui.util.asStable
-import com.nuvio.tv.ui.util.contentTextDirection
 import com.nuvio.tv.ui.util.dpadRepeatThrottle
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -867,9 +867,7 @@ private fun SectionDivider(
     ) {
         Text(
             text = catalogName,
-            style = MaterialTheme.typography.headlineMedium.copy(
-                textDirection = catalogName.contentTextDirection()
-            ),
+            style = MaterialTheme.typography.headlineMedium.directedFor(catalogName),
             color = NuvioTheme.colors.TextPrimary
         )
     }
@@ -899,9 +897,7 @@ private fun StickyCategoryHeader(
     ) {
         Text(
             text = sectionName,
-            style = MaterialTheme.typography.titleLarge.copy(
-                textDirection = sectionName.contentTextDirection()
-            ),
+            style = MaterialTheme.typography.titleLarge.directedFor(sectionName),
             color = NuvioTheme.colors.TextPrimary
         )
     }
@@ -1105,9 +1101,7 @@ private fun GridCollectionFolderCard(
                 ) {
                     Text(
                         text = folder.title,
-                        style = MaterialTheme.typography.labelMedium.copy(
-                            textDirection = folder.title.contentTextDirection()
-                        ),
+                        style = MaterialTheme.typography.labelMedium.directedFor(folder.title),
                         color = Color.White,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,

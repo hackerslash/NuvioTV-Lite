@@ -136,7 +136,11 @@ internal class PlayerMediaSourceFactory(private val context: Context) {
         connections: Int,
         chunkBytes: Long
     ): Int {
-        if (!nuvioPerformanceModeEnabled) return connections + 1
+        // Constrained tier keeps the old depth: the budget's floor of 2x connections would
+        // otherwise hold more chunks than the parallel ceiling allows on a 2GB box.
+        if (!nuvioPerformanceModeEnabled ||
+            com.nuvio.tv.ui.screens.settings.MemoryBudget.isConstrainedTier
+        ) return connections + 1
         val chunkMb = (chunkBytes / (1024L * 1024L)).toInt().coerceAtLeast(1)
         val safeNativeMb = NuvioExoPlayerPerformanceHelper.getSafeNativeMemoryLimitMb(com.nuvio.tv.core.device.DeviceMemoryTier.totalRamBytes)
         val reserveMb = NuvioExoPlayerPerformanceHelper.targetBufferSizeMb.coerceAtLeast(0)

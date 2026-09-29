@@ -1,10 +1,10 @@
 package com.nuvio.tv.ui.screens.detail
 
 import com.nuvio.tv.ui.theme.NuvioTheme
+import com.nuvio.tv.ui.util.directedFor
 import com.nuvio.tv.domain.model.CardDepthSurface
 import com.nuvio.tv.ui.components.LocalCardDepthStyle
 import com.nuvio.tv.ui.components.nuvioCardDepth
-import com.nuvio.tv.ui.util.contentTextDirection
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -551,9 +551,7 @@ private fun CastMemberItem(
                 Spacer(modifier = Modifier.height(NuvioTheme.spacing.xs))
                 Text(
                     text = displayCharacter,
-                    style = characterStyle.copy(
-                        textDirection = displayCharacter.contentTextDirection()
-                    ),
+                    style = characterStyle.directedFor(displayCharacter),
                     color = NuvioTheme.colors.TextTertiary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis

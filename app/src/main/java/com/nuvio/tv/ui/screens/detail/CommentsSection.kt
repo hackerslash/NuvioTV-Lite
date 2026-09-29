@@ -150,8 +150,13 @@ fun CommentsSection(
         lazyKeyAt = { index -> comments.getOrNull(index)?.id },
         resetKey = "${windowResetKey.orEmpty()}:$commentsScrollResetKey"
     )
-    val visibleFirstCommentId = anchoredCommentId?.toLongOrNull()
-        ?: comments.getOrNull(max(listState.firstVisibleItemIndex, 0))?.id
+    // derivedStateOf: recompose only when the first visible comment changes, not every scroll frame.
+    val visibleFirstCommentId by remember(comments, anchoredCommentId) {
+        derivedStateOf {
+            anchoredCommentId()?.toLongOrNull()
+                ?: comments.getOrNull(max(listState.firstVisibleItemIndex, 0))?.id
+        }
+    }
     val hasFocusableCommentContent = isLoading || !error.isNullOrBlank() || comments.isNotEmpty()
     val commentsFocusTargetId = if (!hasFocusableCommentContent) {
         null

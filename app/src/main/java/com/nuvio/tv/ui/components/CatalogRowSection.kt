@@ -1,6 +1,7 @@
 package com.nuvio.tv.ui.components
 
 import com.nuvio.tv.ui.theme.NuvioTheme
+import com.nuvio.tv.ui.util.directedFor
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.ui.draw.clip
@@ -73,7 +74,6 @@ import com.nuvio.tv.domain.model.stableItemKeys
 import com.nuvio.tv.domain.model.PLACEHOLDER_IMAGE_URL
 import com.nuvio.tv.ui.util.formatAddonTypeLabel
 import com.nuvio.tv.ui.util.localizedContentType
-import com.nuvio.tv.ui.util.contentTextDirection
 import androidx.compose.ui.platform.LocalContext
 
 @OptIn(ExperimentalTvMaterial3Api::class, ExperimentalComposeUiApi::class, ExperimentalFoundationApi::class)
@@ -292,9 +292,7 @@ fun CatalogRowSection(
             Column(verticalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.xs)) {
                 Text(
                     text = catalogTitle.ifBlank { " " },
-                    style = MaterialTheme.typography.headlineMedium.copy(
-                        textDirection = catalogTitle.contentTextDirection()
-                    ),
+                    style = MaterialTheme.typography.headlineMedium.directedFor(catalogTitle),
                     color = if (catalogTitle.isBlank()) Color.Transparent else NuvioTheme.colors.TextPrimary,
                     maxLines = 3,
                     overflow = TextOverflow.Clip
@@ -303,9 +301,7 @@ fun CatalogRowSection(
                     val addonText = if (catalogTitle.isBlank()) " " else stringResource(R.string.catalog_from_addon, catalogRow.addonName)
                     Text(
                         text = addonText,
-                        style = MaterialTheme.typography.labelMedium.copy(
-                            textDirection = addonText.contentTextDirection()
-                        ),
+                        style = MaterialTheme.typography.labelMedium.directedFor(addonText),
                         color = if (catalogTitle.isBlank()) Color.Transparent else NuvioTheme.colors.TextTertiary
                     )
                 }

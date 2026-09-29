@@ -1,6 +1,7 @@
 package com.nuvio.tv.ui.screens.detail
 
 import com.nuvio.tv.ui.theme.NuvioMotion
+import com.nuvio.tv.ui.util.directedFor
 
 import android.view.KeyEvent as AndroidKeyEvent
 import androidx.compose.animation.AnimatedVisibility
@@ -79,7 +80,6 @@ import coil3.request.ImageRequest
 import coil3.request.crossfade
 import com.nuvio.tv.ui.util.localizedGenreLabel
 import com.nuvio.tv.ui.util.rememberLongPressKeyTracker
-import com.nuvio.tv.ui.util.contentTextDirection
 import java.util.Locale
 
 private const val MAX_VISIBLE_HERO_GENRES = 6
@@ -325,9 +325,7 @@ fun HeroContentSection(
                     if (!creditLine.isNullOrBlank()) {
                         Text(
                             text = creditLine,
-                            style = MaterialTheme.typography.labelLarge.copy(
-                                textDirection = creditLine.contentTextDirection()
-                            ),
+                            style = MaterialTheme.typography.labelLarge.directedFor(creditLine),
                             color = NuvioTheme.extendedColors.textSecondary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,

@@ -3,6 +3,7 @@
 package com.nuvio.tv.ui.screens.home
 
 import com.nuvio.tv.ui.theme.NuvioTheme
+import com.nuvio.tv.ui.util.directedFor
 
 import android.view.KeyEvent as AndroidKeyEvent
 import androidx.compose.animation.core.AnimationSpec
@@ -127,7 +128,6 @@ import com.nuvio.tv.ui.util.recompositionHighlighter
 import com.nuvio.tv.ui.util.StableMap
 import com.nuvio.tv.ui.util.StableRef
 import com.nuvio.tv.ui.util.asStable
-import com.nuvio.tv.ui.util.contentTextDirection
 import com.nuvio.tv.ui.util.rememberLongPressKeyTracker
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.debounce
@@ -538,7 +538,7 @@ internal fun ModernRowSection(
         }
         Text(
             text = rowTitle,
-            style = rowTitleStyle.copy(textDirection = rowTitle.contentTextDirection()),
+            style = rowTitleStyle.directedFor(rowTitle),
             color = textColor,
             modifier = textModifier
         )
@@ -1485,9 +1485,7 @@ private fun ModernCarouselCard(
                 } else if ((useLandscapeOverlayTreatment || isBackdropExpanded) && !isCollectionFolder && (effectiveIgnoreLandscapePoster || item.metaPreview?.landscapePoster.isNullOrBlank() || customPosterLoadFailed)) {
                     Text(
                         text = item.title,
-                        style = titleStyle.copy(
-                            textDirection = item.title.contentTextDirection()
-                        ),
+                        style = titleStyle.directedFor(item.title),
                         color = Color.White,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
@@ -1517,9 +1515,7 @@ private fun ModernCarouselCard(
             ) {
                 Text(
                     text = item.title,
-                    style = titleStyle.copy(
-                        textDirection = item.title.contentTextDirection()
-                    ),
+                    style = titleStyle.directedFor(item.title),
                     color = NuvioTheme.colors.TextPrimary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -1528,9 +1524,7 @@ private fun ModernCarouselCard(
                     Spacer(modifier = Modifier.height(NuvioTheme.spacing.xxs))
                     Text(
                         text = subtitle,
-                        style = MaterialTheme.typography.labelMedium.copy(
-                            textDirection = subtitle.contentTextDirection()
-                        ),
+                        style = MaterialTheme.typography.labelMedium.directedFor(subtitle),
                         color = NuvioTheme.colors.TextSecondary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis

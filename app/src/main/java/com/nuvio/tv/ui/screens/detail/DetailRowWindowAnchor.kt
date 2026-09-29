@@ -10,6 +10,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.snapshots.Snapshot
 
 internal fun previewRowLazyKey(index: Int, id: String, name: String): String =
     "$id|$name|$index"
@@ -19,8 +20,9 @@ fun LazyListState.keepDetailRowWindow(
     itemIds: List<String>,
     lazyKeyAt: (Int) -> Any?,
     resetKey: String? = null,
-): String? {
-    var anchorId by rememberSaveable(resetKey) { mutableStateOf<String?>(null) }
+): () -> String? {
+    val anchorState = rememberSaveable(resetKey) { mutableStateOf<String?>(null) }
+    var anchorId by anchorState
     var appliedReset by rememberSaveable { mutableStateOf(resetKey) }
     var seenIds by remember { mutableStateOf<List<String>?>(null) }
     var handledInitial by remember { mutableStateOf(false) }
@@ -47,7 +49,9 @@ fun LazyListState.keepDetailRowWindow(
         }
     }
 
-    if (itemIds.isNotEmpty()) {
+    // Unobserved: the anchor updates on every scroll step, and observing it here would
+    // recompose the whole row with it. Only an ids change needs to act on it.
+    if (itemIds.isNotEmpty()) Snapshot.withoutReadObservation {
         val index = firstVisibleItemIndex
         val idsChanged = handledInitial && seenIds != itemIds
         if (!handledInitial || idsChanged) {
@@ -64,5 +68,5 @@ fun LazyListState.keepDetailRowWindow(
         }
     }
 
-    return anchorId?.takeIf { id -> itemIds.contains(id) }
+    return remember(anchorState) { { anchorState.value?.takeIf { id -> idsState.value.contains(id) } } }
 }

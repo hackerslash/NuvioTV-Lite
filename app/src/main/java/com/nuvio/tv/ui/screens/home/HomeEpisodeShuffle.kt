@@ -7,7 +7,14 @@ import com.nuvio.tv.domain.model.EpisodeShuffle
 import com.nuvio.tv.domain.model.ShuffleSurface
 import com.nuvio.tv.domain.model.Video
 import com.nuvio.tv.domain.model.WatchProgress
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
@@ -17,12 +24,22 @@ import kotlinx.coroutines.launch
 
 internal data class HomeShuffleRefresh(val visit: Long = System.nanoTime(), val metadata: Int = 0)
 
-internal fun HomeViewModel.createShuffleHomeState(): StateFlow<HomeUiState> {
-    val finished = finishedShuffleSeeds().stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
-    viewModelScope.launch {
+// Until a show has shuffle on, Home state passes straight through: the shuffle combine and its
+// watch-history grouping would otherwise run on every state emission and every progress save.
+@OptIn(ExperimentalCoroutinesApi::class)
+internal fun HomeViewModel.createShuffleHomeState(): StateFlow<HomeUiState> =
+    episodeShuffleStore.profiles
+        .map { profile -> profile.available && profile.shows.values.any { it.enabled } }
+        .distinctUntilChanged()
+        .flatMapLatest { active -> if (active) shuffledHomeState() else _uiState }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, _uiState.value)
+
+private fun HomeViewModel.shuffledHomeState(): Flow<HomeUiState> = channelFlow {
+    val finished = finishedShuffleSeeds().stateIn(this, SharingStarted.Eagerly, emptyList())
+    launch {
         finished.collectLatest { seeds -> seeds.forEach { resolveCwMeta(it) } }
     }
-    return combine(
+    combine(
         _uiState,
         episodeShuffleStore.profiles,
         combine(watchProgressRepository.watchedItems, watchProgressRepository.allProgress) { watched, progress ->
@@ -32,7 +49,7 @@ internal fun HomeViewModel.createShuffleHomeState(): StateFlow<HomeUiState> {
                 item.season?.let { season -> item.episode?.let { item.contentId to (season to it) } }
             }
             keys.groupBy({ it.first }, { it.second }).mapValues { it.value.toSet() }
-        }.distinctUntilChanged(),
+        }.distinctUntilChanged().flowOn(Dispatchers.Default),
         shuffleHomeRefresh,
         finished
     ) { state, profile, watched, refresh, seeds ->
@@ -43,7 +60,7 @@ internal fun HomeViewModel.createShuffleHomeState(): StateFlow<HomeUiState> {
                     season = video.season, episode = video.episode, overview = video.overview, available = video.available)
             }
         }
-    }.stateIn(viewModelScope, SharingStarted.Eagerly, HomeUiState())
+    }.collect { send(it) }
 }
 
 private fun HomeViewModel.finishedShuffleSeeds() = combine(
