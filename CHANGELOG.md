@@ -1,8 +1,7 @@
 # Changelog — NuvioTV Lite Edition
 
 All notable changes to the Lite Edition are documented here. Versions use the
-`X.Y.Z-lite` scheme; every release ships torrent-free per-ABI APKs and receives
-in-app OTA updates.
+`X.Y.Z-lite` scheme; every release ships per-ABI APKs and receives in-app OTA updates.
 
 Release tags are `v<versionName>` (e.g. `v2.0.0-lite`) and are derived from the
 build itself. The in-app updater compares the release tag against the installed
@@ -13,7 +12,59 @@ channel.
 
 Lite numbering restarted at 2.0.0 after 1.4.10; it is independent of upstream's version.
 
-## Unreleased
+## v2.1.0-lite — 2026-09-29
+
+**P2P is back:** Lite now streams torrents on upstream's new Nuvio Engine. Turn it on under
+Settings → Playback → P2P. It runs inside the app instead of as a separate 41MB TorrServer
+process, adds 7–11MB to the download, and nothing of it loads until you use P2P.
+
+### P2P streaming on the Nuvio Engine
+- [upstream] TorrServer is replaced by the Nuvio Engine: torrent streams get a
+  Soft / Balanced / Fast profile, keep a 2 / 5 / 10GB on-device cache for faster replays, and
+  the cache can be cleared from settings. @tapframe
+- Lite ships the engine for the first time. It is 10.5MB on arm64 and 7.2MB on 32-bit ARM,
+  against the 41MB TorrServer binary Lite used to leave out, and its native library loads only
+  when a P2P stream starts.
+
+### Synced with upstream NuvioTV (1.1.0-beta.2)
+- [upstream] Episode shuffle: pick a random episode from a series, keep shuffling across player
+  sessions, and see shuffled shows in Continue Watching. @tapframe
+- [upstream] MDBList ratings on the home hero and Continue Watching, with a sortable provider
+  order, fetched a row at a time; Continue Watching shows episode ratings. @skoruppa
+- [upstream] Settings are regrouped into focused sections with titled cards. @tapframe
+- [upstream] Streams that only carry a YouTube id now play, and YouTube no longer hangs on a
+  timeout or a gated page. @deejay189393
+- [upstream] Simkl is a third More Like This source, custom poster URLs can be turned on per
+  screen, and the landscape clearlogo is a toggle. @skoruppa
+- [upstream] The detail page keeps its place and focus when you come back from a studio,
+  person, collection, trailer or episode, holding Down scrolls it, and each row keeps its
+  scroll position. @halibiram
+- [upstream] Debrid picks the file for the episode you asked for, live TV EPG stays out of the
+  episode list, parallel streams no longer send the user agent twice, and resolution matching
+  checks frame rate first. @tapframe @WhiteGiso @ysosrs123
+- [upstream] A device-local toggle for true black letterbox bars, Fit/Fill only while
+  playback is tunneled, and audio delay of ±60s with press-and-hold. @halibiram @uHleaf
+- [upstream] Source chips shimmer while loading and the spinner is a plain arc, which drops
+  the Lottie library. @tapframe
+- [upstream] Home rows keep their window on the focused card after a refresh, and the hero no
+  longer shows another film for a frame. @Telkaoss
+- [upstream] RTL text direction fixes, and Spanish, Hebrew, Chinese, Slovak and Polish
+  translations updated. @haveAnIssue @IberianSoldierPC @blueocean2308 @muichunlim @mmsw91
+
+### Upstream's new work kept off the hot path
+- Episode shuffle sits between the home state and the screen. Until a show has shuffle on,
+  home state now passes straight through, instead of every update and every playback progress
+  save re-grouping the whole watch history on the main thread.
+- The detail rows upstream now anchors (cast, trailers, More Like This, collections, studios,
+  comments, episodes) read their scroll position during composition, so each whole row
+  recomposed on every D-pad step. They now read it only when the row's items change.
+- Home and collection row titles, cast names and hero credits cache their text direction
+  instead of re-scanning each string on every recomposition.
+- Upstream's deeper parallel prefetch in performance mode has a floor of twice the connection
+  count, which goes past the parallel-chunk ceiling on a 2GB box. Constrained devices keep the
+  previous depth; the ceiling itself did not move.
+- Cached catalogue rows only read the per-screen poster settings when a custom poster pattern
+  is set.
 
 ### Loading posters no longer vanish into the background
 - A poster still loading shows a faint outline in the card's shape that breathes until its image
