@@ -16,15 +16,15 @@ Lite numbering restarted at 2.0.0 after 1.4.10; it is independent of upstream's 
 
 **P2P is back:** Lite now streams torrents on upstream's new Nuvio Engine. Turn it on under
 Settings → Playback → P2P. It runs inside the app instead of as a separate 41MB TorrServer
-process, adds 7–11MB to the download, and nothing of it loads until you use P2P.
+process, adds about 4MB to the download, and nothing of it loads until you use P2P.
 
 ### P2P streaming on the Nuvio Engine
 - [upstream] TorrServer is replaced by the Nuvio Engine: torrent streams get a
   Soft / Balanced / Fast profile, keep a 2 / 5 / 10GB on-device cache for faster replays, and
   the cache can be cleared from settings. @tapframe
-- Lite ships the engine for the first time. It is 10.5MB on arm64 and 7.2MB on 32-bit ARM,
-  against the 41MB TorrServer binary Lite used to leave out, and its native library loads only
-  when a P2P stream starts.
+- Lite ships the engine for the first time. The APK grows by 4.4MB on arm64 and 3.5MB on 32-bit
+  ARM, against the 41MB TorrServer binary Lite used to leave out, and its native library loads
+  only when a P2P stream starts.
 
 ### Synced with upstream NuvioTV (1.1.0-beta.2)
 - [upstream] Episode shuffle: pick a random episode from a series, keep shuffling across player

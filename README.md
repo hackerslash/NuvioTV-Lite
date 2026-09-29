@@ -45,7 +45,7 @@ footprint on low-RAM Android TV boxes**, where the OS and launcher already eat m
 memory. It preserves the core loop — **browse → pick a source → reliable playback** —
 and trades away heavier features to stay alive under memory pressure.
 
-- P2P streaming runs in-process on upstream's Nuvio Engine (7–11 MB per APK, loaded only
+- P2P streaming runs in-process on upstream's Nuvio Engine (about 4 MB per APK, loaded only
   when P2P is used); the old 41 MB TorrServer co-process is gone
 - Plugins/JS runtime, in-app + external trailers, launcher-channel sync + boot receiver,
   and Sentry all disabled
