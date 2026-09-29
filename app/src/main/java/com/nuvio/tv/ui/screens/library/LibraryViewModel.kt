@@ -149,7 +149,9 @@ data class LibraryUiState(
     val manageSelectedListKey: String? = null,
     val listEditorState: LibraryListEditorState? = null,
     val pendingOperation: Boolean = false,
-    val customPosterUrlPattern: String = ""
+    val customPosterUrlPattern: String = "",
+    val customPosterEnabledScreens: Set<com.nuvio.tv.core.poster.CustomPosterScreen> =
+        com.nuvio.tv.core.poster.CustomPosterScreen.ALL
 )
 
 @HiltViewModel
@@ -748,6 +750,16 @@ class LibraryViewModel @Inject constructor(
                     }
                 }
         }
+        viewModelScope.launch {
+            layoutPreferenceDataStore.customPosterEnabledScreens
+                .distinctUntilChanged()
+                .collectLatest { screens ->
+                    _uiState.update { current ->
+                        if (current.customPosterEnabledScreens == screens) current
+                        else current.copy(customPosterEnabledScreens = screens).withVisibleItems()
+                    }
+                }
+        }
     }
 
     private fun observeCloudLibrarySettings() {
@@ -979,15 +991,20 @@ class LibraryViewModel @Inject constructor(
             it.source == sourceMode && it.listKey == selectedListKey && it.sortOption == selectedSortOption
         }?.comparator()
         val sorted = when (selectedSortOption) {
-            LibrarySortOption.DEFAULT -> if (sourceMode.providerId != null) {
-                watchedFiltered.sortedWith(
+            LibrarySortOption.DEFAULT -> when {
+                sourceMode == LibrarySourceMode.MDBLIST -> watchedFiltered.sortedWith(
+                    compareByDescending<LibraryEntry> { it.listedAt }
+                        .thenByDescending { it.listRanks[selectedListKey] ?: Int.MIN_VALUE }
+                        .thenBy(String.CASE_INSENSITIVE_ORDER) { it.name.ifBlank { it.id } }
+                        .thenBy { it.id }
+                )
+                sourceMode.providerId != null -> watchedFiltered.sortedWith(
                     compareBy<LibraryEntry> { it.listRanks[selectedListKey] ?: it.traktRank ?: Int.MAX_VALUE }
                         .thenByDescending { it.listedAt }
                         .thenBy(String.CASE_INSENSITIVE_ORDER) { it.name.ifBlank { it.id } }
                         .thenBy { it.id }
                 )
-            } else {
-                watchedFiltered
+                else -> watchedFiltered
             }
             LibrarySortOption.ADDED_DESC -> watchedFiltered.sortedWith(
                 addedOrder ?: compareByDescending<LibraryEntry> { it.listedAt }
@@ -1017,7 +1034,9 @@ class LibraryViewModel @Inject constructor(
         val validYear = selectedYear?.takeIf { y -> yearOptions.any { it.key == y } }
 
         return copy(
-            visibleItems = sorted.withCustomPosterUrls(customPosterUrlPattern),
+            visibleItems = sorted.withCustomPosterUrls(
+                com.nuvio.tv.core.poster.patternForScreen(customPosterUrlPattern, com.nuvio.tv.core.poster.CustomPosterScreen.LIBRARY, customPosterEnabledScreens)
+            ),
             availableTypeTabs = typeTabsWithCounts,
             availableGenres = genreOptions,
             availableYears = yearOptions,

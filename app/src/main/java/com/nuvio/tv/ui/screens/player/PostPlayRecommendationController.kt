@@ -18,6 +18,8 @@ import com.nuvio.tv.data.local.TraktSettingsDataStore
 import com.nuvio.tv.data.local.WatchedSeriesStateHolder
 import com.nuvio.tv.data.repository.MDBListRepository
 import com.nuvio.tv.data.repository.TraktRelatedService
+import com.nuvio.tv.data.simkl.SimklAuthRepository
+import com.nuvio.tv.data.simkl.SimklRelatedService
 import com.nuvio.tv.data.trailer.TrailerService
 import com.nuvio.tv.domain.model.Meta
 import com.nuvio.tv.domain.model.MetaPreview
@@ -52,6 +54,8 @@ internal class PostPlayRecommendationController(
     private val traktRelatedService: TraktRelatedService,
     private val traktAuthDataStore: TraktAuthDataStore,
     private val traktSettingsDataStore: TraktSettingsDataStore,
+    private val simklRelatedService: SimklRelatedService,
+    private val simklAuthRepository: SimklAuthRepository,
     private val layoutPreferenceDataStore: LayoutPreferenceDataStore,
     private val watchProgressRepository: WatchProgressRepository,
     private val watchedSeriesStateHolder: WatchedSeriesStateHolder,
@@ -75,6 +79,8 @@ internal class PostPlayRecommendationController(
         val postPlayMovieThresholdPercent: Int,
         val isNextEpisodeMetadataResolved: Boolean,
         val nextEpisodeHasAired: Boolean?,
+        val nextEpisodeAvailable: Boolean?,
+        val nextEpisodeReleased: String?,
         val hasError: Boolean,
         val hasBlockingInteraction: Boolean,
         val playbackEnded: Boolean,
@@ -133,6 +139,8 @@ internal class PostPlayRecommendationController(
                     postPlayMovieThresholdPercent = playerSettings.postPlayMovieThresholdPercent,
                     isNextEpisodeMetadataResolved = playerState.isNextEpisodeMetadataResolved,
                     nextEpisodeHasAired = playerState.nextEpisode?.hasAired,
+                    nextEpisodeAvailable = playerState.nextEpisode?.available,
+                    nextEpisodeReleased = playerState.nextEpisode?.released,
                     hasError = !playerState.error.isNullOrBlank(),
                     hasBlockingInteraction = playerState.blocksPostPlayRecommendation(),
                     playbackEnded = playerState.playbackEnded,
@@ -249,6 +257,8 @@ internal class PostPlayRecommendationController(
             contentType = snapshot.contentType,
             isNextEpisodeMetadataResolved = snapshot.isNextEpisodeMetadataResolved,
             nextEpisodeHasAired = snapshot.nextEpisodeHasAired,
+            nextEpisodeAvailable = snapshot.nextEpisodeAvailable,
+            nextEpisodeReleased = snapshot.nextEpisodeReleased,
             enabled = snapshot.postPlayRecommendationsEnabled
         )
         if (!shouldUseRecommendation || snapshot.hasError) {
@@ -367,6 +377,9 @@ internal class PostPlayRecommendationController(
             recommendationCandidates = candidates
             val preferences = loadRatingPreferences()
             ratingPreferences = preferences
+            // Propagate rating order to UI state.
+            val mdbSettings = mdbListSettingsDataStore.settings.first()
+            _uiState.update { it.copy(mdbListRatingOrder = mdbSettings.enabledRatingOrder()) }
             autoPlayTrailerEnabled = postPlayTrailerPlaybackEnabled && runCatching {
                 trailerSettingsDataStore.settings.first().enabled
             }.getOrDefault(true)
@@ -621,7 +634,15 @@ internal class PostPlayRecommendationController(
         val candidates = withTimeoutOrNull(10_000L) {
             val sourcePreference = traktSettingsDataStore.moreLikeThisSource.first()
             val traktAuthenticated = traktAuthDataStore.isAuthenticated.first()
-            if (sourcePreference == MoreLikeThisSourcePreference.TRAKT && traktAuthenticated) {
+            if (sourcePreference == MoreLikeThisSourcePreference.SIMKL && simklAuthRepository.state.value.isAuthenticated) {
+                runCatching {
+                    simklRelatedService.getRelated(
+                        meta = meta,
+                        fallbackItemId = playbackController.contentId,
+                        fallbackItemType = playbackController.contentType
+                    )
+                }.getOrDefault(emptyList())
+            } else if (sourcePreference == MoreLikeThisSourcePreference.TRAKT && traktAuthenticated) {
                 runCatching {
                     traktRelatedService.getRelated(
                         meta = meta,

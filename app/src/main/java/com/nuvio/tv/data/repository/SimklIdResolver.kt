@@ -59,13 +59,13 @@ class SimklIdResolver @Inject constructor(
             .build()
     }
 
-    suspend fun resolveIds(source: String, id: String): ResolvedIds? {
-        val cacheKey = "$source:$id"
+    suspend fun resolveIds(source: String, id: String, contentTypeHint: String? = null): ResolvedIds? {
+        val cacheKey = if (contentTypeHint != null) "$source:$id:$contentTypeHint" else "$source:$id"
         idsCache[cacheKey]?.let { return it }
         if (clientId.isBlank()) return null
 
         return try {
-            val redirect = resolveViaRedirect(source, id) ?: return null
+            val redirect = resolveViaRedirect(source, id, contentTypeHint) ?: return null
 
             val detailsBody = httpGet("$baseUrl/${redirect.type}/${redirect.simklId}?extended=full&${commonParams()}") ?: return null
             val details = JSONObject(detailsBody)
@@ -195,9 +195,15 @@ class SimklIdResolver @Inject constructor(
         }
     }
 
-    private suspend fun resolveViaRedirect(source: String, id: String): RedirectResult? {
+    private suspend fun resolveViaRedirect(source: String, id: String, contentTypeHint: String? = null): RedirectResult? {
         return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-            val url = "$baseUrl/redirect?to=simkl&$source=$id&${commonParams()}"
+            val typeParam = when (contentTypeHint?.trim()?.lowercase()) {
+                "movie", "film" -> "&type=movie"
+                "series", "tv", "show", "tvshow" -> "&type=tv"
+                "anime" -> "&type=anime"
+                else -> ""
+            }
+            val url = "$baseUrl/redirect?to=simkl&$source=$id$typeParam&${commonParams()}"
             val request = Request.Builder().url(url).get().build()
             val response = noRedirectClient.newCall(request).execute()
             val location = response.header("Location")

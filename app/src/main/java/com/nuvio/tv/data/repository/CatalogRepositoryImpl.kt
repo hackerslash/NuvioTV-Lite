@@ -63,13 +63,14 @@ class CatalogRepositoryImpl @Inject constructor(
         skip: Int,
         skipStep: Int,
         extraArgs: Map<String, String>,
-        supportsSkip: Boolean
+        supportsSkip: Boolean,
+        posterScreen: com.nuvio.tv.core.poster.CustomPosterScreen
     ): Flow<NetworkResult<CatalogRow>> = flow {
         val url = buildCatalogUrl(addonBaseUrl, type, catalogId, skip, extraArgs)
 
         catalogCache[url]?.let { cached ->
             if (!cached.isExpired()) {
-                emit(NetworkResult.Success(cached.row.withPosterPattern()))
+                emit(NetworkResult.Success(cached.row.withPosterPattern(posterScreen)))
                 return@flow
             }
             catalogCache.remove(url)
@@ -132,11 +133,19 @@ class CatalogRepositoryImpl @Inject constructor(
             }
         }
         // Cached rows keep the addon's posters so a pattern change is not stuck behind the TTL.
-        emit(deferred.await().let { if (it is NetworkResult.Success) NetworkResult.Success(it.data.withPosterPattern()) else it })
+        emit(deferred.await().let { if (it is NetworkResult.Success) NetworkResult.Success(it.data.withPosterPattern(posterScreen)) else it })
     }
 
-    private suspend fun CatalogRow.withPosterPattern(): CatalogRow {
-        val pattern = layoutPreferenceDataStore.customPosterUrlPattern.first()
+    private suspend fun CatalogRow.withPosterPattern(
+        posterScreen: com.nuvio.tv.core.poster.CustomPosterScreen
+    ): CatalogRow {
+        val rawPattern = layoutPreferenceDataStore.customPosterUrlPattern.first()
+        if (rawPattern.isBlank()) return this
+        val pattern = com.nuvio.tv.core.poster.patternForScreen(
+            rawPattern,
+            posterScreen,
+            layoutPreferenceDataStore.customPosterEnabledScreens.first()
+        )
         return if (pattern.isBlank()) this else copy(items = items.withCustomPosterUrls(pattern))
     }
 

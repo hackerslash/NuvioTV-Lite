@@ -30,6 +30,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.focusGroup
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -119,7 +121,10 @@ fun CommentsSection(
     onCommentsModeSelected: (CommentsMode) -> Unit,
     onEpisodeSelected: (Video) -> Unit,
     onCommentClick: (TraktCommentReview) -> Unit,
-    modifier: Modifier = Modifier
+    listState: LazyListState,
+    rowEntryFocusRequester: FocusRequester? = null,
+    modifier: Modifier = Modifier,
+    windowResetKey: String? = null
 ) {
     val cardShape = RoundedCornerShape(NuvioTheme.radii.xl)
     val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
@@ -129,39 +134,40 @@ fun CommentsSection(
     val resolvedTitleModeFocusRequester = titleModeFocusRequester ?: internalTitleModeFocusRequester
     val resolvedEpisodeModeFocusRequester = episodeModeFocusRequester ?: internalEpisodeModeFocusRequester
     val commentFocusRequesters = remember(comments) { mutableMapOf<Long, FocusRequester>() }
-    val listState = rememberLazyListState()
     var showEpisodePicker by remember { mutableStateOf(false) }
     var pickerSeason by rememberSaveable { mutableStateOf<Int?>(null) }
     var lastFocusedCommentId by rememberSaveable { mutableStateOf<Long?>(null) }
+    var lockCommentFocusId by remember { mutableStateOf(false) }
     val controlsFocusRequester = if (commentsMode == CommentsMode.EPISODE) {
         resolvedEpisodeModeFocusRequester
     } else {
         resolvedTitleModeFocusRequester
     }
-    // derivedStateOf: recompose readers only when the visible set changes, not every scroll frame.
-    val visibleFirstCommentId by remember(comments) {
-        derivedStateOf { comments.getOrNull(max(listState.firstVisibleItemIndex, 0))?.id }
-    }
-    val visibleWindowCommentIds by remember(comments) {
-        derivedStateOf {
-            listState.layoutInfo.visibleItemsInfo
-                .mapNotNull { info -> comments.getOrNull(info.index)?.id }
-                .toSet()
-        }
+    val commentsScrollResetKey = "${commentsMode.name}:${selectedEpisode?.id.orEmpty()}"
+    val commentWindowIds = remember(comments) { comments.map { it.id.toString() } }
+    val anchoredCommentId = listState.keepDetailRowWindow(
+        itemIds = commentWindowIds,
+        lazyKeyAt = { index -> comments.getOrNull(index)?.id },
+        resetKey = "${windowResetKey.orEmpty()}:$commentsScrollResetKey"
+    )
+    val visibleFirstCommentId = anchoredCommentId?.toLongOrNull()
+        ?: comments.getOrNull(max(listState.firstVisibleItemIndex, 0))?.id
+    val hasFocusableCommentContent = isLoading || !error.isNullOrBlank() || comments.isNotEmpty()
+    val commentsFocusTargetId = if (!hasFocusableCommentContent) {
+        null
+    } else {
+        lastFocusedCommentId?.takeIf { id -> comments.any { it.id == id } }
+            ?: visibleFirstCommentId
+            ?: comments.firstOrNull()?.id
     }
     val commentsTargetFocusRequester = remember(
         comments,
-        lastFocusedCommentId,
-        controlsFocusRequester,
-        visibleFirstCommentId,
-        visibleWindowCommentIds
+        commentsFocusTargetId,
+        hasFocusableCommentContent
     ) {
-        val targetId = when {
-            lastFocusedCommentId != null && lastFocusedCommentId in visibleWindowCommentIds -> lastFocusedCommentId
-            visibleFirstCommentId != null -> visibleFirstCommentId
-            else -> comments.firstOrNull()?.id
-        }
-        targetId?.let { commentFocusRequesters.getOrPut(it) { FocusRequester() } } ?: firstItemFocusRequester
+        if (!hasFocusableCommentContent) return@remember null
+        commentsFocusTargetId?.let { commentFocusRequesters.getOrPut(it) { FocusRequester() } }
+            ?: firstItemFocusRequester
     }
     val pickerDefaultSeason = selectedEpisode?.season
         ?: selectedSeason
@@ -210,7 +216,10 @@ fun CommentsSection(
         }
     }
 
-    LaunchedEffect(commentsMode, selectedEpisode?.id) {
+    var appliedCommentsScrollResetKey by rememberSaveable { mutableStateOf(commentsScrollResetKey) }
+    LaunchedEffect(commentsScrollResetKey) {
+        if (appliedCommentsScrollResetKey == commentsScrollResetKey) return@LaunchedEffect
+        appliedCommentsScrollResetKey = commentsScrollResetKey
         lastFocusedCommentId = null
         if (listState.firstVisibleItemIndex != 0 || listState.firstVisibleItemScrollOffset != 0) {
             listState.scrollToItem(0)
@@ -226,13 +235,6 @@ fun CommentsSection(
 
     Column(
         modifier = modifier
-            .then(
-                if (canToggleEpisodeComments) {
-                    Modifier.focusRestorer(controlsFocusRequester)
-                } else {
-                    Modifier
-                }
-            )
             .fillMaxWidth()
             .padding(top = 20.dp, bottom = NuvioTheme.spacing.sm)
     ) {
@@ -314,7 +316,9 @@ fun CommentsSection(
                 LazyRow(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .focusRestorer(commentsTargetFocusRequester),
+                        .then(
+                            commentsTargetFocusRequester?.let { Modifier.focusRestorer(it) } ?: Modifier
+                        ),
                     contentPadding = PaddingValues(horizontal = NuvioTheme.spacing.xxxl, vertical = 6.dp),
                     horizontalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.md)
                 ) {
@@ -391,7 +395,24 @@ fun CommentsSection(
                 LazyRow(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .focusRestorer(commentsTargetFocusRequester),
+                        .onPreviewKeyEvent { event ->
+                            if (
+                                event.type == KeyEventType.KeyDown &&
+                                (event.key == Key.DirectionUp || event.key == Key.DirectionDown)
+                            ) {
+                                lockCommentFocusId = true
+                            }
+                            false
+                        }
+                        .onFocusChanged { state ->
+                            if (!state.hasFocus) lockCommentFocusId = false
+                        }
+                        .focusProperties {
+                            onEnter = {
+                                commentsTargetFocusRequester?.requestFocus()
+                            }
+                        }
+                        .focusGroup(),
                     state = listState,
                     contentPadding = PaddingValues(horizontal = NuvioTheme.spacing.xxxl, vertical = 6.dp),
                     horizontalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.md)
@@ -403,22 +424,22 @@ fun CommentsSection(
                             shape = cardShape,
                             modifier = Modifier
                                 .then(
-                                    when {
-                                        lastFocusedCommentId == review.id -> Modifier.focusRequester(commentFocusRequester)
-                                        else -> Modifier.focusRequester(commentFocusRequester)
+                                    if (rowEntryFocusRequester != null && review.id == commentsFocusTargetId) {
+                                        Modifier.focusRequester(rowEntryFocusRequester)
+                                    } else {
+                                        Modifier
                                     }
                                 )
+                                .focusRequester(commentFocusRequester)
                                 .then(
                                     if (canToggleEpisodeComments) {
-                                        Modifier.focusProperties {
-                                            up = controlsFocusRequester
-                                        }
+                                        Modifier.focusProperties { up = controlsFocusRequester }
                                     } else {
                                         upFocusModifier
                                     }
                                 )
                                 .onFocusChanged { focusState ->
-                                    if (focusState.isFocused) {
+                                    if (focusState.isFocused && !lockCommentFocusId) {
                                         lastFocusedCommentId = review.id
                                     }
                                 },

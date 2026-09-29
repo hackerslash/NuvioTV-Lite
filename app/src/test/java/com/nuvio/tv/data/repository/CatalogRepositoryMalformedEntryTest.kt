@@ -42,6 +42,7 @@ class CatalogRepositoryMalformedEntryTest {
         coEvery { api.getCatalog(any()) } returns Response.success(response)
         val layoutPrefs = mockk<LayoutPreferenceDataStore> {
             every { customPosterUrlPattern } returns flowOf("")
+            every { customPosterEnabledScreens } returns flowOf(com.nuvio.tv.core.poster.CustomPosterScreen.ALL)
         }
         val repository = CatalogRepositoryImpl(
             context = mockk<Context>(relaxed = true),
@@ -78,7 +79,10 @@ class CatalogRepositoryMalformedEntryTest {
         val repository = CatalogRepositoryImpl(
             context = mockk<Context>(relaxed = true),
             api = api,
-            layoutPreferenceDataStore = mockk { every { customPosterUrlPattern } returns pattern }
+            layoutPreferenceDataStore = mockk {
+                every { customPosterUrlPattern } returns pattern
+                every { customPosterEnabledScreens } returns flowOf(com.nuvio.tv.core.poster.CustomPosterScreen.ALL)
+            }
         )
         suspend fun poster() = (repository.getCatalog(
             addonBaseUrl = "https://addon.example",
