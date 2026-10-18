@@ -38,6 +38,7 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import okhttp3.Cache
+import okhttp3.ConnectionPool
 import okhttp3.Dispatcher
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -100,19 +101,41 @@ object NetworkModule {
         .add(KotlinJsonAdapterFactory())
         .build()
 
+    /**
+     * Single Dispatcher shared by every singleton OkHttp client. Each Dispatcher owns a
+     * cached thread pool, so sharing one bounds steady-state threads on low-RAM boxes.
+     * The caps mirror the previous base-client tuning, now applied globally: per-host
+     * concurrency stays high enough that catalog fan-out on one addon host is not
+     * serialized at OkHttp's default of 5, while total in-flight requests stay below
+     * the default 64 to bound peak response buffering.
+     */
+    @Provides
+    @Singleton
+    fun provideSharedDispatcher(): Dispatcher = Dispatcher().apply {
+        maxRequests = 32
+        maxRequestsPerHost = 12
+    }
+
+    /**
+     * Single ConnectionPool shared by every singleton OkHttp client, so idle sockets
+     * are reused across clients instead of each client holding its own pool.
+     */
+    @Provides
+    @Singleton
+    fun provideSharedConnectionPool(): ConnectionPool = ConnectionPool()
+
     /** Validating client for fixed first-party endpoints. Addon URLs use `addonPermissive`. */
     @Provides
     @Singleton
-    fun provideOkHttpClient(@ApplicationContext context: Context): OkHttpClient {
+    fun provideOkHttpClient(
+        @ApplicationContext context: Context,
+        sharedDispatcher: Dispatcher,
+        sharedConnectionPool: ConnectionPool
+    ): OkHttpClient {
         return OkHttpClient.Builder()
             .dns(IPv4FirstDns())
-            // Raise per-host concurrency so search fan-out across many catalogs on the same
-            // addon host isn't serialized at OkHttp's default of 5; cap global in-flight
-            // below the default 64 to bound peak response buffering on low-RAM boxes.
-            .dispatcher(Dispatcher().apply {
-                maxRequests = 32
-                maxRequestsPerHost = 12
-            })
+            .dispatcher(sharedDispatcher)
+            .connectionPool(sharedConnectionPool)
             .socketFactory(NoDelaySocketFactory)
             // Keep separate from the old trust-all cache. Cached responses bypass a new TLS handshake.
             .cache(Cache(File(context.cacheDir, "http_cache_v2"), 50L * 1024 * 1024)) // 50 MB disk cache
@@ -177,8 +200,13 @@ object NetworkModule {
     @Provides
     @Singleton
     @Named("customServerAuth")
-    fun provideCustomServerAuthHttpClient(): OkHttpClient = OkHttpClient.Builder()
+    fun provideCustomServerAuthHttpClient(
+        sharedDispatcher: Dispatcher,
+        sharedConnectionPool: ConnectionPool
+    ): OkHttpClient = OkHttpClient.Builder()
         .dns(IPv4FirstDns())
+        .dispatcher(sharedDispatcher)
+        .connectionPool(sharedConnectionPool)
         .socketFactory(NoDelaySocketFactory)
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(60, TimeUnit.SECONDS)
@@ -200,9 +228,14 @@ object NetworkModule {
     @Provides
     @Singleton
     @Named("directDebrid")
-    fun provideDirectDebridOkHttpClient(): OkHttpClient =
+    fun provideDirectDebridOkHttpClient(
+        sharedDispatcher: Dispatcher,
+        sharedConnectionPool: ConnectionPool
+    ): OkHttpClient =
         OkHttpClient.Builder()
             .dns(IPv4FirstDns())
+            .dispatcher(sharedDispatcher)
+            .connectionPool(sharedConnectionPool)
             .socketFactory(NoDelaySocketFactory)
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
@@ -220,8 +253,13 @@ object NetworkModule {
     @Provides
     @Singleton
     @Named("simkl")
-    fun provideSimklOkHttpClient(): OkHttpClient = OkHttpClient.Builder()
+    fun provideSimklOkHttpClient(
+        sharedDispatcher: Dispatcher,
+        sharedConnectionPool: ConnectionPool
+    ): OkHttpClient = OkHttpClient.Builder()
         .dns(IPv4FirstDns())
+        .dispatcher(sharedDispatcher)
+        .connectionPool(sharedConnectionPool)
         .socketFactory(NoDelaySocketFactory)
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(60, TimeUnit.SECONDS)

@@ -2,6 +2,7 @@ package com.nuvio.tv.baselineprofile
 
 import androidx.benchmark.macro.junit4.BaselineProfileRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.By
 import androidx.test.uiautomator.StaleObjectException
 import androidx.test.uiautomator.UiDevice
@@ -21,7 +22,12 @@ class BaselineProfileGenerator {
 
     @Test
     fun generate() {
-        val targetPackage = "com.nuvio.tv"
+        // The profile ships in every flavor's APK, but the player/decoder graph is what
+        // matters on low-RAM boxes. Generate against the lite package with:
+        //   ./gradlew :app:generateLiteReleaseBaselineProfile \
+        //     -Pandroid.testInstrumentationRunnerArguments.targetPackage=com.nuvio.tv.lite
+        val targetPackage = InstrumentationRegistry.getArguments()
+            .getString("targetPackage", "com.nuvio.tv")
         rule.collect(
             packageName = targetPackage,
             includeInStartupProfile = true
@@ -75,6 +81,23 @@ class BaselineProfileGenerator {
             device.pressDPadCenter()
             device.waitForIdle()
             Thread.sleep(2_500)
+
+            // Best-effort: start playback so the player graph (ExoPlayer, extractors,
+            // renderers, the player controller) lands in the profile. On a fresh device
+            // there may be no playable streams; every step below tolerates that.
+            if (device.focusAndSelect("Play")) {
+                device.waitForIdle()
+                Thread.sleep(3_000)
+                // If a stream list appeared, select the focused (first) stream.
+                device.pressDPadCenter()
+                device.waitForIdle()
+                // Let the player initialize its decoder/graph.
+                Thread.sleep(8_000)
+                // Back out of the player (or stream list) to the detail screen.
+                device.pressBack()
+                device.waitForIdle()
+                Thread.sleep(800)
+            }
 
             // Return to the home screen.
             device.pressBack()

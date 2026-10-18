@@ -73,6 +73,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import okhttp3.OkHttpClient
 
 private const val TAG = "StreamScreenViewModel"
 private const val DIRECT_AUTOPLAY_HARD_TIMEOUT_MS = 60_000L
@@ -101,6 +102,7 @@ class StreamScreenViewModel @Inject constructor(
     private val subtitleRepository: com.nuvio.tv.domain.repository.SubtitleRepository,
     private val subtitleFileCache: com.nuvio.tv.core.player.SubtitleFileCache,
     private val torrentService: TorrentService,
+    private val okHttpClient: OkHttpClient,
     private val serverStreams: ServerStreams,
     private val serverPlayback: ServerPlayback,
     party: com.nuvio.tv.core.party.PartyRepository,
@@ -1738,16 +1740,12 @@ class StreamScreenViewModel @Inject constructor(
                 playUrl = localUrl
                 isTorrentStreamStarted = true
 
-                val client = okhttp3.OkHttpClient.Builder()
-                    .dns(com.nuvio.tv.core.network.IPv4FirstDns())
-                    .socketFactory(com.nuvio.tv.core.network.NoDelaySocketFactory)
-                    .connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
-                    .readTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
-                    .build()
+                // Reuse the shared singleton client: building a new OkHttpClient per
+                // stream leaked a Dispatcher thread pool and ConnectionPool every playback.
                 val request = okhttp3.Request.Builder()
                     .url(localUrl)
                     .build()
-                val activeCall = client.newCall(request)
+                val activeCall = okHttpClient.newCall(request)
                 call = activeCall
 
                 fetchJob = viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
