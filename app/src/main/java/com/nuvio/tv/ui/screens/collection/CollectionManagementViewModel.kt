@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
 import javax.inject.Inject
 
 enum class ImportMode { PASTE, FILE, URL }
@@ -41,6 +42,7 @@ data class CollectionManagementUiState(
 class CollectionManagementViewModel @Inject constructor(
     private val collectionsDataStore: CollectionsDataStore,
     private val collectionSyncService: CollectionSyncService,
+    private val okHttpClient: OkHttpClient,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -190,13 +192,11 @@ class CollectionManagementViewModel @Inject constructor(
         _uiState.update { it.copy(isLoadingImport = true, importError = null) }
         viewModelScope.launch {
             try {
-                val client = okhttp3.OkHttpClient.Builder()
-                    .dns(com.nuvio.tv.core.network.IPv4FirstDns())
-                    .socketFactory(com.nuvio.tv.core.network.NoDelaySocketFactory)
-                    .build()
+                // Shared singleton client: a fresh client per import leaked its
+                // Dispatcher thread pool and ConnectionPool.
                 val request = okhttp3.Request.Builder().url(url).build()
                 val response = withContext(Dispatchers.IO) {
-                    client.newCall(request).execute()
+                    okHttpClient.newCall(request).execute()
                 }
                 if (!response.isSuccessful) {
                     _uiState.update {

@@ -206,15 +206,17 @@ android {
         // lite = playstore plugin stubs + the REAL in-app updater (so it gets OTA from
         // GitHub Releases), but NOT the playstore updater stub.
         getByName("lite") {
-            java.srcDirs("src/playstore/java", "src/updater/java")
+            java.srcDirs("src/playstore/java", "src/updater/java", "src/sentrystub/java")
         }
         // The real in-app updater is shared by full + lite; playstore keeps the no-op stub
         // (Google Play forbids self-updating).
         getByName("full") {
             java.srcDir("src/updater/java")
+            java.srcDir("src/sentry/java")
         }
         getByName("playstore") {
             java.srcDir("src/updaterstub/java")
+            java.srcDir("src/sentry/java")
         }
     }
 
@@ -584,7 +586,10 @@ dependencies {
     implementation(libs.supabase.storage)
     implementation(libs.supabase.realtime)
     implementation(libs.ktor.client.okhttp)
-    implementation(libs.sentry.android)
+    // Sentry ships in full + playstore only: the lite flavor uses no-op stubs
+    // (src/sentrystub) so the SDK stays out of the lite APK entirely.
+    add("fullImplementation", libs.sentry.android)
+    add("playstoreImplementation", libs.sentry.android)
 
     // Kotlinx Serialization
     implementation(libs.kotlinx.serialization.json)
