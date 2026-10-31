@@ -8,6 +8,7 @@ import androidx.compose.ui.unit.dp
 import com.nuvio.tv.R
 import com.nuvio.tv.data.local.AVAILABLE_SUBTITLE_LANGUAGES
 import com.nuvio.tv.data.local.LibassRenderScale
+import com.nuvio.tv.data.local.LibassRenderMode
 import com.nuvio.tv.data.local.PlayerPreference
 import com.nuvio.tv.data.local.PlayerSettings
 import com.nuvio.tv.data.local.SubtitleLanguageOption
@@ -173,6 +174,13 @@ internal fun PlaybackSubtitlesSection(
             onValueChange = { brightness -> onUpdate { setSubtitleHdrBrightness(brightness) } },
             enabled = enabled
         )
+        SettingsToggleRow(
+            title = stringResource(R.string.sub_hdr_dim_player_controls),
+            subtitle = stringResource(R.string.sub_hdr_dim_player_controls_sub),
+            checked = style.hdrDimPlayerControls,
+            onToggle = { onUpdate { setSubtitleHdrDimPlayerControls(!style.hdrDimPlayerControls) } },
+            enabled = enabled
+        )
     }
 
     SettingsSectionLabel(text = stringResource(R.string.sub_advanced_section))
@@ -184,6 +192,19 @@ internal fun PlaybackSubtitlesSection(
         enabled = enabled
     )
     if (settings.useLibass) {
+        SettingsActionRow(
+            title = stringResource(R.string.sub_libass_render_mode),
+            subtitle = if (settings.effectiveTunnelingEnabled)
+                stringResource(R.string.sub_libass_render_mode_tunneled_sub)
+            else
+                stringResource(R.string.sub_libass_render_mode_sub),
+            value = if (settings.effectiveTunnelingEnabled)
+                libassRenderModeLabel(LibassRenderMode.OVERLAY)
+            else
+                libassRenderModeLabel(settings.libassRenderMode),
+            onClick = { onOpenDialog(PlaybackDialog.LIBASS_RENDER_MODE) },
+            enabled = !settings.effectiveTunnelingEnabled
+        )
         SettingsActionRow(
             title = stringResource(R.string.sub_libass_render_scale),
             subtitle = stringResource(R.string.sub_libass_render_scale_sub),
@@ -199,6 +220,12 @@ internal fun subtitleLanguageLabel(style: SubtitleStyleSettings): String = when 
     style.isPreferredLanguageSystemDefault -> stringResource(R.string.appearance_language_system)
     else -> AVAILABLE_SUBTITLE_LANGUAGES.find { it.code == style.preferredLanguage }?.displayName
         ?: stringResource(R.string.appearance_language_system)
+}
+
+@Composable
+private fun libassRenderModeLabel(mode: LibassRenderMode): String = when (mode) {
+    LibassRenderMode.VIDEO_EFFECT -> stringResource(R.string.sub_libass_render_mode_video_effect)
+    LibassRenderMode.OVERLAY -> stringResource(R.string.sub_libass_render_mode_overlay)
 }
 
 @Composable
@@ -288,6 +315,27 @@ internal fun SubtitleSettingsDialogs(
             selectedValue = settings.libassRenderScale,
             onOptionSelected = { scale ->
                 onUpdate { setLibassRenderScale(scale) }
+                onDismiss()
+            },
+            onDismiss = onDismiss
+        )
+        PlaybackDialog.LIBASS_RENDER_MODE -> SettingsSingleChoiceDialog(
+            title = stringResource(R.string.sub_libass_render_mode),
+            options = listOf(
+                SettingsPickerOption(
+                    LibassRenderMode.OVERLAY,
+                    stringResource(R.string.sub_libass_render_mode_overlay),
+                    stringResource(R.string.sub_libass_render_mode_overlay_sub)
+                ),
+                SettingsPickerOption(
+                    LibassRenderMode.VIDEO_EFFECT,
+                    stringResource(R.string.sub_libass_render_mode_video_effect),
+                    stringResource(R.string.sub_libass_render_mode_video_effect_sub)
+                )
+            ),
+            selectedValue = settings.libassRenderMode,
+            onOptionSelected = { mode ->
+                onUpdate { setLibassRenderMode(mode) }
                 onDismiss()
             },
             onDismiss = onDismiss

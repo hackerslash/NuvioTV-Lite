@@ -28,6 +28,7 @@ import com.nuvio.tv.data.remote.dto.trakt.TraktWatchedMovieItemDto
 import com.nuvio.tv.data.remote.dto.trakt.TraktWatchedShowItemDto
 import com.nuvio.tv.domain.model.WatchProgress
 import com.nuvio.tv.domain.repository.MetaRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
@@ -1099,7 +1100,7 @@ class TraktProgressService @Inject constructor(
 
             val snapshot = try {
                 progressDeferred.await()
-            } catch (e: kotlinx.coroutines.CancellationException) {
+            } catch (e: CancellationException) {
                 lastKnownActivityFingerprint = null
                 throw e
             } catch (e: Exception) {
@@ -1107,10 +1108,10 @@ class TraktProgressService @Inject constructor(
                 null
             }
             watchedMoviesDeferred?.let {
-                try { it.await() } catch (_: Exception) { }
+                try { it.await() } catch (e: CancellationException) { throw e } catch (_: Exception) { }
             }
             seedsDeferred?.let {
-                try { it.await() } catch (_: Exception) { }
+                try { it.await() } catch (e: CancellationException) { throw e } catch (_: Exception) { }
             }
 
             if (snapshot == null) {

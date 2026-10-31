@@ -155,7 +155,8 @@ data class SubtitleStyleSettings(
     val outlineWidth: Int = 2, // 1-5
     val hdrStyleEnabled: Boolean = false,
     val hdrTextColor: Int = Color.White.toArgb(),
-    val hdrBrightness: Int = HDR_BRIGHTNESS_DEFAULT // 0-100, see hdrBrightnessFactor
+    val hdrBrightness: Int = HDR_BRIGHTNESS_DEFAULT, // 0-100, see hdrBrightnessFactor
+    val hdrDimPlayerControls: Boolean = false
 ) {
     /**
      * The style to render with: on HDR/Dolby Vision video with the override enabled, the HDR text
@@ -169,6 +170,15 @@ data class SubtitleStyleSettings(
             backgroundColor = scaleColorBrightness(backgroundColor, factor),
             outlineColor = scaleColorBrightness(outlineColor, factor)
         )
+    }
+
+    /**
+     * Brightness factor for the player controls and menus drawn over the video: the HDR brightness
+     * on HDR/Dolby Vision video when both HDR options are enabled, otherwise full brightness.
+     */
+    fun playerControlsBrightness(isHdrVideo: Boolean): Float {
+        if (!isHdrVideo || !hdrStyleEnabled || !hdrDimPlayerControls) return 1f
+        return hdrBrightnessFactor(hdrBrightness)
     }
 
     /** The style the in-player editors show: on HDR video with the override enabled, its text color is the HDR one. */
@@ -263,6 +273,7 @@ data class PlayerSettings(
     val useLibass: Boolean = true,
     val libassRenderType: LibassRenderType = LibassRenderType.OVERLAY_OPEN_GL,
     val libassRenderScale: LibassRenderScale = LibassRenderScale.FULL,
+    val libassRenderMode: LibassRenderMode = LibassRenderMode.DEFAULT,
     val subtitleStyle: SubtitleStyleSettings = SubtitleStyleSettings(),
     val bufferSettings: BufferSettings = BufferSettings(),
     // Audio settings
@@ -366,6 +377,10 @@ data class PlayerSettings(
 
     val effectiveTunnelingEnabled: Boolean
         get() = tunnelingEnabled && isTunnelingCompatible
+
+    /** Tunneled playback bypasses the video effects pipeline, so overlay is the only option. */
+    val effectiveLibassRenderMode: LibassRenderMode
+        get() = if (effectiveTunnelingEnabled) LibassRenderMode.OVERLAY else libassRenderMode
 
     companion object {
         const val DEFAULT_STILL_WATCHING_EPISODE_THRESHOLD = 3
@@ -494,6 +509,36 @@ enum class LibassRenderScale(val scale: Float, val label: String) {
     THIRD(0.33f, "\u2153"),
     QUARTER(0.25f, "\u00BC")
 }
+
+/**
+ * How libass subtitles are rendered relative to the video surface.
+ *
+ * setVideoEffects forces DefaultVideoFrameProcessor into the ExoPlayer pipeline.
+ * On devices that support HDR output (e.g. TCL MediaTek API 34), this processor
+ * tone-maps HDR to SDR. Skipping setVideoEffects keeps the default video path
+ * and preserves HDR passthrough.
+ *
+ * - VIDEO_EFFECT: subtitles drawn onto each video frame (frame-accurate timing).
+ *   HDR content is tone-mapped to SDR because DefaultVideoFrameProcessor is active.
+ * - OVERLAY: subtitles rendered on a separate SurfaceView layer. HDR passthrough
+ *   is preserved but subtitle timing may not be perfectly accurate on some TVs.
+ */
+enum class LibassRenderMode {
+    /** Preserves HDR output; subtitles may have a timing offset on TV hardware. */
+    OVERLAY,
+    /** Frame-accurate subtitles; HDR tone-mapped to SDR. */
+    VIDEO_EFFECT;
+
+    companion object {
+        val DEFAULT = OVERLAY
+
+        fun fromStoredString(value: String?): LibassRenderMode = when (value) {
+            VIDEO_EFFECT.name -> VIDEO_EFFECT
+            OVERLAY.name -> OVERLAY
+            else -> DEFAULT
+        }
+    }
+}
 /**
  * How DV7 streams should be handled at playback time.
  *
@@ -552,6 +597,7 @@ class PlayerSettingsDataStore @Inject constructor(
     private val useLibassKey = booleanPreferencesKey("use_libass")
     private val libassRenderTypeKey = stringPreferencesKey("libass_render_type")
     private val libassRenderScaleKey = stringPreferencesKey("libass_render_scale")
+    private val libassRenderModeKey = stringPreferencesKey("libass_render_mode")
     private val decoderPriorityKey = intPreferencesKey("decoder_priority")
     private val downmixEnabledKey = booleanPreferencesKey("downmix_enabled")
     private val audioOutputChannelsKey = stringPreferencesKey("audio_output_channels")
@@ -656,6 +702,7 @@ class PlayerSettingsDataStore @Inject constructor(
     private val subtitleHdrStyleEnabledKey = booleanPreferencesKey("subtitle_hdr_style_enabled")
     private val subtitleHdrTextColorKey = intPreferencesKey("subtitle_hdr_text_color")
     private val subtitleHdrBrightnessKey = intPreferencesKey("subtitle_hdr_brightness")
+    private val subtitleHdrDimPlayerControlsKey = booleanPreferencesKey("subtitle_hdr_dim_player_controls")
 
     // Buffer settings keys
     private val minBufferMsKey = intPreferencesKey("min_buffer_ms")
@@ -927,6 +974,7 @@ class PlayerSettingsDataStore @Inject constructor(
                 libassRenderScale = prefs[libassRenderScaleKey]?.let {
                     try { LibassRenderScale.valueOf(it) } catch (e: Exception) { LibassRenderScale.FULL }
                 } ?: LibassRenderScale.FULL,
+                libassRenderMode = LibassRenderMode.fromStoredString(prefs[libassRenderModeKey]),
                 decoderPriority = prefs[decoderPriorityKey] ?: 1,
                 downmixEnabled =
                     prefs[downmixEnabledKey]
@@ -1098,7 +1146,8 @@ class PlayerSettingsDataStore @Inject constructor(
                         outlineWidth = prefs[subtitleOutlineWidthKey] ?: 2,
                         hdrStyleEnabled = prefs[subtitleHdrStyleEnabledKey] ?: false,
                         hdrTextColor = prefs[subtitleHdrTextColorKey] ?: Color.White.toArgb(),
-                        hdrBrightness = prefs[subtitleHdrBrightnessKey] ?: SubtitleStyleSettings.HDR_BRIGHTNESS_DEFAULT
+                        hdrBrightness = prefs[subtitleHdrBrightnessKey] ?: SubtitleStyleSettings.HDR_BRIGHTNESS_DEFAULT,
+                        hdrDimPlayerControls = prefs[subtitleHdrDimPlayerControlsKey] ?: false
                     )
                 },
                 bufferSettings = BufferSettings(
@@ -1629,6 +1678,15 @@ class PlayerSettingsDataStore @Inject constructor(
         }
     }
 
+    /**
+     * Set the libass subtitle render mode (video effect vs overlay).
+     */
+    suspend fun setLibassRenderMode(mode: LibassRenderMode) {
+        store().edit { prefs ->
+            prefs[libassRenderModeKey] = mode.name
+        }
+    }
+
     // Dolby Vision setters (libdovi conversion)
     suspend fun setDv5ToDv81Enabled(enabled: Boolean) { store().edit { it[dv5ToDv81EnabledKey] = enabled } }
     suspend fun setDv7ToDv81PreserveMappingEnabled(enabled: Boolean) { store().edit { it[dv7ToDv81PreserveMappingEnabledKey] = enabled } }
@@ -1656,6 +1714,9 @@ class PlayerSettingsDataStore @Inject constructor(
     suspend fun setSubtitleOutlineWidth(width: Int) { store().edit { it[subtitleOutlineWidthKey] = width.coerceIn(1, 5) } }
     suspend fun setSubtitleHdrStyleEnabled(enabled: Boolean) { store().edit { it[subtitleHdrStyleEnabledKey] = enabled } }
     suspend fun setSubtitleHdrTextColor(color: Int) { store().edit { it[subtitleHdrTextColorKey] = color } }
+    suspend fun setSubtitleHdrDimPlayerControls(enabled: Boolean) {
+        store().edit { it[subtitleHdrDimPlayerControlsKey] = enabled }
+    }
     suspend fun setSubtitleHdrBrightness(brightness: Int) {
         store().edit {
             it[subtitleHdrBrightnessKey] = brightness.coerceIn(

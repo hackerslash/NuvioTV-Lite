@@ -135,8 +135,8 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         minSdk = 24
         targetSdk = 36
-        versionCode = 1071
-        versionName = "1.1.0-beta.8"
+        versionCode = 1072
+        versionName = "1.1.0-beta.9"
 
         buildConfigField("String", "PARENTAL_GUIDE_API_URL", "\"${localProperties.getProperty("PARENTAL_GUIDE_API_URL", "")}\"")
         buildConfigField("String", "INTRODB_API_URL", "\"${localProperties.getProperty("INTRODB_API_URL", "")}\"")
@@ -413,6 +413,8 @@ androidComponents {
     // Only full and lite ship the in-app updater.
     onVariants { variant ->
         if (variant.productFlavors.any { it.second == "playstore" }) return@onVariants
+        // AGP makes no ART profile for debuggable variants, and ART ignores .dm files for them anyway.
+        if (variant.debuggable) return@onVariants
         val variantName = variant.name.replaceFirstChar { it.uppercase() }
         val embedTask = tasks.register<EmbedUpdateDexMetadataTask>("embed${variantName}UpdateDexMetadata") {
             dexMetadataDirectory.from(provider {
@@ -551,6 +553,7 @@ dependencies {
     implementation(libs.media3.decoder)
     implementation(libs.media3.session)
     implementation(libs.media3.container)
+    implementation("androidx.media3:media3-effect:1.8.0")
 
     // Transitive dependencies required by forked local AARs (not bundled in AARs):
     // - Guava: needed by lib-common (ImmutableList/ImmutableSet in Tracks, Player API)
@@ -577,7 +580,7 @@ dependencies {
         "libs/lib-decoder-mpegh-release.aar"
     ))
     add("fullImplementation", files("libs/lib-decoder-iamf-release.aar"))
-    implementation(files("libs/lib-nuvio-engine-android-0.1.5.aar"))
+    implementation(files("libs/lib-nuvio-engine-android-0.1.6.aar"))
     if (useLocalFfmpegDecoder) {
         implementation(project(":ffmpeg-decoder-downmix"))
     } else {

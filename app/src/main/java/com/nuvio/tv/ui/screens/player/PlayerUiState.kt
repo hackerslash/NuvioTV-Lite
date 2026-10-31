@@ -8,6 +8,7 @@ import com.nuvio.tv.core.streams.StreamBadgePlacement
 import com.nuvio.tv.data.local.FrameRateMatchingMode
 import com.nuvio.tv.data.local.InternalPlayerEngine
 import com.nuvio.tv.data.local.LibassRenderType
+import com.nuvio.tv.data.local.LibassRenderMode
 import com.nuvio.tv.data.local.StreamAutoPlayMode
 import com.nuvio.tv.data.local.SubtitleStyleSettings
 import com.nuvio.tv.data.repository.SkipInterval
@@ -215,6 +216,7 @@ data class PlayerUiState(
     val frameRateMatchingMode: FrameRateMatchingMode = FrameRateMatchingMode.OFF,
     val useLibass: Boolean = false,
     val libassRenderType: LibassRenderType = LibassRenderType.OVERLAY_OPEN_GL,
+    val libassRenderMode: LibassRenderMode = LibassRenderMode.DEFAULT,
     val displayModeInfo: DisplayModeInfo? = null,
     val showDisplayModeInfo: Boolean = false,
     // Aspect ratio / resize mode
@@ -254,6 +256,10 @@ data class PlayerUiState(
 
     val editableSubtitleStyle: SubtitleStyleSettings
         get() = subtitleStyle.editableForVideo(isHdrVideo)
+
+    /** Brightness factor for the player controls and menus drawn over the video (1 = undimmed). */
+    val playerControlsBrightness: Float
+        get() = subtitleStyle.playerControlsBrightness(isHdrVideo)
 }
 
 internal fun PlayerUiState.clearFrameRateDetection(): PlayerUiState = copy(
@@ -347,7 +353,7 @@ sealed class PlayerEvent {
     data object OnDismissEpisodesPanel : PlayerEvent()
     data object OnBackFromEpisodeStreams : PlayerEvent()
     data class OnEpisodeSeasonSelected(val season: Int) : PlayerEvent()
-    data class OnEpisodeSelected(val video: Video) : PlayerEvent()
+    data class OnEpisodeSelected(val video: Video, val manualSelection: Boolean = false) : PlayerEvent()
     data object OnReloadEpisodeStreams : PlayerEvent()
     data class OnEpisodeAddonFilterSelected(val addonName: String?) : PlayerEvent()
     data class OnEpisodeStreamSelected(val stream: Stream) : PlayerEvent()

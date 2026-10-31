@@ -102,3 +102,9 @@ fun TextStyle.directedFor(text: String): TextStyle =
 @Composable
 fun String.rememberContentTextDirection(): TextDirection =
     remember(this) { contentTextDirection() }
+
+/**
+ * Keeps a left-to-right string (e.g. "2 GB") from being reordered to "GB 2" when it is shown in an
+ * RTL layout, by wrapping it in LRM marks. Strings whose own content is RTL are returned unchanged.
+ */
+fun String.keepLtr(): String = if (isContentRtl()) this else "\u200E$this\u200E"
