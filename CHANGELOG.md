@@ -12,6 +12,27 @@ channel.
 
 Lite numbering restarted at 2.0.0 after 1.4.10; it is independent of upstream's version.
 
+## v2.4.0-lite — 2026-10-31
+
+**ASS subtitles on video:** libass can now draw styled subtitles straight onto video frames, with a render-mode setting.
+
+### Synced with upstream NuvioTV (1.1.0-beta.9)
+- [upstream] libass subtitles can render onto video frames, stay aligned with the video, and no longer stall playback when busy. @skoruppa @kram00n
+- [upstream] Skip-intro intervals come from chapter titles, and the skip button no longer flickers or resets. @skoruppa
+- [upstream] Simkl and MDBList playback tracking no longer spikes CPU and memory during scrobbles. @halibiram
+- [upstream] Plugin sync runs after add-ons and watch progress load, pinned to the profile that started it. @halibiram
+- [upstream] The modern home no longer recomposes entirely when hero enrichment arrives. @oleglucic
+- [upstream] Posters load when a DNS VPN is the active network. @tharun634
+- [upstream] The player dims controls on HDR video, supports Bluetooth media keys on mpv, and releases the decoder in the background. @kernexshadow @kram00n @oleglucic
+- [upstream] Stream audio delay is scoped to the audio language, and player badges detect codecs more reliably. @qwertyuiop8899 @skoruppa
+- [upstream] Fixes for live-stream resume, episode autoplay, USB audio tunneling, mpv HTTP retries, MKV tracks and trailer black screens. @NivinCNC @oathzed @kernexshadow @oleglucic
+- [upstream] Debrid language detection, SDH stripping, Jellyfin lookups and focus restoration across add-on and settings screens are fixed. @kernexshadow @ysosrs123 @oathzed
+- [upstream] Screen-reader labels, RTL formatting fixes, and translation updates for Hebrew, French, Turkish, Greek, Vietnamese, Slovak and Bulgarian. @thebetterfarhan @haveAnIssue @SK-Gits @halibiram @nosvasedis @blueocean2308 @mmsw91 @viiktr
+
+### Kept lean for Lite
+- Upstream's indexed Simkl lookups replace Lite's own anime-movie precompute, and the diagnostics report uses the same index.
+- Low-memory devices keep skipping poster revalidation while gaining upstream's DNS-VPN connectivity fix.
+
 ## v2.3.1-lite — 2026-10-22
 
 **Background updates:** Lite downloads new releases in the background and can install them silently while the TV is idle on Android 12+.
