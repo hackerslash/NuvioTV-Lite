@@ -60,6 +60,12 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import coil3.compose.AsyncImage
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.toggleableState
+import androidx.compose.ui.state.ToggleableState
 import com.nuvio.tv.R
 import com.nuvio.tv.domain.model.ContentType
 import com.nuvio.tv.domain.model.Meta
