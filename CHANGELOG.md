@@ -12,6 +12,34 @@ channel.
 
 Lite numbering restarted at 2.0.0 after 1.4.10; it is independent of upstream's version.
 
+## v2.4.5-lite — 2026-11-16
+
+**Subtitle styling:** fonts, backgrounds, shadows, colours and outline width now have a live-preview editor, and you can import fonts from your phone.
+
+### Synced with upstream NuvioTV (1.2.0-beta.1)
+- [upstream] Subtitles gain a live-preview appearance editor, phone font import, and font, background, shadow, colour, position and outline-width controls. @tapframe @skoruppa
+- [upstream] AutoSync matches ASS/SSA subtitles by their dialogue, reapplies after a player rebuild and stays quiet unless the subtitle does not fit. @skoruppa @DavidVamaiotu
+- [upstream] Player chapters have settings for both engines plus a chapter-title toggle, moved under Player Interface. @skoruppa
+- [upstream] Stremio player and library tracking add-ons are supported, with a consent prompt on the QR page. @skoruppa
+- [upstream] Continue Watching gains a setting for what selecting an item opens, keys cards by show, and refreshes when an upcoming episode airs. @skoruppa @kernexshadow
+- [upstream] Updates warn that an optimized install closes the app, offer the system installer, reopen the app afterwards and stop asking once cancelled. @kernexshadow @tapframe @halibiram
+- [upstream] The memory budget is snapshotted once at startup and sized from the standard heap on low-RAM TVs, for both playback buffers and the image cache. @oleglucic
+- [upstream] HLS streams missing SPS/PPS get an init segment, and HDR is detected from the decoder input format and the HEVC alternative-transfer SEI in MKV. @skoruppa @kernexshadow
+- [upstream] An auto-selected source whose debrid result cannot be played now falls back to the next one, on the current episode and the next. @skoruppa
+- [upstream] Skip-intro queries Anime-Skip for Kitsu and MAL without an IntroDB mapping and picks the most complete entry. @skoruppa
+- [upstream] The home hero description auto-scrolls at a reading pace instead of a fixed speed. @skoruppa
+- [upstream] Fixes for playback position on source switch, expired saved links, episode restore after process death, forced AC-3, letterbox bars and Cantonese subtitles. @skoruppa @halibiram @kernexshadow
+- [upstream] Focus and scrolling fixes across collections, profiles, add-ons, search, library, settings and the stream list. @oathzed @tapframe @skoruppa @kernexshadow
+- [upstream] RTL value ordering is corrected in sliders, subtitle offsets, network tests and stream info. @haveAnIssue
+- [upstream] mpv-android-lib moves to 0.2.1, and TorBox alternative-hash cache answers are matched. @skoruppa @WhiteGiso
+- [upstream] Translation updates for Arabic, Lithuanian, Indonesian, Japanese, Hungarian, Dutch, French, Polish, Hebrew, Turkish, Spanish, Swedish, Slovak and Bengali. @ii-g @blueocean2308 @SK-Gits @haveAnIssue @aicon @scheperr @mmsw91 @omavel @Joe00011 @TanvirSdq @svartolina @halibiram
+
+### Kept lean for Lite
+- The rebuilt memory budget keys on physical RAM, so a 2 GB box keeps Lite's clamped buffers instead of the full heap-ratio budget upstream would hand it.
+- Plugin source names render once per provider group rather than once per stream row.
+- The home hero description reuses its cached text style instead of allocating one per recomposition.
+- Lite registers the new post-install relaunch receiver, so an update started from Lite reopens the app on Android 9 and older.
+
 ## v2.4.0-lite — 2026-10-31
 
 **ASS subtitles on video:** libass can now draw styled subtitles straight onto video frames, with a render-mode setting.
