@@ -100,16 +100,30 @@ internal class MpvEventRelay(
     }
 
     override fun eventProperty(property: String) {
-        if (property != MPV_TRACK_LIST_PROPERTY) return
         if (!active.get() || epoch != controller.mpvEventRelayEpoch) return
-        controller.markMpvTracksStale()
+        when (property) {
+            MPV_TRACK_LIST_PROPERTY -> controller.markMpvTracksStale()
+            MPV_SID_PROPERTY, MPV_SUB_TEXT_PROPERTY -> syncStyledSubtitles()
+        }
     }
 
     override fun eventProperty(property: String, value: Long) = Unit
     override fun eventProperty(property: String, value: Boolean) = Unit
-    override fun eventProperty(property: String, value: String) = Unit
+    override fun eventProperty(property: String, value: String) {
+        if (property != MPV_SID_PROPERTY && property != MPV_SUB_TEXT_PROPERTY) return
+        if (!active.get() || epoch != controller.mpvEventRelayEpoch) return
+        syncStyledSubtitles()
+    }
+
     override fun eventProperty(property: String, value: Double) = Unit
     override fun eventProperty(property: String, value: MPVNode) = Unit
+
+    private fun syncStyledSubtitles() {
+        controller.scope.launch {
+            if (!active.get() || epoch != controller.mpvEventRelayEpoch) return@launch
+            controller.syncMpvStyledSubtitles()
+        }
+    }
 }
 
 internal fun PlayerRuntimeController.registerMpvEventRelay(view: NuvioMpvSurfaceView) {
@@ -261,6 +275,10 @@ internal fun PlayerRuntimeController.handleMpvPlaybackError(
         lastPlaybackDiagnosticsForReport =
             lastPlaybackDiagnosticsForReport.copy(result = "Error: $detailedError")
 
+        // A link that has likely expired is fetched again before anything else is tried on it.
+        if (tryRefreshExpiredLinkAfterError(detailedError)) return
+        if (tryFallbackToNextSourceAfterError(detailedError)) return
+
         val startupFailed = !hasRenderedFirstFrame
         if (startupFailed &&
             maybeAutoSwitchInternalPlayerOnStartupError(
@@ -322,7 +340,7 @@ private fun PlayerRuntimeController.attemptMpvAutoRetry(
         if (savedPosition > 0L) {
             _uiState.update { it.copy(pendingSeekPosition = savedPosition) }
         }
-        initializePlayer(currentStreamUrl, currentHeaders, startPaused = paused)
+        reinitializeCurrentStream(startPaused = paused)
     }
     return true
 }

@@ -32,6 +32,7 @@ import com.nuvio.tv.data.local.ImagePerformancePreferences
 import com.nuvio.tv.data.local.SentrySettingsDataStore
 import com.nuvio.tv.data.mediaserver.ServerUserStateProjection
 import com.nuvio.tv.data.simkl.SimklAnimeIdPreferenceHolder
+import com.nuvio.tv.ui.screens.settings.MemoryBudget
 import dagger.hilt.android.HiltAndroidApp
 import okhttp3.Cookie
 import okhttp3.CookieJar
@@ -80,11 +81,13 @@ class NuvioApplication : Application(), SingletonImageLoader.Factory {
         }
     }
 
+    @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
     override fun onCreate() {
-        // Before super.onCreate(), which triggers Hilt field injection: MemoryBudget caches
-        // its tier on first touch, so the real device tier has to be resolved before any
-        // injected singleton can read it. The base context is already attached here.
+        // Before super.onCreate(), which triggers Hilt field injection: both snapshot on first
+        // touch, so the device tier has to be resolved before any injected singleton can read it,
+        // and MemoryBudget keys on that tier. The base context is already attached here.
         DeviceMemoryTier.init(this)
+        MemoryBudget.init()
         super.onCreate()
         // Lite edition skips crash reporting (Sentry SDK footprint + a blocking
         // DataStore read on the main thread) and the Android TV launcher-channel sync
@@ -114,6 +117,7 @@ class NuvioApplication : Application(), SingletonImageLoader.Factory {
         MemoryDiagnostics.snapshot(this, "trim-$level")
     }
 
+    @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
     override fun newImageLoader(context: android.content.Context): ImageLoader {
         val isLowRam = DeviceMemoryTier.isLowRam
         val dropsOptionalWork = DeviceMemoryTier.dropsOptionalWork
@@ -184,9 +188,17 @@ class NuvioApplication : Application(), SingletonImageLoader.Factory {
                     totalRamMb <= 3072 -> 0.20
                     else -> 0.25
                 }
-                MemoryCache.Builder()
-                    .maxSizePercent(context, cachePercent)
-                    .build()
+                // maxSizePercent takes the share of largeMemoryClass under largeHeap (512 MB on
+                // 1 GB TVs, ~77 MB of bitmaps), so when MemoryBudget sizes from a smaller heap on
+                // such a TV the cache takes its share from that heap too.
+                val budgetHeapBytes = MemoryBudget.heapMb * 1024L * 1024L
+                val builder = MemoryCache.Builder()
+                if (budgetHeapBytes < Runtime.getRuntime().maxMemory()) {
+                    builder.maxSizeBytes((budgetHeapBytes * cachePercent).toLong())
+                } else {
+                    builder.maxSizePercent(context, cachePercent)
+                }
+                builder.build()
             }
             .diskCache {
                 DiskCache.Builder()
