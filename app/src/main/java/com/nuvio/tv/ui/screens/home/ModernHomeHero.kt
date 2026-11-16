@@ -56,7 +56,7 @@ import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
 import com.nuvio.tv.ui.util.LocalRecompositionHighlighterEnabled
-import com.nuvio.tv.ui.util.contentTextDirection
+import com.nuvio.tv.ui.util.directedFor
 import com.nuvio.tv.ui.util.recompositionHighlighter
 import coil3.request.transitionFactory
 import com.nuvio.tv.R
@@ -665,7 +665,7 @@ private fun HeroTitleContent(
         preview.description?.takeIf { it.isNotBlank() }?.let { description ->
             AutoScrollingText(
                 text = description,
-                style = scaledDescriptionStyle.copy(textDirection = description.contentTextDirection()),
+                style = scaledDescriptionStyle.directedFor(description),
                 color = NuvioTheme.colors.TextPrimary,
                 maxLines = descriptionMaxLines,
                 autoScrollEnabled = descriptionAutoScrollEnabled,
