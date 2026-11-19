@@ -122,7 +122,8 @@ object ApkInstaller {
         }.getOrNull()
 
         val signatures = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            read(PackageManager.GET_SIGNING_CERTIFICATES)?.signingInfo?.let {
+            // Android 9/10 only collect an archive's certificates when GET_SIGNATURES is set.
+            read(PackageManager.GET_SIGNING_CERTIFICATES or PackageManager.GET_SIGNATURES)?.signingInfo?.let {
                 // History covers a later key rotation; multi-signer APKs expose signers instead.
                 if (it.hasMultipleSigners()) it.apkContentsSigners else it.signingCertificateHistory
             }
