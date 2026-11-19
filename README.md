@@ -1,108 +1,42 @@
 <div align="center">
-
-  <img src="assets/brand/app_logo_wordmark.png" alt="NuvioTV" width="300" />
-  <br />
-  <br />
-
-  <p>
-    NuvioTV, rebuilt to survive on a low-RAM Android TV box.
-    <br />
-    Same Stremio-addon playback core • capped memory • self-updating from GitHub Releases
-  </p>
-
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/brand/lite_logo_dark.png" />
+    <img src="assets/brand/lite_logo_light.png" alt="Nuvio Lite" width="221" />
+  </picture>
 </div>
 
-## Why this fork exists
+# NuvioTV Lite
 
-Plenty of Android TV sticks and boxes sold today are low-RAM devices, and stock NuvioTV
-([NuvioMedia/NuvioTV](https://github.com/NuvioMedia/NuvioTV)) is tuned for devices with
-more headroom than that. On a low-RAM box its buffer sizing, unbounded concurrent addon
-queries, and heavier features (the JS plugin runtime, launcher-channel sync) push it into the kernel's low-memory killer well before anything throws an
-`OutOfMemoryError`. This fork exists to fix that class of device, not to add features.
+An unofficial fork of [NuvioTV](https://github.com/NuvioMedia/NuvioTV) for Android TV boxes with little RAM. It keeps upstream's Stremio-addon playback core and caps memory use so the low-memory killer leaves the app alone.
 
-Everything here is upstream's playback core with the memory ceiling actually enforced,
-plus a **Lite Edition** build flavor that strips what a low-RAM box can't afford. See the
-[Changelog](CHANGELOG.md) for what shipped release-by-release.
+## Differences from upstream
 
-## What's actually different from upstream
+- Devices are tiered by physical RAM instead of heap size.
+- The playback buffer tops out at 250 MB on low-RAM devices (upstream reached about 435 MB).
+- At most 3 addon stream queries run at once on low-RAM devices, 8 on others.
+- The Lite build drops JS plugins, trailers, launcher-channel sync and Sentry. P2P runs in-process on the Nuvio Engine (about 4 MB).
+- Lite installs as `com.nuvio.tv.lite`, so it sits next to a regular NuvioTV install.
+- Updates come in-app from this repo's GitHub Releases.
 
-| | Upstream NuvioTV | This fork |
-|---|---|---|
-| Device tiering | Heap size (`largeHeap` reports ~512 MB on both a low-RAM and high-RAM device) | Physical RAM (`isLowRamDevice` + a cutoff) |
-| Playback buffer on low-RAM | Heap-ratio only, ~435 MB observed on a low-RAM device | Hard 250 MB ceiling |
-| Concurrent addon stream queries | Unbounded — every configured addon queried at once | Capped at 3 (low-RAM) / 8 (elsewhere) |
-| JS plugins, in-app trailers, launcher sync | Present | Stripped in **Lite Edition** only (still present in this fork's `full`/`playstore` flavors) |
-| Updates | Play Store / manual APK | In-app OTA updates from this fork's GitHub Releases |
-| Settings UI | — | Unchanged — no new toggles, this is all build-flavor and internal tuning |
+Upstream changes are merged regularly. See the [changelog](CHANGELOG.md) for each release.
 
-Day-to-day upstream fixes and features are merged in regularly; this fork isn't a
-permanent divergence, just upstream plus the memory work above.
+## Install
 
-## ⚡ Lite Edition
+Download an APK from [Releases](https://github.com/hackerslash/NuvioTV-Lite/releases/latest). The `-lite` APKs are the Lite build. Most low-RAM boxes are 32-bit, so start with `armeabi-v7a`. Use `arm64-v8a` on 64-bit boxes, `x86`/`x86_64` on emulators, or `universal` if unsure. After the first install, in-app updates pick the right ABI.
 
-The build flavor this fork is really about: tuned for the **lowest practical RAM
-footprint on low-RAM Android TV boxes**, where the OS and launcher already eat most of the
-memory. It preserves the core loop — **browse → pick a source → reliable playback** —
-and trades away heavier features to stay alive under memory pressure.
-
-- P2P streaming runs in-process on upstream's Nuvio Engine (about 4 MB per APK, loaded only
-  when P2P is used); the old 41 MB TorrServer co-process is gone
-- Plugins/JS runtime, in-app + external trailers, launcher-channel sync + boot receiver,
-  and Sentry all disabled
-- Installs as a separate `com.nuvio.tv.lite` package ("Nuvio Lite") alongside a standard
-  NuvioTV install — nothing is overwritten
-
-## Installation
-
-### Android TV
-
-Download the latest APK from **[GitHub Releases](https://github.com/hackerslash/NuvioTV-Lite/releases/latest)** and sideload it on your Android TV device.
-
-Pick the APK matching your box's CPU:
-
-- **`armeabi-v7a`** — start here: most low-RAM TV boxes and sticks are 32-bit
-- **`arm64-v8a`** — 64-bit boxes (check your device before picking this)
-- **`x86_64` / `x86`** — emulators and x86 devices
-- **`universal`** — works everywhere but is the largest download
-
-Only the first install needs a choice; in-app updates detect your device's ABI and
-fetch the matching APK automatically.
-
-The `-lite` APKs are the Lite Edition; the standard APKs are the full build.
-
-### Speed up cold start after sideloading
-
-A sideloaded APK is installed at compilation filter `verify` — no AOT compilation — so
-cold start is 2-3x slower than the same build from the Play Store until Android's
-background dexopt gets around to it (it waits for idle + charging, often a day or more).
-Forcing that compilation now is a one-off:
-
-```bash
-scripts/adb-optimize.sh com.nuvio.tv.lite
-```
-
-It finds the device (USB, or a sweep of the local subnet for adb on 5555), checks the
-app hasn't already been compiled, measures the median cold start before and after, and
-prints the speedup. Use `com.nuvio.tv` for the full build.
-
-If adb is already connected and you just want the one command:
+Sideloaded apps start 2-3x slower until Android compiles them in the background. With ADB debugging on, you can compile right away:
 
 ```bash
 adb shell cmd package compile -m speed-profile -f com.nuvio.tv.lite
 ```
 
-Undo with `adb shell cmd package compile --reset com.nuvio.tv.lite`. Both need
-ADB/USB debugging enabled in the TV's Developer options.
+`scripts/adb-optimize.sh com.nuvio.tv.lite` does the same, finds the device for you and measures cold start before and after. Undo with `adb shell cmd package compile --reset com.nuvio.tv.lite`.
 
-## Build from source
+## Build
 
 ```bash
-git clone https://github.com/hackerslash/NuvioTV-Lite.git
-cd NuvioTV-Lite
 ./gradlew :app:assembleFullDebug     # full build
-./gradlew :app:assembleLiteRelease   # Lite Edition, per-ABI + universal APKs
+./gradlew :app:assembleLiteRelease   # Lite, per-ABI + universal APKs
 ```
 
-Flavors: `full` (all features), `playstore` (lean, Play-compliant), `lite`
-(memory-optimized low-RAM edition).
-
+Flavors: `full`, `playstore` (Play-compliant) and `lite`.
