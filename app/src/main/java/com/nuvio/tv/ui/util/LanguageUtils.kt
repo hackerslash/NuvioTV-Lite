@@ -3,8 +3,15 @@ package com.nuvio.tv.ui.util
 import android.content.Context
 import com.nuvio.tv.R
 import java.util.Locale
+import java.util.concurrent.ConcurrentHashMap
 
 private val EPISODE_PATTERN = Regex("^Episode (\\d+)$", RegexOption.IGNORE_CASE)
+private val WHITESPACE = Regex("\\s+")
+private const val LANGUAGE_NAME_CACHE_LIMIT = 2_000
+private val languageNameCache = ConcurrentHashMap<String, String>()
+private val LANGUAGE_NAME_ALIASES_LONGEST_FIRST by lazy {
+    LANGUAGE_NAME_ALIASES.entries.sortedByDescending { it.key.length }
+}
 
 fun String.localizeEpisodeTitle(appContext: Context): String {
     val match = EPISODE_PATTERN.matchEntire(this.trim()) ?: return this
@@ -227,17 +234,10 @@ internal val LANGUAGE_NAME_ALIASES = mapOf(
     "zulu" to "zu"
 )
 
-// Longest-first once, at class-init: the scan below runs per subtitle and per audio track, and an
-// addon can answer with hundreds of subtitles.
-private val LANGUAGE_NAME_ALIASES_BY_LENGTH = LANGUAGE_NAME_ALIASES.entries
-    .sortedByDescending { it.key.length }
-
-private val WHITESPACE_RUN = Regex("\\s+")
-
 internal fun resolveLanguageNameAlias(tokenized: String): String? {
     if (tokenized.isBlank()) return null
     LANGUAGE_NAME_ALIASES[tokenized]?.let { return it }
-    return LANGUAGE_NAME_ALIASES_BY_LENGTH
+    return LANGUAGE_NAME_ALIASES_LONGEST_FIRST
         .firstOrNull { (name, _) ->
             tokenized == name ||
                 tokenized.startsWith("$name ") ||
@@ -248,6 +248,13 @@ internal fun resolveLanguageNameAlias(tokenized: String): String? {
 }
 
 fun languageCodeToName(code: String): String {
+    val key = "${Locale.getDefault().toLanguageTag()}|$code"
+    languageNameCache[key]?.let { return it }
+    if (languageNameCache.size >= LANGUAGE_NAME_CACHE_LIMIT) languageNameCache.clear()
+    return resolveLanguageCodeToName(code).also { languageNameCache[key] = it }
+}
+
+private fun resolveLanguageCodeToName(code: String): String {
     val lowerCode = code.lowercase()
     if (lowerCode == "none") return "None"
     if (lowerCode == "und" || lowerCode == "unknown" || lowerCode == "unk") {
@@ -259,7 +266,7 @@ fun languageCodeToName(code: String): String {
         .replace('-', ' ')
         .replace('.', ' ')
         .replace('/', ' ')
-        .replace(WHITESPACE_RUN, " ")
+        .replace(WHITESPACE, " ")
         .trim()
     val bcp47 = LANGUAGE_OVERRIDES[lowerCode]
         ?: resolveLanguageNameAlias(tokenized)

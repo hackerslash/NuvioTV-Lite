@@ -67,6 +67,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.toggleableState
 import androidx.compose.ui.state.ToggleableState
 import com.nuvio.tv.R
+import com.nuvio.tv.core.tracking.TrackingRatingState
 import com.nuvio.tv.domain.model.ContentType
 import com.nuvio.tv.domain.model.Meta
 import com.nuvio.tv.domain.model.MDBListRatings
@@ -110,6 +111,8 @@ fun HeroContentSection(
     isMovieWatched: Boolean,
     isMovieWatchedPending: Boolean,
     onToggleMovieWatched: () -> Unit,
+    ratingState: TrackingRatingState = TrackingRatingState(),
+    onRateClick: () -> Unit = {},
     trailerAvailable: Boolean = false,
     onTrailerClick: () -> Unit = {},
     showRandomEpisodeButton: Boolean = false,
@@ -308,6 +311,14 @@ fun HeroContentSection(
                                 toggleable = true,
                                 selectedContainerColor = Color.White,
                                 selectedContentColor = Color.Black,
+                                onFocused = onHeroActionFocused
+                            )
+                        }
+
+                        if (ratingState.isAvailable) {
+                            RatingActionButton(
+                                rating = ratingState.rating,
+                                onClick = onRateClick,
                                 onFocused = onHeroActionFocused
                             )
                         }

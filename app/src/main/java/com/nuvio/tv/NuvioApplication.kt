@@ -31,6 +31,10 @@ import com.nuvio.tv.core.network.imageNetworkFetcherFactory
 import com.nuvio.tv.data.local.ImagePerformancePreferences
 import com.nuvio.tv.data.local.SentrySettingsDataStore
 import com.nuvio.tv.data.mediaserver.ServerUserStateProjection
+import com.nuvio.tv.data.mediaserver.plex.PlexArtworkInterceptor
+import com.nuvio.tv.data.mediaserver.plex.PlexArtworkSigner
+import com.nuvio.tv.data.mediaserver.silo.SiloArtworkInterceptor
+import com.nuvio.tv.data.mediaserver.silo.SiloArtworkRefresher
 import com.nuvio.tv.data.simkl.SimklAnimeIdPreferenceHolder
 import com.nuvio.tv.ui.screens.settings.MemoryBudget
 import dagger.hilt.android.HiltAndroidApp
@@ -50,6 +54,8 @@ class NuvioApplication : Application(), SingletonImageLoader.Factory {
     @Inject lateinit var imagePerformancePreferences: ImagePerformancePreferences
     @Inject lateinit var simklAnimeIdPreferenceHolder: SimklAnimeIdPreferenceHolder
     @Inject lateinit var serverUserStateProjection: dagger.Lazy<ServerUserStateProjection>
+    @Inject lateinit var plexArtworkSigner: dagger.Lazy<PlexArtworkSigner>
+    @Inject lateinit var siloArtworkRefresher: dagger.Lazy<SiloArtworkRefresher>
 
     companion object {
         /**
@@ -133,6 +139,9 @@ class NuvioApplication : Application(), SingletonImageLoader.Factory {
                 .connectTimeout(4, TimeUnit.SECONDS)
                 .readTimeout(5, TimeUnit.SECONDS)
                 .callTimeout(8, TimeUnit.SECONDS)
+                .addInterceptor(PlexArtworkInterceptor { if (::plexArtworkSigner.isInitialized) plexArtworkSigner.get() else null })
+                .addNetworkInterceptor(PlexArtworkInterceptor.Token { if (::plexArtworkSigner.isInitialized) plexArtworkSigner.get() else null })
+                .addInterceptor(SiloArtworkInterceptor({ if (::siloArtworkRefresher.isInitialized) siloArtworkRefresher.get() else null }))
                 .addInterceptor { chain ->
                     try {
                         chain.proceed(chain.request())
