@@ -12,6 +12,31 @@ channel.
 
 Lite numbering restarted at 2.0.0 after 1.4.10; it is independent of upstream's version.
 
+## v2.4.6-lite — 2026-11-19
+
+**Plex, Silo and ratings:** Plex Media Server and Silo join the media servers, and titles and episodes can be rated on Simkl or MDBList.
+
+### Fixed in Lite
+- In-app updates install again on Android 9 and 10 TVs such as the Mi Box S, though this one release must be installed manually if the update shows a signature mismatch.
+
+### Synced with upstream NuvioTV (1.2.0-beta.2)
+- [upstream] Plex Media Server and Silo can be added as media servers, with shared sign-in screens and Jellyfin/Emby sign-ins kept per profile. @ysosrs123 @skoruppa
+- [upstream] Titles and episodes can be rated with stars, synced to Simkl or MDBList, with a ratings source picker in settings. @tapframe
+- [upstream] Trailers can show subtitles styled like the player's, off by default and limited to your preferred languages. @unsuns06 @skoruppa
+- [upstream] A home trailer keeps playing on the details page, pauses under cast or network pages, and a new hero trailer location keeps posters collapsed. @skoruppa
+- [upstream] Season tabs can show season posters, and external episode ratings follow the add-on's episode order. @skoruppa
+- [upstream] The player subtitle list shows the Stremio subtitle label as the title and no longer resolves every language on each menu build. @skoruppa
+- [upstream] Streams with proxy headers may use HTTP/2 and retry once over HTTP/2 after a 403. @blueocean2308
+- [upstream] Low-RAM devices keep the configured back buffer unless DV7 conversion runs. @halibiram
+- [upstream] Fixes for Continue Watching focus after playback, sidebar focus while Home loads, RTL hero and avatar layouts, talk-show cast credits and ambient-mode settings sync. @kernexshadow @skoruppa @Yosi-Brown
+- [upstream] Translation updates for Portuguese (Portugal), French, Turkish, Vietnamese and Slovak. @affcosta7 @SK-Gits @halibiram @blueocean2308 @mmsw91
+
+### Kept lean for Lite
+- Plex and Silo artwork helpers are created on first use instead of at app start.
+- Trailer letterbox detection stays off on low-RAM devices, now covering the new home-to-details trailer layer too.
+- Trailer settings collectors still only start in builds with in-app trailers.
+- A DV7 conversion on a constrained device starts with no back buffer instead of waiting for the first frame to drop it.
+
 ## v2.4.5-lite — 2026-11-16
 
 **Subtitle styling:** fonts, backgrounds, shadows, colours and outline width now have a live-preview editor, and you can import fonts from your phone.
