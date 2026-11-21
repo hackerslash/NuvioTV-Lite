@@ -235,4 +235,15 @@ class ContinueWatchingImageModelTest {
             )
         )
     }
+
+    @Test
+    fun `broken url is skipped until it expires`() {
+        val urls = ExpiringUrlSet(ttlMs = 300)
+        urls.add("poster.jpg")
+        assertTrue("poster.jpg" in urls)
+        Thread.sleep(400)
+        assertFalse("poster.jpg" in urls)
+        assertTrue(urls.isEmpty())
+        assertTrue(urls.add("poster.jpg"))
+    }
 }

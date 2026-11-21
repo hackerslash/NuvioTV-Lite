@@ -97,8 +97,18 @@ private val BadgeShape = RoundedCornerShape(NuvioTheme.radii.xs)
 private val CwNewEpisodeBadgeColor = Color(0xFF1D4ED8)
 private val CwNewSeasonBadgeColor = Color(0xFFB45309)
 
-/** URLs that failed to load — skip them immediately on next recomposition. */
-internal val brokenImageUrls = java.util.Collections.synchronizedSet(mutableSetOf<String>())
+/** URLs that failed to load — skipped for a minute, then retried, so a transient failure doesn't blank a card until restart. */
+internal val brokenImageUrls: MutableSet<String> = ExpiringUrlSet(ttlMs = 60_000)
+
+internal class ExpiringUrlSet(private val ttlMs: Long) : AbstractMutableSet<String>() {
+    private val failedAt = java.util.concurrent.ConcurrentHashMap<String, Long>()
+    private fun now() = System.nanoTime() / 1_000_000
+    private fun pruneExpired() { failedAt.values.removeIf { now() - it >= ttlMs } }
+    override fun add(element: String) = failedAt.put(element, now()).let { it == null || now() - it >= ttlMs }
+    override fun contains(element: String) = failedAt[element]?.let { now() - it < ttlMs } == true
+    override val size: Int get() = pruneExpired().let { failedAt.size }
+    override fun iterator(): MutableIterator<String> = pruneExpired().let { failedAt.keys.iterator() }
+}
 
 // How long a focused card waits before its title starts scrolling, so briefly passing focus stays still.
 private const val TITLE_MARQUEE_DELAY_MS = 3_000L
