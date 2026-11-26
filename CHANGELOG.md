@@ -12,6 +12,33 @@ channel.
 
 Lite numbering restarted at 2.0.0 after 1.4.10; it is independent of upstream's version.
 
+## v2.4.7-lite — 2026-11-26
+
+**Built-in Usenet and Audio Sync:** Lite now streams from your own NNTP providers and Newznab indexers, and can sync subtitles to the spoken audio.
+
+### Fixed in Lite
+- Continue Watching artwork that failed to load retries after a minute instead of staying blank.
+
+### Synced with upstream NuvioTV (1.2.0-beta.4)
+- [upstream] Built-in Usenet plays releases on-device from your own providers and indexers, with ranking, automatic fallback, a connection tuner and HUD stats. @haaihond @kernexshadow @ram130
+- [upstream] Audio Sync can retime a subtitle to the spoken audio when AutoSync keeps its original timing, off by default. @DavidVamaiotu @skoruppa
+- [upstream] Simkl rewatches are tracked as separate runs, with a prompt that asks before starting one. @Judzim
+- [upstream] Blu-ray disc playback gains LPCM, DTS-HD, TrueHD and PGS track support plus a disc titles picker. @kernexshadow
+- [upstream] ASS/SSA subtitles keep their own style and sizing on libass and MPV, with a format badge in the subtitle list. @skoruppa @Laskco
+- [upstream] Collections, folders, catalogs and MDBList ratings reorder with a shared drag list, and the collection editor guards unsaved changes. @halibiram
+- [upstream] A hardware image decoding setting stops the GPU texture cache growing on Android 11 4K TVs. @skoruppa
+- [upstream] Collection cover fetches are bounded and posters decode at card size to cut Home memory. @Hatem-Slman @skoruppa
+- [upstream] Details screens draw their skeleton, background and hero gradient more cheaply and scroll without stalls. @skoruppa
+- [upstream] Series show a watched toggle in the hero, and cast filmography filters by movies or series. @skoruppa @marezezelj
+- [upstream] Plugin stream types are honored, Dolby Vision L5 offset zeroing is an opt-in setting, and VC-1 decoder failures fall back to the next source. @KhooLy @halibiram @DavidVamaiotu
+- [upstream] Fixes for source switching position, the audio-track key over disc titles, process-death episode restore, debrid ampersand filenames, show-chapters sync and same-day upcoming order. @skoruppa @ofers @DAnaeto @kud
+- [upstream] Translation updates for French, Croatian, Hebrew, Hungarian, Latin American Spanish, Turkish, Polish and Arabic.
+
+### Kept lean for Lite
+- Loading skeletons stay static on Lite, now also for upstream's new non-recomposing shimmer.
+- Low-RAM devices still skip poster revalidation, now through upstream's bounded cover fetcher.
+- Addon stream fetches stay bounded by device tier alongside the new Usenet search job.
+
 ## v2.4.6-lite — 2026-11-19
 
 **Plex, Silo and ratings:** Plex Media Server and Silo join the media servers, and titles and episodes can be rated on Simkl or MDBList.

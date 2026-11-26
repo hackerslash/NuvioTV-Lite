@@ -6,7 +6,12 @@ import android.os.Build
 import android.os.StrictMode
 import coil3.ImageLoader
 import coil3.SingletonImageLoader
+import coil3.network.CacheStrategy
+import coil3.network.NetworkFetcher
+import coil3.network.okhttp.asNetworkClient
+import com.nuvio.tv.core.image.CollectionCoverNetworkClient
 import com.nuvio.tv.core.image.CustomPosterFallbackInterceptor
+import com.nuvio.tv.core.image.HardwareBitmapSettingInterceptor
 import coil3.disk.DiskCache
 import coil3.memory.MemoryCache
 import coil3.gif.GifDecoder
@@ -27,7 +32,7 @@ import com.nuvio.tv.core.runtime.PluginRuntimeHooks
 import com.nuvio.tv.core.sync.androidtv.AndroidTvChannelSyncService
 import com.nuvio.tv.core.network.IPv4FirstDns
 import com.nuvio.tv.core.network.NoDelaySocketFactory
-import com.nuvio.tv.core.network.imageNetworkFetcherFactory
+import com.nuvio.tv.core.network.imageConnectivityChecker
 import com.nuvio.tv.data.local.ImagePerformancePreferences
 import com.nuvio.tv.data.local.SentrySettingsDataStore
 import com.nuvio.tv.data.mediaserver.ServerUserStateProjection
@@ -95,6 +100,7 @@ class NuvioApplication : Application(), SingletonImageLoader.Factory {
         DeviceMemoryTier.init(this)
         MemoryBudget.init()
         super.onCreate()
+        registerActivityLifecycleCallbacks(com.nuvio.tv.core.usenet.UsenetAppLifecycle())
         // Lite edition skips crash reporting (Sentry SDK footprint + a blocking
         // DataStore read on the main thread) and the Android TV launcher-channel sync
         // (the JobService/boot receiver are stripped from the lite manifest).
@@ -160,6 +166,7 @@ class NuvioApplication : Application(), SingletonImageLoader.Factory {
 
         return ImageLoader.Builder(this)
             .components {
+                add(HardwareBitmapSettingInterceptor { imagePerformancePreferences.hardwareBitmapsEnabled })
                 add(CustomPosterFallbackInterceptor())
                 // An animated GIF/WebP/HEIF from an arbitrary poster URL retains every frame,
                 // dwarfing the poster cache — work this edition drops at any RAM size.
@@ -174,19 +181,20 @@ class NuvioApplication : Application(), SingletonImageLoader.Factory {
                 add(
                     // No background revalidation churn and no process-lifetime URL maps.
                     // Posters refresh on normal cache expiry via Coil's default strategy.
-                    if (dropsOptionalWork) {
-                        imageNetworkFetcherFactory(callFactory = { imageOkHttpClient })
-                    } else {
-                        imageNetworkFetcherFactory(
-                            callFactory = { imageOkHttpClient },
-                            cacheStrategy = {
+                    NetworkFetcher.Factory(
+                        networkClient = { CollectionCoverNetworkClient(imageOkHttpClient.asNetworkClient()) },
+                        cacheStrategy = {
+                            if (dropsOptionalWork) {
+                                CacheStrategy.DEFAULT
+                            } else {
                                 StaleWhileRevalidateCacheStrategy(
                                     revalidationClient = { imageOkHttpClient },
                                     imageLoaderProvider = imageLoaderRef,
                                 )
-                            },
-                        )
-                    }
+                            }
+                        },
+                        connectivityChecker = ::imageConnectivityChecker,
+                    )
                 )
             }
             .memoryCache {
