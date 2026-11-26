@@ -105,6 +105,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListPrefetchStrategy
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.layout.LazyLayoutCacheWindow
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.ui.draw.clip
 import androidx.tv.material3.Border
@@ -166,6 +167,7 @@ private class DetailTapScroll {
 }
 
 private const val RAPID_DOWN_TAP_MS = 280L
+private const val LEFT_GRADIENT_FADE_FRACTION = 0.78f
 
 private enum class PeopleSectionTab {
     CAST,
@@ -911,6 +913,7 @@ fun MetaDetailsScreen(
                     modifier = Modifier.graphicsLayer {
                         alpha = playOnLoadReturnContentAlpha
                     },
+                    drawBackground = playOnLoad && !playOnLoadReturnContentRevealed,
                     heroBackdropUrl = heroBackdropUrl,
                     meta = meta,
                     detailReturnEpisodeFocusRequest = DetailReturnEpisodeFocusRequest(
@@ -928,6 +931,7 @@ fun MetaDetailsScreen(
                     nextToWatch = uiState.nextToWatch,
                     episodeProgressMap = uiState.episodeProgressMap,
                     watchedEpisodes = uiState.watchedEpisodes,
+                    rewatchEpisodes = uiState.rewatchEpisodes,
                     episodeWatchedPendingKeys = uiState.episodeWatchedPendingKeys,
                     blurUnwatchedEpisodes = uiState.blurUnwatchedEpisodes,
                     seasonPostersEnabled = uiState.seasonPostersEnabled,
@@ -1020,6 +1024,12 @@ fun MetaDetailsScreen(
                     onToggleMovieWatched = { viewModel.onEvent(MetaDetailsEvent.OnToggleMovieWatched) },
                     onToggleEpisodeWatched = { video ->
                         viewModel.onEvent(MetaDetailsEvent.OnToggleEpisodeWatched(video))
+                    },
+                    onMarkEpisodeRewatched = { video ->
+                        viewModel.onEvent(MetaDetailsEvent.OnMarkEpisodeRewatched(video))
+                    },
+                    onUnmarkEpisodeRewatched = { video ->
+                        viewModel.onEvent(MetaDetailsEvent.OnUnmarkEpisodeRewatched(video))
                     },
                     onMarkSeasonWatched = { season ->
                         viewModel.onEvent(MetaDetailsEvent.OnMarkSeasonWatched(season))
@@ -1258,6 +1268,7 @@ fun MetaDetailsScreen(
 @Composable
 private fun MetaDetailsContent(
     modifier: Modifier = Modifier,
+    drawBackground: Boolean = false,
     heroBackdropUrl: String? = null,
     meta: Meta,
     detailReturnEpisodeFocusRequest: DetailReturnEpisodeFocusRequest? = null,
@@ -1272,6 +1283,7 @@ private fun MetaDetailsContent(
     nextToWatch: NextToWatch?,
     episodeProgressMap: Map<Pair<Int, Int>, WatchProgress>,
     watchedEpisodes: Set<Pair<Int, Int>>,
+    rewatchEpisodes: Set<Pair<Int, Int>> = emptySet(),
     episodeWatchedPendingKeys: Set<String>,
     blurUnwatchedEpisodes: Boolean,
     seasonPostersEnabled: Boolean,
@@ -1321,6 +1333,8 @@ private fun MetaDetailsContent(
     onLibraryLongPress: () -> Unit,
     onToggleMovieWatched: () -> Unit,
     onToggleEpisodeWatched: (Video) -> Unit,
+    onMarkEpisodeRewatched: (Video) -> Unit = {},
+    onUnmarkEpisodeRewatched: (Video) -> Unit = {},
     onMarkSeasonWatched: (Int) -> Unit,
     onMarkSeasonUnwatched: (Int) -> Unit,
     onMarkPreviousEpisodesWatched: (Video) -> Unit,
@@ -1394,7 +1408,8 @@ private fun MetaDetailsContent(
         { video: Video -> playbackAvailability.canStream(meta.apiType, video.id, meta.id, video) }
     }
     val nestedPrefetchStrategy = remember { LazyListPrefetchStrategy(nestedPrefetchItemCount = 2) }
-    val listState = rememberLazyListState(prefetchStrategy = nestedPrefetchStrategy)
+    val detailCacheWindow = remember { LazyLayoutCacheWindow(aheadFraction = 1f, behindFraction = 1f) }
+    val listState = rememberLazyListState(cacheWindow = detailCacheWindow)
     val castRowListState = rememberLazyListState(prefetchStrategy = nestedPrefetchStrategy)
     val moreLikeThisListState = rememberLazyListState(prefetchStrategy = nestedPrefetchStrategy)
     val trailerListState = rememberLazyListState(prefetchStrategy = nestedPrefetchStrategy)
@@ -1512,10 +1527,14 @@ private fun MetaDetailsContent(
             }
         }
     }
+    var seasonTabsHeightPx by remember { mutableIntStateOf(0) }
+    var episodesRowHeightPx by remember { mutableIntStateOf(0) }
     val detailRowBringIntoViewResponder = remember(suppressDetailRowRelocation) {
         object : BringIntoViewResponder {
             override fun calculateRectForParent(localRect: Rect): Rect {
-                return if (suppressDetailRowRelocation) Rect.Zero else localRect
+                if (suppressDetailRowRelocation) return Rect.Zero
+                if (seasonTabsHeightPx <= 0 || episodesRowHeightPx <= 0) return localRect
+                return Rect(localRect.left, 0f, localRect.right, (seasonTabsHeightPx + episodesRowHeightPx).toFloat())
             }
 
             override suspend fun bringChildIntoView(localRect: () -> Rect?) { }
@@ -1529,10 +1548,15 @@ private fun MetaDetailsContent(
                 val stayVertical = pendingRestoreType == RestoreTarget.EPISODE ||
                     lastDetailDpadKey == KeyEvent.KEYCODE_DPAD_LEFT ||
                     lastDetailDpadKey == KeyEvent.KEYCODE_DPAD_RIGHT
-                return if (stayVertical) {
-                    Rect(localRect.left, 0f, localRect.right, 0f)
-                } else {
-                    localRect
+                return when {
+                    stayVertical -> Rect(localRect.left, 0f, localRect.right, 0f)
+                    seasonTabsHeightPx > 0 && episodesRowHeightPx > 0 -> Rect(
+                        localRect.left,
+                        -seasonTabsHeightPx.toFloat(),
+                        localRect.right,
+                        episodesRowHeightPx.toFloat()
+                    )
+                    else -> localRect
                 }
             }
 
@@ -2301,7 +2325,7 @@ private fun MetaDetailsContent(
         val transparent = backgroundColor.copy(alpha = 0f).toArgb()
         val bmp = android.graphics.Bitmap.createBitmap(w, 2, android.graphics.Bitmap.Config.ARGB_8888)
         val canvas = android.graphics.Canvas(bmp)
-        val fadeWidth = w * 0.78f
+        val fadeWidth = w * LEFT_GRADIENT_FADE_FRACTION
         val shader = if (isRtl) {
             android.graphics.LinearGradient(
                 w.toFloat(), 0f, w - fadeWidth, 0f,
@@ -2380,6 +2404,7 @@ private fun MetaDetailsContent(
         modifier = modifier
             .fillMaxSize()
             .drawBehind {
+                if (!drawBackground) return@drawBehind
                 val ownTrailerRendering = (isTrailerPlaying || isBackgroundTrailerPlaying) &&
                     contentBackgroundTrailerController?.isRendering(trailerUrl) == true
                 if (!ownTrailerRendering) drawRect(backgroundColor)
@@ -2634,7 +2659,11 @@ private fun MetaDetailsContent(
             val showEpisodesRow = isSeries && seasons.isNotEmpty()
             if (showSeasonTabs) {
                 item(key = "season_tabs", contentType = "season_tabs") {
-                    Box(modifier = Modifier.bringIntoViewResponder(detailRowBringIntoViewResponder)) {
+                    Box(
+                        modifier = Modifier
+                            .onSizeChanged { seasonTabsHeightPx = it.height }
+                            .bringIntoViewResponder(detailRowBringIntoViewResponder)
+                    ) {
                         SeasonTabs(
                             seasons = seasons,
                             selectedSeason = selectedSeason,
@@ -2660,12 +2689,17 @@ private fun MetaDetailsContent(
                     } else {
                         null
                     }
-                    Box(modifier = Modifier.bringIntoViewResponder(episodeRowStayVerticalResponder)) {
+                    Box(
+                        modifier = Modifier
+                            .onSizeChanged { episodesRowHeightPx = it.height }
+                            .bringIntoViewResponder(episodeRowStayVerticalResponder)
+                    ) {
                         EpisodesRow(
                             episodes = episodesForSeason,
                             episodeProgressMap = episodeProgressMap,
                             episodeRatings = visibleEpisodeImdbRatings,
                             watchedEpisodes = watchedEpisodes,
+                            rewatchedEpisodes = rewatchEpisodes,
                             episodeWatchedPendingKeys = episodeWatchedPendingKeys,
                             blurUnwatchedEpisodes = blurUnwatchedEpisodes,
                             episodeOptionsOverlayStyle = episodeOptionsOverlayStyle,
@@ -2679,6 +2713,8 @@ private fun MetaDetailsContent(
                             },
                             showManualPlayOption = showManualPlayOption,
                             onToggleEpisodeWatched = onToggleEpisodeWatched,
+                            onMarkEpisodeRewatched = onMarkEpisodeRewatched,
+                            onUnmarkEpisodeRewatched = onUnmarkEpisodeRewatched,
                             onMarkSeasonWatched = onMarkSeasonWatched,
                             onMarkSeasonUnwatched = onMarkSeasonUnwatched,
                             isSeasonFullyWatched = isSeasonFullyWatched(selectedSeason),
@@ -2703,7 +2739,7 @@ private fun MetaDetailsContent(
                             },
                             onEpisodeFocused = { episodeId ->
                                 lastFocusedEpisodeIdBySeason[selectedSeason] = episodeId
-                                if (lastDetailDpadKey == KeyEvent.KEYCODE_DPAD_UP) {
+                                if (lastDetailDpadKey == KeyEvent.KEYCODE_DPAD_UP && !showSeasonTabs) {
                                     val episodeListItemIndex = 1 + if (showSeasonTabs) 1 else 0
                                     val episodeItem = listState.layoutInfo.visibleItemsInfo
                                         .firstOrNull { it.index == episodeListItemIndex }
@@ -3478,9 +3514,22 @@ private fun BackdropLayer(
                 .drawWithCache {
                     onDrawBehind {
                         if (gradientAlphaState.value > 0f) {
+                            val srcWidth = kotlin.math.ceil(leftGradient.width * LEFT_GRADIENT_FADE_FRACTION).toInt()
+                                .coerceIn(1, leftGradient.width)
+                            val dstWidth = kotlin.math.ceil(size.width * srcWidth / leftGradient.width).toInt()
+                            val rtl = layoutDirection == LayoutDirection.Rtl
                             drawImage(
                                 leftGradient,
-                                dstSize = androidx.compose.ui.unit.IntSize(size.width.toInt(), size.height.toInt()),
+                                srcOffset = androidx.compose.ui.unit.IntOffset(
+                                    if (rtl) leftGradient.width - srcWidth else 0,
+                                    0
+                                ),
+                                srcSize = androidx.compose.ui.unit.IntSize(srcWidth, leftGradient.height),
+                                dstOffset = androidx.compose.ui.unit.IntOffset(
+                                    if (rtl) size.width.toInt() - dstWidth else 0,
+                                    0
+                                ),
+                                dstSize = androidx.compose.ui.unit.IntSize(dstWidth, size.height.toInt()),
                                 alpha = gradientAlphaState.value,
                                 filterQuality = androidx.compose.ui.graphics.FilterQuality.Low
                             )

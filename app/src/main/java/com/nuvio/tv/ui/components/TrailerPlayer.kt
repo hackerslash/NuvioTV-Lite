@@ -123,7 +123,9 @@ fun TrailerPlayer(
     val seamlessHandoff = remember(incomingHandoff, rootView) {
         incomingHandoff?.sourceBounds?.coversView(rootView.width, rootView.height) == true
     }
-    var hasRenderedFirstFrame by remember(trailerUrl) { mutableStateOf(seamlessHandoff) }
+    val hasRenderedFirstFrameState = remember(trailerUrl) { mutableStateOf(seamlessHandoff) }
+    var hasRenderedFirstFrame by hasRenderedFirstFrameState
+    val currentHasRenderedFirstFrameState by rememberUpdatedState(hasRenderedFirstFrameState)
     var subtitleTrack by remember(trailerUrl) { mutableStateOf<TrailerSubtitleTrack?>(null) }
     val currentSubtitleTrack by rememberUpdatedState(subtitleTrack)
     val subtitleStyle by remember(resolvedPool) {
@@ -289,7 +291,7 @@ fun TrailerPlayer(
             }
 
             override fun onRenderedFirstFrame() {
-                hasRenderedFirstFrame = true
+                currentHasRenderedFirstFrameState.value = true
                 currentOnFirstFrameRendered()
             }
 
@@ -301,11 +303,14 @@ fun TrailerPlayer(
                 }
             }
         }
+        // Registering on a resumed screen delivers ON_RESUME at once; only reload media the
+        // lifecycle stopped, so the first load stays with the effect above and gets its subtitles.
+        var stoppedByLifecycle = false
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
                 Lifecycle.Event.ON_RESUME -> {
                     if (currentIsPlaying && !currentTrailerUrl.isNullOrBlank()) {
-                        if (player.currentMediaItem == null) {
+                        if (player.currentMediaItem == null && stoppedByLifecycle) {
                             if (!currentTrailerAudioUrl.isNullOrBlank()) {
                                 val mediaSourceFactory = DefaultMediaSourceFactory(YoutubeChunkedDataSourceFactory())
                                 val videoSource = mediaSourceFactory.createMediaSource(buildTrailerMediaItem(currentTrailerUrl!!, currentSubtitleTrack))
@@ -322,6 +327,7 @@ fun TrailerPlayer(
                 }
                 Lifecycle.Event.ON_PAUSE,
                 Lifecycle.Event.ON_STOP -> {
+                    stoppedByLifecycle = true
                     player.playWhenReady = false
                     player.pause()
                     player.stop()
